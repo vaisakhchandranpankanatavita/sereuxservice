@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "installCommand": "npm install",
+  "buildCommand": "npm run build && node scripts-vercel.mjs",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/:page.php", "destination": "/index.html" }
+  ]
+}
