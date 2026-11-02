@@ -313,3 +313,18 @@ h1, h2, h3, p, figure, ul, ol { margin: 0; }
 .skip-link:focus { top: 12px; outline: 2px solid var(--tan); outline-offset: 3px; }
 /* Focus rings that stay visible on dark surfaces */
 .site-footer :focus-visible, .glance :focus-visible, .promo :focus-visible, .toast :focus-visible, .intro :focus-visible { outline-color: var(--cream); }
+
+/* ---- Hero clarity on narrower screens: full-strength photo, softened only behind the copy (instead of a flat 45% fade) ---- */
+@media (max-width: 1000px) {
+  .hero-art { opacity: 1; }
+  .hero-art img {
+    -webkit-mask-image: linear-gradient(to bottom, #000 86%, transparent), linear-gradient(to right, rgb(0 0 0 / .16) 0%, rgb(0 0 0 / .45) 38%, #000 78%);
+    mask-image: linear-gradient(to bottom, #000 86%, transparent), linear-gradient(to right, rgb(0 0 0 / .16) 0%, rgb(0 0 0 / .45) 38%, #000 78%);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
+}
+@media (max-width: 700px) {
+  .hero-art { opacity: .9; }
+}
+.glance-card { background: rgb(247 244 238 / 72%); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
