@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { categories, discount, products, rupee, serviceCategories, services } from './data.js';
+import { categories, discount, products, providers, rupee, serviceCategories, services } from './data.js';
+import { Avatar, HeartButton, Reviews, Stars } from './social.jsx';
 import { ActiveFilters, FilterSelect, SearchBox, useQueryState } from './filters.jsx';
-import { actions } from './store.js';
+import { actions, useStore } from './store.js';
 import { login, passwordStrength, redirectTarget, register, resetPassword } from './auth.js';
-import { EmptyState, useToast } from './ui.jsx';
+import { EmptyState, flyToCart, useToast } from './ui.jsx';
 import { Footer, Header, Headline, Icon, Label, Reveal, useParallax } from './shared.jsx';
 
 export function Page({ current, label, lines, lead, children, narrow = false, titleClass = '', art }) {
@@ -177,7 +178,7 @@ export function ServicesPage() {
   ].filter(Boolean);
   const suggestions = useMemo(() => services.flatMap((s) => [s.name, ...s.terms.split(' ').slice(0, 2)]), []);
   return (
-    <Page current="services" label="Services" lines={['Every service,', 'one place.']} lead="Choose a service to see its starting price and book a visit." art="/assets/img/booking-phone.png">
+    <Page current="services" label="Services" lines={['Every service,', 'one place.']} lead="Choose a service to see its starting price and book a visit." art="/assets/img/booking-phone.webp">
       <div className="toolbar svc-bar">
         <SearchBox id="svc-q" label="Search services" placeholder="Search services" value={f.q} onChange={(v) => set({ q: v })} suggestions={suggestions} />
         <div className="chips" role="group" aria-label="Category">
@@ -202,6 +203,24 @@ export function ServicesPage() {
           </a>
         ))}
       </div>
+      <section className="pros" aria-labelledby="pros-h">
+        <h2 className="h2" id="pros-h">Meet our pros</h2>
+        <p className="muted">Sample profiles shown until real professionals join.</p>
+        <ul className="pro-grid">
+          {providers.map((p) => (
+            <li key={p.id} className="pro">
+              <Avatar name={p.name} />
+              <div>
+                <h3>{p.name} {p.verified && <span className="verified" title="Identity verified"><Icon name="shield-check" size={16} /><span className="visually-hidden">Verified</span></span>}</h3>
+                <Stars value={p.rating} />
+                <p>{p.jobs} jobs · {p.years} yrs · replies in {p.response}</p>
+                <p>{p.serviceIds.map((id) => services.find((s) => s.id === id)?.name).join(', ')}</p>
+                <a className="pill pill-small" href={`/service-request.php?service_id=${p.serviceIds[0]}&pro=${p.id}`}>Book this pro <Icon name="arrow-right" size={14} /></a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
       {visible.length === 0 && (
         <EmptyState title="No services match" text={active ? 'Try loosening a filter.' : 'Try another word.'}
           action={<button type="button" className="pill" onClick={reset}>Clear filters</button>} />
@@ -216,13 +235,14 @@ function ProductTile({ p, index }) {
       <a href={`/product.php?id=${p.id}`}>
         <span className={`product-art tone-${p.id % 4}`}>
           <span className="product-cat">{p.category}</span>
-          <img className="product-img" src={p.img} alt={p.name} loading="lazy" />
+          <img className="product-img" style={{ viewTransitionName: `prod-${p.id}` }} src={p.img} alt="" loading="lazy" />
           <span className="badge">{discount(p)}% off</span>
         </span>
         <span className="product-name">{p.name}</span>
         <span className="product-seller">{p.seller}</span>
         <span className="product-price"><b>{rupee(p.price)}</b><s>{rupee(p.old)}</s></span>
       </a>
+      <HeartButton id={p.id} name={p.name} />
     </Reveal>
   );
 }
@@ -288,6 +308,7 @@ export function Product() {
   const p = products.find((x) => x.id === id);
   const [qty, setQty] = useState(1);
   const toast = useToast();
+  const [added, setAdded] = useState(false);
   const related = products.filter((x) => p && x.id !== p.id && x.seller === p.seller).slice(0, 3);
 
   if (!p) {
@@ -302,7 +323,7 @@ export function Product() {
       <nav className="crumbs" aria-label="Breadcrumb"><a href="/home.php">Home</a><span>/</span><a href="/shop.php">Shop</a><span>/</span><span>{p.name}</span></nav>
       <div className="detail">
         <Reveal className={`detail-art tone-${p.id % 4}`}>
-          <img className="product-img" src={p.img} alt={p.name} loading="lazy" />
+          <img className="product-img" style={{ viewTransitionName: `prod-${p.id}` }} src={p.img} alt={p.name} loading="lazy" />
           <span className="badge">{discount(p)}% off</span>
         </Reveal>
         <Reveal delay={120} className="detail-info">
@@ -310,7 +331,7 @@ export function Product() {
           <p className="detail-price"><b>{rupee(p.price)}</b><s>{rupee(p.old)}</s></p>
           <p className="detail-desc">{p.blurb || `${p.category} from ${p.seller}.`}</p>
           <p className="stock"><Icon name="check" size={16} /> In stock</p>
-          <form className="buy" onSubmit={(e) => { e.preventDefault(); actions.addToCart(p.id, qty); toast(`${p.name} added to cart`, { tone: 'success', action: { label: 'View cart', run: () => window.dispatchEvent(new Event('fixzy:open-cart')) } }); }}>
+          <form className="buy" onSubmit={(e) => { e.preventDefault(); flyToCart(document.querySelector('.detail-art .product-img')); setAdded(true); setTimeout(() => setAdded(false), 1600); actions.addToCart(p.id, qty); toast(`${p.name} added to cart`, { tone: 'success', action: { label: 'View cart', run: () => window.dispatchEvent(new Event('fixzy:open-cart')) } }); }}>
             <div className="qty">
               <label htmlFor="qty">Quantity</label>
               <div>
@@ -320,12 +341,14 @@ export function Product() {
               </div>
             </div>
             <div className="buy-actions">
-              <button className="pill" type="submit" name="action" value="add_to_cart"><Icon name="cart" size={16} /> Add to cart</button>
+              <button className={`pill${added ? ' is-added' : ''}`} type="submit" name="action" value="add_to_cart"><Icon name={added ? 'check' : 'cart'} size={16} /> {added ? 'Added' : 'Add to cart'}</button>
+              <HeartButton id={p.id} name={p.name} />
               <a className="pill pill-outline" href={`/checkout.php?product_id=${p.id}&quantity=${qty}`} onClick={() => actions.addToCart(p.id, qty)}>Buy now <Icon name="arrow-right" size={16} /></a>
             </div>
           </form>
         </Reveal>
       </div>
+      <Reviews kind="product" target={p.id} />
       {related.length > 0 && (
         <section className="related" aria-labelledby="rel">
           <h2 className="h2" id="rel">More from this seller</h2>
@@ -341,14 +364,23 @@ export function Help() {
     ['How do I book a service?', 'Choose a service, sign in and send a request. We show the starting price before you continue.'],
     ['How is pricing worked out?', 'Each service lists an hourly starting rate. The final amount depends on the time and work involved.'],
     ['Where can I see my bookings?', 'Sign in and open Bookings to follow the status of every request.'],
+    ['Can I change or cancel a booking?', 'Yes. Open Bookings, then choose Reschedule or Cancel while the job is still open.'],
     ['How do I buy from the marketplace?', 'Open a product, pick a quantity and add it to your cart or buy it straight away.'],
   ];
+  const [q, setQ] = useState('');
+  const term = q.trim().toLowerCase();
+  const shown = faq.filter(([a, b]) => !term || `${a} ${b}`.toLowerCase().includes(term));
   return (
     <Page current="help" label="Support" lines={['How can', 'we help?']} lead="Quick answers to the most common questions." narrow>
-      <div className="faq">
-        {faq.map(([q, a]) => (
-          <details key={q}><summary>{q}<Icon name="arrow-right" size={18} /></summary><p>{a}</p></details>
+      <div className="search faq-search">
+        <label className="visually-hidden" htmlFor="faq-q">Search help</label>
+        <input id="faq-q" type="search" placeholder="Search help" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      <div className="faq" aria-live="polite">
+        {shown.map(([a, b]) => (
+          <details key={a}><summary>{a}<Icon name="arrow-right" size={18} /></summary><p>{b}</p></details>
         ))}
+        {shown.length === 0 && <EmptyState title="No answers found" text="Try different words, or contact us." />}
       </div>
       <p className="auth-alt">Still stuck? <a href="/contact.php">Contact us</a></p>
     </Page>
@@ -356,18 +388,47 @@ export function Help() {
 }
 
 export function Contact() {
+  const user = useStore((st) => st.user);
+  const toast = useToast();
+  const [sent, setSent] = useState(false);
+  const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '', message: '' });
+  const [errors, setErrors] = useState({});
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const submit = (e) => {
+    e.preventDefault();
+    const next = {};
+    if (form.name.trim().length < 2) next.name = 'Please enter your name.';
+    if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = 'Enter a valid email address.';
+    if (form.message.trim().length < 10) next.message = 'Tell us a little more (at least 10 characters).';
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    actions.addMessage(form);
+    setSent(true);
+    toast('Message saved', { tone: 'success' });
+  };
   return (
     <Page current="help" label="Support" lines={['Get in', 'touch.']} lead="We usually reply within one working day." narrow>
       <Reveal className="auth-card">
-        <form className="form" action="mailto:hello@serieux.in" method="post" encType="text/plain">
-          <Field label="Your name" id="name" required />
-          <Field label="Email address" id="email" type="email" required />
-          <div className="field">
-            <label htmlFor="message">Message</label>
-            <textarea id="message" name="message" rows="5" required />
+        {sent ? (
+          <div role="status" className="sent">
+            <h2 className="h2">Thanks, {form.name.split(' ')[0]}.</h2>
+            <p>Your message is saved. Demo note: this site isn’t connected to an inbox yet, so nothing has been emailed.</p>
+            <button type="button" className="pill pill-outline" onClick={() => { setSent(false); setForm((f) => ({ ...f, message: '' })); }}>Send another</button>
           </div>
-          <button className="pill pill-block" type="submit">Send message <Icon name="mail" size={16} /></button>
-        </form>
+        ) : (
+          <form className="form" onSubmit={submit} noValidate>
+            <Field label="Your name" id="name" value={form.name} onChange={set('name')} aria-invalid={!!errors.name} aria-describedby={errors.name ? 'e-name' : undefined} required />
+            {errors.name && <p className="form-error" id="e-name" role="alert">{errors.name}</p>}
+            <Field label="Email address" id="email" type="email" value={form.email} onChange={set('email')} aria-invalid={!!errors.email} aria-describedby={errors.email ? 'e-email' : undefined} required />
+            {errors.email && <p className="form-error" id="e-email" role="alert">{errors.email}</p>}
+            <div className="field">
+              <label htmlFor="message">Message</label>
+              <textarea id="message" name="message" rows="5" value={form.message} onChange={set('message')} aria-invalid={!!errors.message} aria-describedby={errors.message ? 'e-msg' : undefined} required />
+            </div>
+            {errors.message && <p className="form-error" id="e-msg" role="alert">{errors.message}</p>}
+            <button className="pill pill-block" type="submit">Send message <Icon name="mail" size={16} /></button>
+          </form>
+        )}
       </Reveal>
     </Page>
   );

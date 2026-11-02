@@ -18,6 +18,7 @@ export default function Intro({ onDone }) {
   const leavingRef = useRef(false);
   const touchY = useRef(null);
   const fillRef = useRef(null);
+  const skipRef = useRef(null);
   const [percent, setPercent] = useState(0);
   const last = SLIDES.length - 1;
 
@@ -48,7 +49,11 @@ export default function Intro({ onDone }) {
 
   useEffect(() => {
     document.documentElement.style.overflow = 'hidden';
+    const behind = [...document.querySelectorAll('#root > :not(.intro)')];
+    behind.forEach((el) => { el.inert = true; });
+    skipRef.current?.focus();
     const key = (e) => {
+      if (e.target.closest?.('a, button, input')) { if (e.key === 'Escape') finish(); return; }
       if (e.key === 'Escape') finish();
       else if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(1); }
       else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); go(-1); }
@@ -58,6 +63,7 @@ export default function Intro({ onDone }) {
     window.addEventListener('wheel', wheel, { passive: true });
     return () => {
       document.documentElement.style.overflow = '';
+      behind.forEach((el) => { el.inert = false; });
       window.removeEventListener('keydown', key);
       window.removeEventListener('wheel', wheel);
     };
@@ -81,6 +87,7 @@ export default function Intro({ onDone }) {
     <div
       className={`intro theme-${slide.theme}${leaving ? ' is-leaving' : ''}`}
       role="dialog"
+      aria-modal="true"
       aria-label="Welcome to Fixzy"
       onClick={() => go(1)}
       onTouchStart={(e) => { touchY.current = e.touches[0].clientY; }}
@@ -92,6 +99,7 @@ export default function Intro({ onDone }) {
       <div className="intro-top">
         <span className="intro-brand">Fixzy</span>
         <a
+          ref={skipRef}
           className="intro-skip"
           href="#main"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); finish(); }}
@@ -117,7 +125,7 @@ export default function Intro({ onDone }) {
         );
       })}
 
-      <div className="intro-bottom" role="progressbar" aria-label="Loading" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+      <div className="intro-bottom" aria-hidden="true">
         <span>Loading</span>
         <span className="intro-count">{percent}%</span>
         <div className="intro-loader" aria-hidden="true">

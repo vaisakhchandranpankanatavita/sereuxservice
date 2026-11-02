@@ -10,8 +10,9 @@ export function ToastProvider({ children }) {
   const [items, setItems] = useState([]);
   const push = useCallback((message, opts = {}) => {
     const id = Math.random().toString(36).slice(2);
-    setItems((x) => [...x, { id, message, action: opts.action, tone: opts.tone || 'info' }]);
-    setTimeout(() => setItems((x) => x.filter((t) => t.id !== id)), opts.duration || 4000);
+    const duration = opts.duration || 4000;
+    setItems((x) => [...x, { id, message, duration, action: opts.action, tone: opts.tone || 'info' }]);
+    setTimeout(() => setItems((x) => x.filter((t) => t.id !== id)), duration);
   }, []);
   const dismiss = (id) => setItems((x) => x.filter((t) => t.id !== id));
   return (
@@ -19,7 +20,7 @@ export function ToastProvider({ children }) {
       {children}
       <div className="toasts" role="status" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className={`toast toast-${t.tone}`}>
+          <div key={t.id} className={`toast toast-${t.tone}`} style={{ '--dur': `${t.duration}ms` }}>
             <span>{t.message}</span>
             {t.action && <button type="button" onClick={() => { t.action.run(); dismiss(t.id); }}>{t.action.label}</button>}
           </div>
@@ -37,7 +38,7 @@ export const Tag = ({ tone = 'neutral', children }) => <span className={`tag tag
 
 export const EmptyState = ({ title, text, action }) => (
   <div className="empty-state">
-    <h3>{title}</h3>
+    <h2>{title}</h2>
     {text && <p>{text}</p>}
     {action}
   </div>
@@ -80,4 +81,23 @@ export function Drawer({ open, onClose, title, children }) {
     </div>,
     document.body,
   );
+}
+
+/* Animate a copy of an image from its spot to the header cart button (skipped for reduced motion). */
+export function flyToCart(fromEl) {
+  const cart = document.querySelector('.cart-btn[aria-label^="Open cart"]');
+  if (!fromEl || !cart || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const a = fromEl.getBoundingClientRect();
+  const b = cart.getBoundingClientRect();
+  const ghost = fromEl.cloneNode(true);
+  Object.assign(ghost.style, { position: 'fixed', left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px', margin: 0, zIndex: 95, pointerEvents: 'none', borderRadius: '16px', objectFit: 'cover' });
+  document.body.appendChild(ghost);
+  const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+  const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+  const anim = ghost.animate(
+    [{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx}px, ${dy}px) scale(.08)`, opacity: .4 }],
+    { duration: 700, easing: 'cubic-bezier(.5,0,.2,1)' },
+  );
+  anim.onfinish = () => ghost.remove();
+  anim.oncancel = () => ghost.remove();
 }

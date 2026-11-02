@@ -1,29 +1,31 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import Lenis from 'lenis';
 import App from './App.jsx';
-import { Contact, ForgotPassword, Help, Login, Privacy, Product, Register, ServicesPage, Shop } from './pages.jsx';
-import { Dashboard, Orders } from './account.jsx';
-import { Checkout, ServiceRequest } from './flows.jsx';
+/* Each group of pages is its own chunk, so the home page doesn't download the shop, auth or booking code. */
+const fromModule = (load, name) => lazy(() => load().then((m) => ({ default: m[name] })));
+const pages = () => import('./pages.jsx');
+const account = () => import('./account.jsx');
+const flows = () => import('./flows.jsx');
 import { ToastProvider } from './ui.jsx';
 import '../assets/css/redesign.css';
 import '../assets/css/pages.css';
 
 /* Each PHP entry (login.php, shop.php, …) serves this same shell; the page is chosen from the URL. */
 const ROUTES = {
-  'login': Login,
-  'register': Register,
-  'forgot-password': ForgotPassword,
-  'services': ServicesPage,
-  'shop': Shop,
-  'product': Product,
-  'orders': Orders,
-  'dashboard': Dashboard,
-  'help': Help,
-  'contact': Contact,
-  'privacy': Privacy,
-  'checkout': Checkout,
-  'service-request': ServiceRequest,
+  'login': fromModule(pages, 'Login'),
+  'register': fromModule(pages, 'Register'),
+  'forgot-password': fromModule(pages, 'ForgotPassword'),
+  'services': fromModule(pages, 'ServicesPage'),
+  'shop': fromModule(pages, 'Shop'),
+  'product': fromModule(pages, 'Product'),
+  'help': fromModule(pages, 'Help'),
+  'contact': fromModule(pages, 'Contact'),
+  'privacy': fromModule(pages, 'Privacy'),
+  'orders': fromModule(account, 'Orders'),
+  'dashboard': fromModule(account, 'Dashboard'),
+  'checkout': fromModule(flows, 'Checkout'),
+  'service-request': fromModule(flows, 'ServiceRequest'),
 };
 
 /* Smooth, inertial wheel scrolling (skipped for reduced motion); in-page anchors glide too. */
@@ -31,6 +33,19 @@ if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
   const lenis = new Lenis({ lerp: 0.1, anchors: { offset: -72 } });
   const raf = (time) => { lenis.raf(time); requestAnimationFrame(raf); };
   requestAnimationFrame(raf);
+}
+
+/* Primary buttons lean a few pixels toward the cursor (fine pointers only, never with reduced motion). */
+if (window.matchMedia('(hover: hover) and (pointer: fine)').matches && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const reset = (el) => { el.style.removeProperty('--mx'); el.style.removeProperty('--my'); };
+  document.addEventListener('pointermove', (e) => {
+    const el = e.target.closest?.('.pill:not(.pill-block):not([disabled])');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', `${((e.clientX - r.left) / r.width - 0.5) * 10}px`);
+    el.style.setProperty('--my', `${((e.clientY - r.top) / r.height - 0.5) * 8}px`);
+  });
+  document.addEventListener('pointerout', (e) => { const el = e.target.closest?.('.pill'); if (el && !el.contains(e.relatedTarget)) reset(el); });
 }
 
 const slug = window.location.pathname.split('/').pop().replace(/\.php$/, '');
@@ -47,6 +62,6 @@ if (Page === NotFound) document.title = 'Page not found — Fixzy';
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ToastProvider><Page /></ToastProvider>
+    <ToastProvider><Suspense fallback={null}><Page /></Suspense></ToastProvider>
   </React.StrictMode>,
 );

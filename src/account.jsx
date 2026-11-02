@@ -5,6 +5,7 @@ import { Page } from './pages.jsx';
 import { Icon, Reveal } from './shared.jsx';
 import { actions, setState, useStore } from './store.js';
 import { EmptyState, Tag, useToast } from './ui.jsx';
+import { ReviewForm } from './social.jsx';
 
 const FLOW = ['requested', 'confirmed', 'on_the_way', 'in_progress', 'done'];
 const LABEL = { requested: 'Requested', confirmed: 'Confirmed', on_the_way: 'On the way', in_progress: 'In progress', done: 'Done', cancelled: 'Cancelled' };
@@ -43,6 +44,8 @@ function Timeline({ status }) {
 function BookingCard({ b }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const reviewed = useStore((s) => s.reviews.some((r) => r.kind === 'service' && r.owner === b.owner && r.bookingId === b.id));
   const [day, setDay] = useState(b.day);
   const [slot, setSlot] = useState(b.slot);
   const svc = services.find((s) => s.id === b.serviceId);
@@ -56,7 +59,7 @@ function BookingCard({ b }) {
   return (
     <li className="booking">
       <div className="booking-head">
-        <div><h3>{svc?.name || 'Service'}</h3><p>{fmtDay(b.day)} at {b.slot} · {b.address}</p></div>
+        <div><h2>{svc?.name || 'Service'}</h2><p>{fmtDay(b.day)} at {b.slot} · {b.address}</p></div>
         <Tag tone={TONE[b.status]}>{LABEL[b.status]}</Tag>
       </div>
       {b.status !== 'cancelled' && <Timeline status={b.status} />}
@@ -68,10 +71,12 @@ function BookingCard({ b }) {
           <button type="button" className="text-link" onClick={() => setEditing(false)}>Keep as is</button>
         </div>
       )}
+      {reviewing && <ReviewForm kind="service" target={b.serviceId} bookingId={b.id} label={`How was your ${svc?.name || 'service'}?`} onDone={() => setReviewing(false)} />}
       <div className="booking-actions">
         <span className="booking-id">#{b.id}</span>
         {live && !editing && <button type="button" className="text-link" onClick={() => setEditing(true)}>Reschedule</button>}
         {live && <button type="button" className="text-link" onClick={cancel}>Cancel</button>}
+        {b.status === 'done' && !reviewed && <button type="button" className="text-link" onClick={() => setReviewing((v) => !v)}>Leave a review</button>}
         {!live && <a className="text-link" href={`/service-request.php?service_id=${b.serviceId}`}>Book again</a>}
         {/* Demo only: with no backend, nothing else moves a booking forward. */}
         {live && <button type="button" className="text-link demo" title="Demo: simulate the pro updating the status" onClick={() => actions.updateBooking(b.id, { status: FLOW[FLOW.indexOf(b.status) + 1] })}>Demo: next status</button>}
@@ -113,6 +118,10 @@ export function Dashboard() {
   const mine = bookings.filter((b) => b.owner === user.email);
   const upcoming = mine.filter((b) => b.status !== 'done' && b.status !== 'cancelled');
   const saved = products.filter((p) => wishlist.includes(p.id));
+  const code = 'FX' + [...user.email].reduce((n, c) => (n * 31 + c.charCodeAt(0)) % 1679616, 7).toString(36).toUpperCase().padStart(4, '0');
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(code); toast('Referral code copied', { tone: 'success' }); } catch { toast(`Your code: ${code}`); }
+  };
   const saveProfile = (e) => {
     e.preventDefault();
     const next = { ...user, name: name.trim(), phone: phone.trim() };
@@ -121,6 +130,10 @@ export function Dashboard() {
   };
   return (
     <Page current="dashboard" label="Dashboard" lines={[`Hi, ${user.name.split(' ')[0]}.`]} lead="Your account, bookings and orders at a glance.">
+      <aside className="promo" aria-label="Offers">
+        <div><b>10% off your next marketplace order</b><span>Use code FIXZY10 at checkout.</span></div>
+        <div><b>Refer a friend</b><span>Share your code <code>{code}</code> <button type="button" className="text-link" onClick={copy}>Copy</button></span></div>
+      </aside>
       <div className="dash">
         <section className="dash-card">
           <h2>Upcoming</h2>

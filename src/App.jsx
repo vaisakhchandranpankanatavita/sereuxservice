@@ -1,22 +1,23 @@
 import { useState } from 'react';
 import Intro from './Intro.jsx';
-import { services } from './data.js';
+import { services, slots } from './data.js';
 import { CountUp, Footer, Header, Headline, Icon, Label, Reveal, useParallax } from './shared.jsx';
 
 const IMG = {
-  hero: '/assets/img/hero.jpg',
-  pick: '/assets/img/card-1.jpg',
-  compare: '/assets/img/card-2.jpg',
-  book: '/assets/img/card-3.jpg',
-  market: '/assets/img/market.jpg',
+  hero: '/assets/img/hero.webp',
+  pick: '/assets/img/card-1.webp',
+  compare: '/assets/img/card-2.webp',
+  book: '/assets/img/card-3.webp',
+  market: '/assets/img/market.webp',
 };
 
 
+/* Every figure here is true of the app today (service list, price list, booking wizard), unlike the old placeholder claims. */
 const stats = [
-  { icon: 'briefcase', value: 50, suffix: 'k+', label: 'Jobs done' },
-  { icon: 'grid', value: 8, suffix: '', label: 'Core services' },
-  { icon: 'headset', value: 24, suffix: '/7', label: 'Support' },
-  { icon: 'shield-check', value: 100, suffix: '%', label: 'Guaranteed' },
+  { value: services.length, label: 'Services' },
+  { prefix: '₹', value: Math.min(...services.map((s) => s.from)), label: 'Starting price' },
+  { value: 7, suffix: ' days', label: 'Booking window' },
+  { value: slots.length, label: 'Daily slots' },
 ];
 
 const CARD_SPEEDS = [0.02, -0.035, -0.09];
@@ -34,7 +35,7 @@ function Hero({ query, onQueryChange, onSearch, ready }) {
 
   return (
     <section className="hero" aria-labelledby="hero-title" data-hero>
-      <div className="hero-art" aria-hidden="true"><img src={IMG.hero} alt="" data-speed="0.05" data-mode="top" data-limit="0.06" /></div>
+      <div className="hero-art" aria-hidden="true"><img src={IMG.hero} alt="" fetchPriority="high" decoding="async" data-speed="0.05" data-mode="top" data-limit="0.06" /></div>
       <div className="wrap hero-copy" data-speed="0.1" data-mode="top">
         <Label>Fixzy — Home services</Label>
         <Headline as="h1" id="hero-title" className="mega" lines={['Home', 'services,', 'sorted.']} now={ready} data-speed="0.07" data-mode="top" />
@@ -53,19 +54,18 @@ function Hero({ query, onQueryChange, onSearch, ready }) {
 
 function StatsStrip() {
   return (
-    <section className="stats" aria-label="Fixzy at a glance">
+    <section className="glance" aria-label="Fixzy at a glance">
       <div className="wrap">
-        <div className="stats-card">
+        <dl className="glance-card">
           {stats.map((stat, index) => (
-            <Reveal key={stat.label} delay={index * 90} className="stat">
-              <span className="stat-icon"><Icon name={stat.icon} size={20} /></span>
-              <div>
-                <p className="stat-value"><CountUp value={stat.value} suffix={stat.suffix} /></p>
-                <p className="stat-label">{stat.label}</p>
-              </div>
+            <Reveal key={stat.label} delay={index * 110} className="glance-item">
+              <dt>{stat.label}</dt>
+              <dd>
+                <span className="glance-value"><CountUp value={stat.value} prefix={stat.prefix} suffix={stat.suffix} /></span>
+              </dd>
             </Reveal>
           ))}
-        </div>
+        </dl>
       </div>
     </section>
   );
@@ -141,7 +141,7 @@ function Marketplace() {
 
 export default function App() {
   const [query, setQuery] = useState('');
-  const [introDone, setIntroDone] = useState(false);
+  const [introDone, setIntroDone] = useState(() => { try { return sessionStorage.getItem('fixzy:intro') === '1'; } catch { return false; } });
   useParallax();
 
   function scrollToServices() {
@@ -150,7 +150,7 @@ export default function App() {
 
   return (
     <>
-      {!introDone && <Intro onDone={() => setIntroDone(true)} />}
+      {!introDone && <Intro onDone={() => { try { sessionStorage.setItem('fixzy:intro', '1'); } catch { /* ignore */ } setIntroDone(true); }} />}
       <Header current="home" />
       <main id="main">
         <Hero query={query} onQueryChange={setQuery} onSearch={scrollToServices} ready={introDone} />

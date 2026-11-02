@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loginUrl } from './auth.js';
-import { rupee, services, slots } from './data.js';
+import { providers, rupee, services, slots } from './data.js';
 import { Field, Page } from './pages.jsx';
 import { Icon, Reveal, cartLines, cartTotal } from './shared.jsx';
 import { actions, useStore } from './store.js';
@@ -89,7 +89,9 @@ const nextDays = (n) => Array.from({ length: n }, (_, i) => {
 const isoDay = (d) => d.toISOString().slice(0, 10);
 
 export function ServiceRequest() {
-  const initial = Number(new URLSearchParams(window.location.search).get('service_id')) || 0;
+  const params = new URLSearchParams(window.location.search);
+  const pro = providers.find((p) => p.id === Number(params.get('pro')));
+  const initial = Number(params.get('service_id')) || pro?.serviceIds[0] || 0;
   const [step, setStep] = useState(initial ? 1 : 0);
   const [serviceId, setServiceId] = useState(initial);
   const [day, setDay] = useState('');
@@ -105,7 +107,7 @@ export function ServiceRequest() {
   const canNext = [!!service, !!day && !!slot, form.name.trim() && /^[0-9+\s-]{8,}$/.test(form.phone) && form.address.trim(), true][step];
 
   const confirm = () => {
-    actions.addBooking({ owner: user.email, serviceId, day, slot, ...form, estimate: service.from });
+    actions.addBooking({ owner: user.email, providerId: pro?.id, serviceId, day, slot, ...form, estimate: service.from });
     setDone(true);
   };
 
@@ -125,9 +127,9 @@ export function ServiceRequest() {
       </ol>
       <div className="wizard" key={step}>
         {step === 0 && (
-          <div className="pick" role="radiogroup" aria-label="Service">
+          <div className="pick" role="group" aria-label="Service">
             {services.map((s) => (
-              <button key={s.id} type="button" role="radio" aria-checked={serviceId === s.id} className={`chip chip-lg${serviceId === s.id ? ' is-on' : ''}`} onClick={() => setServiceId(s.id)}>
+              <button key={s.id} type="button" aria-pressed={serviceId === s.id} className={`chip chip-lg${serviceId === s.id ? ' is-on' : ''}`} onClick={() => setServiceId(s.id)}>
                 {s.name} <small>from {s.price}</small>
               </button>
             ))}
@@ -135,16 +137,16 @@ export function ServiceRequest() {
         )}
         {step === 1 && (
           <>
-            <div className="pick" role="radiogroup" aria-label="Day">
+            <div className="pick" role="group" aria-label="Day">
               {days.map((d) => (
-                <button key={isoDay(d)} type="button" role="radio" aria-checked={day === isoDay(d)} className={`chip chip-lg${day === isoDay(d) ? ' is-on' : ''}`} onClick={() => setDay(isoDay(d))}>
+                <button key={isoDay(d)} type="button" aria-pressed={day === isoDay(d)} className={`chip chip-lg${day === isoDay(d) ? ' is-on' : ''}`} onClick={() => setDay(isoDay(d))}>
                   {d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
                 </button>
               ))}
             </div>
-            <div className="pick" role="radiogroup" aria-label="Time">
+            <div className="pick" role="group" aria-label="Time">
               {slots.map((t) => (
-                <button key={t} type="button" role="radio" aria-checked={slot === t} className={`chip chip-lg${slot === t ? ' is-on' : ''}`} onClick={() => setSlot(t)}>{t}</button>
+                <button key={t} type="button" aria-pressed={slot === t} className={`chip chip-lg${slot === t ? ' is-on' : ''}`} onClick={() => setSlot(t)}>{t}</button>
               ))}
             </div>
           </>
@@ -160,6 +162,7 @@ export function ServiceRequest() {
         {step === 3 && (
           <dl className="review">
             <dt>Service</dt><dd>{service.name}</dd>
+            {pro && <><dt>Pro</dt><dd>{pro.name}</dd></>}
             <dt>When</dt><dd>{day} at {slot}</dd>
             <dt>Where</dt><dd>{form.address}</dd>
             <dt>Contact</dt><dd>{form.name} · {form.phone}</dd>

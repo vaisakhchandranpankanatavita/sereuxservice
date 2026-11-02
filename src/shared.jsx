@@ -10,6 +10,9 @@ export const ICONS = {
   grid: <><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></>,
   headset: <><path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z" /><path d="M21 16v2a4 4 0 0 1-4 4h-5" /></>,
   check: <path d="M20 6 9 17l-5-5" />,
+  heart: <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />,
+  bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></>,
+  star: <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />,
   cart: <><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></>,
   calendar: <><path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3 10h18" /></>,
   user: <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
@@ -188,6 +191,25 @@ export function Label({ children, delay = 0 }) {
 export const cartLines = (cart) => cart.map((i) => ({ ...i, p: products.find((x) => x.id === i.id) })).filter((l) => l.p);
 export const cartTotal = (lines) => lines.reduce((n, l) => n + l.p.price * l.qty, 0);
 
+function NotificationsDrawer({ open, onClose, user }) {
+  const all = useStore((s) => s.notifications);
+  const list = user ? all.filter((n) => n.owner === user.email) : [];
+  useEffect(() => { if (open && user && list.some((n) => !n.read)) actions.markAllRead(user.email); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Drawer open={open} onClose={onClose} title="Notifications">
+      {list.length === 0 ? (
+        <div className="empty-state"><h3>You’re all caught up</h3><p>Booking updates will appear here.</p></div>
+      ) : (
+        <ul className="notes">
+          {list.map((n) => (
+            <li key={n.id}><a href={n.href || '#'}>{n.text}<small>{new Date(n.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small></a></li>
+          ))}
+        </ul>
+      )}
+    </Drawer>
+  );
+}
+
 function CartDrawer({ open, onClose }) {
   const cart = useStore((s) => s.cart);
   const toast = useToast();
@@ -211,7 +233,7 @@ function CartDrawer({ open, onClose }) {
                   <span>{rupee(l.p.price)}</span>
                   <div className="qty-mini">
                     <button type="button" aria-label={`Decrease ${l.p.name}`} onClick={() => actions.setQty(l.id, l.qty - 1)}>−</button>
-                    <output aria-live="polite">{l.qty}</output>
+                    <output key={l.qty} aria-live="polite">{l.qty}</output>
                     <button type="button" aria-label={`Increase ${l.p.name}`} onClick={() => actions.setQty(l.id, l.qty + 1)}>+</button>
                     <button type="button" className="text-link" onClick={() => remove(l)}>Remove</button>
                   </div>
@@ -230,6 +252,15 @@ function CartDrawer({ open, onClose }) {
 export function Header({ current = '' }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const toggleRef = useRef(null);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') { setMenuOpen(false); toggleRef.current?.focus(); } };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+  const unread = useStore((s) => (s.user ? s.notifications.filter((n) => n.owner === s.user.email && !n.read).length : 0));
   const user = useStore((s) => s.user);
   const count = useStore((s) => s.cart.reduce((n, i) => n + i.qty, 0));
   useEffect(() => {
@@ -248,6 +279,8 @@ export function Header({ current = '' }) {
   }, []);
 
   return (
+    <>
+    <a className="skip-link" href="#main">Skip to content</a>
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}${menuOpen ? ' menu-open' : ''}`}>
       <div className="header-inner">
         <a className="brand" href="/home.php" aria-label="Fixzy home">Fixzy<b className="dot">.</b></a>
@@ -259,6 +292,11 @@ export function Header({ current = '' }) {
           {!user && <a className="nav-mobile-only" href="/login.php">Sign in</a>}
         </nav>
         <div className="header-actions">
+          {user && (
+            <button type="button" className="cart-btn" aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} onClick={() => setNotesOpen(true)}>
+              <Icon name="bell" size={20} />{unread > 0 && <b key={unread} className="cart-count">{unread}</b>}
+            </button>
+          )}
           <button type="button" className="cart-btn" aria-label={`Open cart, ${count} item${count === 1 ? '' : 's'}`} onClick={() => setCartOpen(true)}>
             <Icon name="cart" size={20} />{count > 0 && <b key={count} className="cart-count">{count}</b>}
           </button>
@@ -271,12 +309,14 @@ export function Header({ current = '' }) {
             </>
           )}
         </div>
-        <button className="menu-toggle" type="button" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen((open) => !open)}>
+        <button ref={toggleRef} className="menu-toggle" type="button" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen((open) => !open)}>
           <span /><span />
         </button>
       </div>
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <NotificationsDrawer open={notesOpen} onClose={() => setNotesOpen(false)} user={user} />
     </header>
+    </>
   );
 }
 
@@ -303,7 +343,7 @@ export function Footer() {
   );
 }
 
-export function CountUp({ value, suffix = '' }) {
+export function CountUp({ value, suffix = '', prefix = '' }) {
   const [ref, inView] = useInView({ threshold: 0.6 });
   const [current, setCurrent] = useState(0);
 
@@ -326,8 +366,8 @@ export function CountUp({ value, suffix = '' }) {
 
   return (
     <span className="count" ref={ref}>
-      <span className="count-ghost" aria-hidden="true">{value}{suffix}</span>
-      <span className="count-now">{current}{suffix}</span>
+      <span className="count-ghost" aria-hidden="true">{prefix}{value}{suffix}</span>
+      <span className="count-now">{prefix}{current}{suffix}</span>
     </span>
   );
 }
