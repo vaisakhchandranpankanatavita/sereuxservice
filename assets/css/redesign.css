@@ -15,7 +15,7 @@
   --r-md: 18px;
   --r-lg: 24px;
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px;
-  --pad: clamp(20px, 4vw, 48px);
+  --pad: clamp(24px, 5.5vw, 88px); /* the one horizontal page gutter: header, content, footer and intro all use it */
   --font: Inter, "Helvetica Neue", Arial, sans-serif;
   font-family: var(--font);
   font-synthesis: none;
@@ -181,7 +181,7 @@ h1, h2, h3, p, figure, ul, ol { margin: 0; }
 .intro.theme-sage { --bg: #c9d4aa; --fg: #20231f; --mute: rgba(32,35,31,.55); }
 .intro.theme-light { --bg: #f8f8f5; --fg: #20231f; --mute: rgba(32,35,31,.5); }
 .intro.is-leaving { clip-path: inset(0 0 100% 0); transition: clip-path .8s cubic-bezier(.77, 0, .175, 1), background-color .6s var(--ease); pointer-events: none; }
-.intro-top, .intro-bottom { position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 clamp(20px, 4vw, 56px); z-index: 2; font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+.intro-top, .intro-bottom { position: absolute; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--pad); z-index: 2; font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
 .intro-top { top: clamp(20px, 4vh, 40px); }
 .intro-bottom { bottom: clamp(20px, 4vh, 40px); gap: 20px; flex-wrap: wrap; font-size: 14px; }
 .intro-loader { flex: 1 0 100%; height: 2px; background: color-mix(in srgb, var(--fg) 18%, transparent); overflow: hidden; }
@@ -193,7 +193,7 @@ h1, h2, h3, p, figure, ul, ol { margin: 0; }
 .intro-count b { color: var(--fg); display: inline-block; animation: introNum .8s var(--ease) both; }
 @keyframes introNum { from { opacity: 0; transform: translateY(60%); } }
 
-.intro-slide { grid-area: 1 / 1; display: flex; flex-direction: column; justify-content: center; padding: 0 clamp(20px, 4vw, 56px); pointer-events: none; }
+.intro-slide { grid-area: 1 / 1; display: flex; flex-direction: column; justify-content: center; padding: 0 var(--pad); pointer-events: none; }
 .intro-title { font-size: clamp(40px, 9vw, 150px); font-weight: 800; line-height: .88; letter-spacing: -.055em; margin: 0; }
 .intro-line { display: block; overflow: hidden; padding-bottom: .08em; margin-bottom: -.08em; }
 .intro-word { display: inline-block; transform: translateY(115%) rotate(4deg); transform-origin: left bottom; transition: transform .65s var(--ease) calc(var(--i) * 55ms + 40ms); }
@@ -227,7 +227,7 @@ h1, h2, h3, p, figure, ul, ol { margin: 0; }
 .card a { position: absolute; inset: 0; display: block; }
 .card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: none; transform: none; transition: transform 1.2s var(--ease); }
 .market.section { position: relative; overflow: hidden; padding: 0; min-height: 30.7vw; display: flex; align-items: center; }
-.market-grid { display: block; width: 100%; }
+.market-grid { display: block; }
 .market-copy { padding: 56px 0; }
 .market-art { position: absolute; top: 0; right: 0; width: 57.9vw; aspect-ratio: 660 / 350; border-radius: 0; background: none; }
 .market-art img { object-fit: fill; transform: none; }
