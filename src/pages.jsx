@@ -3,7 +3,7 @@ import { categories, discount, products, providers, rupee, serviceCategories, se
 import { Avatar, HeartButton, Reviews, Stars } from './social.jsx';
 import { ActiveFilters, FilterSelect, SearchBox, useQueryState } from './filters.jsx';
 import { actions, useStore } from './store.js';
-import { login, passwordStrength, redirectTarget, register, resetPassword } from './auth.js';
+import { login, passwordStrength, redirectTarget, register } from './auth.js';
 import { EmptyState, flyToCart, useToast } from './ui.jsx';
 import { Footer, Header, Headline, Icon, Label, Reveal, useParallax } from './shared.jsx';
 
@@ -55,7 +55,7 @@ function PasswordField({ label, id, autoComplete, value, onChange, meter = false
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <div className="pw">
-        <input id={id} name={id} type={show ? 'text' : 'password'} autoComplete={autoComplete} minLength={6} required value={value} onChange={onChange} />
+        <input id={id} name={id} type={show ? 'text' : 'password'} autoComplete={autoComplete} minLength={8} required value={value} onChange={onChange} />
         <button type="button" className="text-link" aria-pressed={show} onClick={() => setShow((v) => !v)}>{show ? 'Hide' : 'Show'}</button>
       </div>
       {meter && value && <span className={`meter s${strength}`} aria-label={`Password strength ${['very weak', 'weak', 'fair', 'good', 'strong'][strength]}`}><i /><i /><i /><i /></span>}
@@ -125,29 +125,12 @@ export function Register() {
   );
 }
 
-/* Demo only: there is no mail server, so the reset happens in place. */
+/* Self-service reset needs an email provider, which the API doesn't have yet. */
 export function ForgotPassword() {
-  const [pw, setPw] = useState('');
-  const [done, setDone] = useState(false);
-  const { error, busy, onSubmit } = useSubmit(async (d) => {
-    const ok = await resetPassword({ email: d.email, password: pw });
-    if (!ok) return 'No account found for that email.';
-    setDone(true);
-    return '';
-  });
   return (
-    <AuthShell current="login" label="Account" lines={['Reset your', 'password.']} lead="Demo mode: choose a new password for your account."
+    <AuthShell current="login" label="Account" lines={['Reset your', 'password.']} lead="Password reset by email isn’t available yet."
       alt={<>Remembered it? <a href="/login.php">Back to sign in</a></>}>
-      {done ? (
-        <p role="status">Password updated. <a className="text-link" href="/login.php">Sign in</a></p>
-      ) : (
-        <form className="form" onSubmit={onSubmit}>
-          <Field label="Email address" id="email" type="email" autoComplete="email" required />
-          <PasswordField label="New password" id="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} meter />
-          {error && <p className="form-error" role="alert">{error}</p>}
-          <button className="pill pill-block" type="submit" disabled={busy}>Update password <Icon name="arrow-right" size={16} /></button>
-        </form>
-      )}
+      <p role="status">Please <a className="text-link" href="/contact.php">contact support</a> from the email address on your account and we’ll help you get back in.</p>
     </AuthShell>
   );
 }
@@ -394,7 +377,8 @@ export function Contact() {
   const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '', message: '' });
   const [errors, setErrors] = useState({});
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const submit = (e) => {
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
     e.preventDefault();
     const next = {};
     if (form.name.trim().length < 2) next.name = 'Please enter your name.';
@@ -402,9 +386,16 @@ export function Contact() {
     if (form.message.trim().length < 10) next.message = 'Tell us a little more (at least 10 characters).';
     setErrors(next);
     if (Object.keys(next).length) return;
-    actions.addMessage(form);
-    setSent(true);
-    toast('Message saved', { tone: 'success' });
+    setBusy(true);
+    try {
+      await actions.sendMessage({ name: form.name.trim(), email: form.email.trim(), message: form.message.trim() });
+      setSent(true);
+      toast('Message sent', { tone: 'success' });
+    } catch (err) {
+      toast(err.message, { tone: 'error' });
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <Page current="help" label="Support" lines={['Get in', 'touch.']} lead="We usually reply within one working day." narrow>
@@ -412,7 +403,7 @@ export function Contact() {
         {sent ? (
           <div role="status" className="sent">
             <h2 className="h2">Thanks, {form.name.split(' ')[0]}.</h2>
-            <p>Your message is saved. Demo note: this site isn’t connected to an inbox yet, so nothing has been emailed.</p>
+            <p>Your message has been received. We usually reply within one working day.</p>
             <button type="button" className="pill pill-outline" onClick={() => { setSent(false); setForm((f) => ({ ...f, message: '' })); }}>Send another</button>
           </div>
         ) : (
@@ -426,7 +417,7 @@ export function Contact() {
               <textarea id="message" name="message" rows="5" value={form.message} onChange={set('message')} aria-invalid={!!errors.message} aria-describedby={errors.message ? 'e-msg' : undefined} required />
             </div>
             {errors.message && <p className="form-error" id="e-msg" role="alert">{errors.message}</p>}
-            <button className="pill pill-block" type="submit">Send message <Icon name="mail" size={16} /></button>
+            <button className="pill pill-block" type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send message'} <Icon name="mail" size={16} /></button>
           </form>
         )}
       </Reveal>

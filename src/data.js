@@ -28,6 +28,9 @@ export const products = [
   { id: 1, img: '/assets/img/floor-lamp.webp', name: 'Tubelight', seller: 'KV Electrical and Electronics stores', price: 350, old: 550, category: 'Electronics', blurb: '15W Philips.' },
 ];
 
+/* YYYY-MM-DD in the visitor's local time (toISOString would give the UTC date, a day off near midnight). */
+export const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 export const rupee = (n) => '₹' + n.toLocaleString('en-IN');
 export const discount = (p) => Math.round((1 - p.price / p.old) * 100);
 

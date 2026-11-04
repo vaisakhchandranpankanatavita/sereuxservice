@@ -1,8 +1,8 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './auth.dto';
+import { LoginDto, RegisterDto, UpdateProfileDto } from './auth.dto';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
 
 const COOKIE = 'fixzy_rt';
@@ -42,4 +42,7 @@ export class AuthController {
 
   @Get('me') @UseGuards(JwtAuthGuard)
   me(@CurrentUser() u: AuthUser) { return this.auth.me(u.id); }
+
+  @Patch('me') @UseGuards(JwtAuthGuard)
+  updateMe(@CurrentUser() u: AuthUser, @Body() dto: UpdateProfileDto) { return this.auth.updateProfile(u.id, dto); }
 }

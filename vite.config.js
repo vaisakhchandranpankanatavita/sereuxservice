@@ -15,6 +15,7 @@ const phpShell = {
 
 export default defineConfig({
   plugins: [react(), phpShell],
+  server: { proxy: { '/api': 'http://localhost:4000' } },
   build: {
     outDir: 'assets/build',
     emptyOutDir: true,

@@ -51,6 +51,11 @@ async function main() {
   r = await call('GET', '/auth/me');
   check('auth: /me without token -> 401', r.status === 401, r.status);
 
+  r = await call('PATCH', '/auth/me', { token, body: { name: 'Smoke Renamed', phone: '9123456780' } });
+  check('auth: update profile', r.status === 200 && r.json.name === 'Smoke Renamed' && r.json.phone === '9123456780' && r.json.email === email, r);
+  r = await call('PATCH', '/auth/me', { token, body: { name: 'X', phone: 'abc', role: 'ADMIN' } });
+  check('auth: profile update rejects bad input and role escalation', r.status === 400, r.status);
+
   r = await call('POST', '/auth/refresh', { cookie: refreshCookie });
   check('auth: refresh rotates token', r.status === 200 && !!r.json.accessToken && !!r.cookie && r.cookie !== refreshCookie, r);
   const reused = await call('POST', '/auth/refresh', { cookie: refreshCookie });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { seedReviews } from './data.js';
 import { Icon } from './shared.jsx';
 import { actions, useStore } from './store.js';
@@ -24,7 +24,11 @@ export function HeartButton({ id, name }) {
     <button
       type="button" className={`heart${saved ? ' is-on' : ''}`} aria-pressed={saved}
       aria-label={saved ? `Remove ${name} from saved items` : `Save ${name}`}
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); actions.toggleWishlist(id); toast(saved ? 'Removed from saved items' : 'Saved for later'); }}
+      onClick={(e) => {
+        e.preventDefault(); e.stopPropagation();
+        actions.toggleWishlist(id).catch((err) => toast(err.message, { tone: 'error' }));
+        toast(saved ? 'Removed from saved items' : 'Saved for later');
+      }}
     >
       <Icon name="heart" size={18} />
     </button>
@@ -32,8 +36,10 @@ export function HeartButton({ id, name }) {
 }
 
 export function useReviews(kind, target) {
-  const mine = useStore((s) => s.reviews);
-  return [...mine, ...seedReviews.map((r) => ({ ...r, sample: true }))].filter((r) => r.kind === kind && r.target === target).sort((a, b) => b.at - a.at);
+  const real = useStore((s) => s.reviewsByKey[`${kind}:${target}`]);
+  useEffect(() => { actions.loadReviews(kind, target).catch(() => {}); }, [kind, target]);
+  const samples = seedReviews.filter((r) => r.kind === kind && r.target === target).map((r) => ({ ...r, sample: true }));
+  return [...(real || []), ...samples].sort((a, b) => b.at - a.at);
 }
 
 export function ReviewForm({ kind, target, label, bookingId, onDone }) {
@@ -42,10 +48,15 @@ export function ReviewForm({ kind, target, label, bookingId, onDone }) {
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
   if (!user) return <p className="muted"><a className="text-link" href={`/login.php?redirect=${kind === 'product' ? 'shop' : 'orders'}`}>Sign in</a> to leave a review.</p>;
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!rating) { toast('Pick a star rating first', { tone: 'error' }); return; }
-    actions.addReview({ kind, target, name: user.name, owner: user.email, bookingId, rating, text: text.trim() });
+    try {
+      await actions.addReview({ kind, target, bookingId, rating, text: text.trim() });
+    } catch (err) {
+      toast(err.message, { tone: 'error' });
+      return;
+    }
     toast('Thanks for your review', { tone: 'success' });
     setRating(0); setText(''); onDone?.();
   };

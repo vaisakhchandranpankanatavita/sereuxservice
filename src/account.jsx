@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { products, rupee, services, slots } from './data.js';
+import { isoDay, products, rupee, services, slots } from './data.js';
 import { loginUrl } from './auth.js';
 import { Page } from './pages.jsx';
 import { Icon, Reveal } from './shared.jsx';
-import { actions, setState, useStore } from './store.js';
+import { actions, useStore } from './store.js';
 import { EmptyState, Tag, useToast } from './ui.jsx';
 import { ReviewForm } from './social.jsx';
 
@@ -30,7 +30,7 @@ function SignInGate({ current, label, lines, lead, icon, points }) {
 }
 
 const fmtDay = (iso) => new Date(`${iso}T00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-const dayOptions = () => Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i + 1); return d.toISOString().slice(0, 10); });
+const dayOptions = () => Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i + 1); return isoDay(d); });
 
 function Timeline({ status }) {
   const at = FLOW.indexOf(status);
@@ -45,17 +45,23 @@ function BookingCard({ b }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [reviewing, setReviewing] = useState(false);
-  const reviewed = useStore((s) => s.reviews.some((r) => r.kind === 'service' && r.owner === b.owner && r.bookingId === b.id));
+  const [busy, setBusy] = useState(false);
+  const reviewed = b.reviewed;
   const [day, setDay] = useState(b.day);
   const [slot, setSlot] = useState(b.slot);
   const svc = services.find((s) => s.id === b.serviceId);
   const live = b.status !== 'cancelled' && b.status !== 'done';
-  const cancel = () => {
-    const prev = b.status;
-    actions.updateBooking(b.id, { status: 'cancelled' });
-    toast('Booking cancelled', { action: { label: 'Undo', run: () => actions.updateBooking(b.id, { status: prev }) } });
+  const run = async (fn, okText) => {
+    setBusy(true);
+    try { await fn(); if (okText) toast(okText, { tone: 'success' }); return true; } catch (e) { toast(e.message, { tone: 'error' }); return false; } finally { setBusy(false); }
   };
-  const save = () => { actions.updateBooking(b.id, { day, slot }); setEditing(false); toast('Booking rescheduled', { tone: 'success' }); };
+  const cancel = () => {
+    if (!window.confirm('Cancel this booking? This can’t be undone.')) return;
+    run(() => actions.cancelBooking(b.id), 'Booking cancelled');
+  };
+  const save = async () => {
+    if (await run(() => actions.rescheduleBooking(b.id, day, slot), 'Booking rescheduled')) setEditing(false);
+  };
   return (
     <li className="booking">
       <div className="booking-head">
@@ -67,7 +73,7 @@ function BookingCard({ b }) {
         <div className="reschedule">
           <label>Day <select value={day} onChange={(e) => setDay(e.target.value)}>{dayOptions().map((d) => <option key={d} value={d}>{fmtDay(d)}</option>)}</select></label>
           <label>Time <select value={slot} onChange={(e) => setSlot(e.target.value)}>{slots.map((t) => <option key={t}>{t}</option>)}</select></label>
-          <button type="button" className="pill pill-small" onClick={save}>Save</button>
+          <button type="button" className="pill pill-small" disabled={busy} onClick={save}>Save</button>
           <button type="button" className="text-link" onClick={() => setEditing(false)}>Keep as is</button>
         </div>
       )}
@@ -75,11 +81,9 @@ function BookingCard({ b }) {
       <div className="booking-actions">
         <span className="booking-id">#{b.id}</span>
         {live && !editing && <button type="button" className="text-link" onClick={() => setEditing(true)}>Reschedule</button>}
-        {live && <button type="button" className="text-link" onClick={cancel}>Cancel</button>}
+        {live && <button type="button" className="text-link" disabled={busy} onClick={cancel}>Cancel</button>}
         {b.status === 'done' && !reviewed && <button type="button" className="text-link" onClick={() => setReviewing((v) => !v)}>Leave a review</button>}
         {!live && <a className="text-link" href={`/service-request.php?service_id=${b.serviceId}`}>Book again</a>}
-        {/* Demo only: with no backend, nothing else moves a booking forward. */}
-        {live && <button type="button" className="text-link demo" title="Demo: simulate the pro updating the status" onClick={() => actions.updateBooking(b.id, { status: FLOW[FLOW.indexOf(b.status) + 1] })}>Demo: next status</button>}
       </div>
     </li>
   );
@@ -88,6 +92,7 @@ function BookingCard({ b }) {
 export function Orders() {
   const user = useStore((s) => s.user);
   const bookings = useStore((s) => s.bookings);
+  const loading = useStore((s) => s.account === 'loading');
   if (!user) {
     return <SignInGate current="orders" icon="calendar" label="Bookings" lines={['Your', 'bookings.']} lead="Track every service request in one place."
       points={['See upcoming and past visits', 'Follow each request’s status', 'Rebook a service in one tap']} />;
@@ -95,7 +100,9 @@ export function Orders() {
   const mine = bookings.filter((b) => b.owner === user.email);
   return (
     <Page current="orders" label="Bookings" lines={['Your', 'bookings.']} lead="Track every service request in one place.">
-      {mine.length === 0 ? (
+      {loading && mine.length === 0 ? (
+        <p role="status" className="muted">Loading your bookings…</p>
+      ) : mine.length === 0 ? (
         <EmptyState title="No bookings yet" text="Book a service and it will show up here." action={<a className="pill" href="/services.php">Browse services</a>} />
       ) : (
         <ul className="bookings">{mine.map((b) => <BookingCard key={b.id} b={b} />)}</ul>
@@ -122,11 +129,14 @@ export function Dashboard() {
   const copy = async () => {
     try { await navigator.clipboard.writeText(code); toast('Referral code copied', { tone: 'success' }); } catch { toast(`Your code: ${code}`); }
   };
-  const saveProfile = (e) => {
+  const saveProfile = async (e) => {
     e.preventDefault();
-    const next = { ...user, name: name.trim(), phone: phone.trim() };
-    setState((s) => ({ user: next, users: s.users.map((u) => (u.email === user.email ? { ...u, name: next.name, phone: next.phone } : u)) }));
-    toast('Profile saved', { tone: 'success' });
+    try {
+      await actions.updateProfile({ name: name.trim(), phone: phone.trim() });
+      toast('Profile saved', { tone: 'success' });
+    } catch (err) {
+      toast(err.message, { tone: 'error' });
+    }
   };
   return (
     <Page current="dashboard" label="Dashboard" lines={[`Hi, ${user.name.split(' ')[0]}.`]} lead="Your account, bookings and orders at a glance.">
@@ -156,7 +166,7 @@ export function Dashboard() {
           {saved.length === 0 ? <p>Nothing saved yet.</p> : <ul>{saved.map((p) => <li key={p.id}><a className="text-link" href={`/product.php?id=${p.id}`}>{p.name}</a> · {rupee(p.price)}</li>)}</ul>}
         </section>
       </div>
-      <p><button type="button" className="pill pill-outline" onClick={() => { actions.signOut(); window.location.assign('/home.php'); }}>Sign out</button></p>
+      <p><button type="button" className="pill pill-outline" onClick={async () => { await actions.signOut(); window.location.assign('/home.php'); }}>Sign out</button></p>
     </Page>
   );
 }

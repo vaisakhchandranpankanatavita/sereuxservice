@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { hashPassword, sha256, verifyPassword } from '../common/password';
-import { LoginDto, RegisterDto } from './auth.dto';
+import { LoginDto, RegisterDto, UpdateProfileDto } from './auth.dto';
 
 const REFRESH_DAYS = 30;
 type U = { id: string; name: string; email: string; phone: string; role: any };
@@ -50,6 +50,10 @@ export class AuthService {
 
   async logout(token?: string) {
     if (token) await this.prisma.refreshToken.deleteMany({ where: { tokenHash: sha256(token) } });
+  }
+
+  async updateProfile(id: string, dto: UpdateProfileDto) {
+    return publicUser(await this.prisma.user.update({ where: { id }, data: { name: dto.name, phone: dto.phone } }));
   }
 
   async me(id: string) {

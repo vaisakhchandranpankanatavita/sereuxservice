@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { api } from './api.js';
 import { loginUrl } from './auth.js';
-import { providers, rupee, services, slots } from './data.js';
+import { isoDay, providers, rupee, services, slots } from './data.js';
 import { Field, Page } from './pages.jsx';
 import { Icon, Reveal, cartLines, cartTotal } from './shared.jsx';
 import { actions, useStore } from './store.js';
@@ -26,10 +27,23 @@ export function Checkout() {
     if (COUPONS[code]) { setApplied(code); toast(`${code} applied`, { tone: 'success' }); }
     else toast('That code isn’t valid', { tone: 'error' });
   };
-  const place = (e) => {
+  const [busy, setBusy] = useState(false);
+  const place = async (e) => {
     e.preventDefault();
-    setPlaced({ id: 'OD' + Date.now().toString(36).toUpperCase(), total: subtotal - off });
-    actions.clearCart();
+    const f = Object.fromEntries(new FormData(e.currentTarget));
+    setBusy(true);
+    try {
+      const order = await api('/orders', {
+        method: 'POST',
+        body: { name: f.name.trim(), phone: f.phone.trim(), address: f.address.trim(), city: f.city.trim(), pin: f.pin.trim(), coupon: applied || undefined, items: cart.map((i) => ({ productId: i.id, qty: i.qty })) },
+      });
+      setPlaced({ id: order.id, total: order.total });
+      actions.clearCart();
+    } catch (err) {
+      toast(err.message, { tone: 'error' });
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!user) return null;
@@ -57,7 +71,7 @@ export function Checkout() {
             <fieldset className="pay"><legend>Payment</legend>
               <label className="check"><input type="radio" name="pay" defaultChecked /><span>Cash on delivery</span></label>
             </fieldset>
-            <button className="pill pill-block" type="submit">Place order · {rupee(subtotal - off)} <Icon name="arrow-right" size={16} /></button>
+            <button className="pill pill-block" type="submit" disabled={busy}>{busy ? 'Placing order…' : `Place order · ${rupee(subtotal - off)}`} <Icon name="arrow-right" size={16} /></button>
           </form>
           <aside className="summary" aria-label="Order summary">
             <h2>Summary</h2>
@@ -86,7 +100,6 @@ const STEPS = ['Service', 'Date & time', 'Details', 'Confirm'];
 const nextDays = (n) => Array.from({ length: n }, (_, i) => {
   const d = new Date(); d.setDate(d.getDate() + i + 1); return d;
 });
-const isoDay = (d) => d.toISOString().slice(0, 10);
 
 export function ServiceRequest() {
   const params = new URLSearchParams(window.location.search);
@@ -106,9 +119,19 @@ export function ServiceRequest() {
 
   const canNext = [!!service, !!day && !!slot, form.name.trim() && /^[0-9+\s-]{8,}$/.test(form.phone) && form.address.trim(), true][step];
 
-  const confirm = () => {
-    actions.addBooking({ owner: user.email, providerId: pro?.id, serviceId, day, slot, ...form, estimate: service.from });
-    setDone(true);
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const confirm = async () => {
+    setBusy(true);
+    try {
+      await actions.addBooking({ providerId: pro?.id, serviceId, day, slot, name: form.name.trim(), phone: form.phone.trim(), address: form.address.trim(), notes: form.notes.trim() });
+      setDone(true);
+    } catch (err) {
+      toast(err.message, { tone: 'error' });
+      if (err.status === 409) { setSlot(''); setStep(1); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!user) return null;
@@ -174,7 +197,7 @@ export function ServiceRequest() {
         {step > 0 && <button type="button" className="pill pill-outline" onClick={() => setStep(step - 1)}>Back</button>}
         {step < 3
           ? <button type="button" className="pill" disabled={!canNext} onClick={() => setStep(step + 1)}>Continue <Icon name="arrow-right" size={16} /></button>
-          : <button type="button" className="pill" onClick={confirm}>Confirm booking <Icon name="check" size={16} /></button>}
+          : <button type="button" className="pill" disabled={busy} onClick={confirm}>{busy ? 'Booking…' : 'Confirm booking'} <Icon name="check" size={16} /></button>}
       </div>
     </Page>
   );
