@@ -18,7 +18,7 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException('Session expired.');
     }
-    const roles = this.reflector.get<Role[] | undefined>('roles', ctx.getHandler());
+    const roles = this.reflector.getAllAndOverride<Role[] | undefined>('roles', [ctx.getHandler(), ctx.getClass()]);
     if (roles && !roles.includes(req.user.role)) throw new ForbiddenException();
     return true;
   }
