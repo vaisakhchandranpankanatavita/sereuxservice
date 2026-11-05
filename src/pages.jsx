@@ -85,11 +85,11 @@ export function Login() {
   const q = window.location.search;
   return (
     <AuthShell current="login" label="Welcome back" lines={['Sign in.']} lead="Sign in to your account to continue."
-      alt={<>Don’t have an account? <a href={`/register.php${q}`}>Create account</a></>}>
+      alt={<>Don’t have an account? <a href={`/register${q}`}>Create account</a></>}>
       <form className="form" onSubmit={onSubmit}>
         <Field label="Email address" id="email" type="email" autoComplete="email" required />
         <PasswordField label="Password" id="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} />
-        <div className="form-row"><a className="text-link" href="/forgot-password.php">Forgot password?</a></div>
+        <div className="form-row"><a className="text-link" href="/forgot-password">Forgot password?</a></div>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="pill pill-block" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'} <Icon name="arrow-right" size={16} /></button>
       </form>
@@ -109,7 +109,7 @@ export function Register() {
   const q = window.location.search;
   return (
     <AuthShell current="register" label="Get started" lines={['Create your', 'account.']} lead="Book trusted home services in a few taps."
-      alt={<>Already have an account? <a href={`/login.php${q}`}>Sign in</a></>}>
+      alt={<>Already have an account? <a href={`/login${q}`}>Sign in</a></>}>
       <form className="form" onSubmit={onSubmit}>
         <Field label="Full name" id="name" autoComplete="name" required />
         <Field label="Email address" id="email" type="email" autoComplete="email" required />
@@ -129,8 +129,8 @@ export function Register() {
 export function ForgotPassword() {
   return (
     <AuthShell current="login" label="Account" lines={['Reset your', 'password.']} lead="Password reset by email isn’t available yet."
-      alt={<>Remembered it? <a href="/login.php">Back to sign in</a></>}>
-      <p role="status">Please <a className="text-link" href="/contact.php">contact support</a> from the email address on your account and we’ll help you get back in.</p>
+      alt={<>Remembered it? <a href="/login">Back to sign in</a></>}>
+      <p role="status">Please <a className="text-link" href="/contact">contact support</a> from the email address on your account and we’ll help you get back in.</p>
     </AuthShell>
   );
 }
@@ -178,7 +178,7 @@ export function ServicesPage() {
       </div>
       <div className="service-list swap" key={JSON.stringify(f)}>
         {visible.map((s, i) => (
-          <a key={s.id} className="service-row" style={{ '--i': i }} href={`/service-request.php?service_id=${s.id}`}>
+          <a key={s.id} className="service-row" style={{ '--i': i }} href={`/service-request?service_id=${s.id}`}>
             <span className="service-name">{s.name}</span>
             <span className="service-desc">{s.description}<small className="svc-meta">★ {s.rating} · {s.reviews} reviews · about {s.duration} min</small></span>
             <span className="service-price">From {s.price} / hr</span>
@@ -198,7 +198,7 @@ export function ServicesPage() {
                 <Stars value={p.rating} />
                 <p>{p.jobs} jobs · {p.years} yrs · replies in {p.response}</p>
                 <p>{p.serviceIds.map((id) => services.find((s) => s.id === id)?.name).join(', ')}</p>
-                <a className="pill pill-small" href={`/service-request.php?service_id=${p.serviceIds[0]}&pro=${p.id}`}>Book this pro <Icon name="arrow-right" size={14} /></a>
+                <a className="pill pill-small" href={`/service-request?service_id=${p.serviceIds[0]}&pro=${p.id}`}>Book this pro <Icon name="arrow-right" size={14} /></a>
               </div>
             </li>
           ))}
@@ -215,7 +215,7 @@ export function ServicesPage() {
 function ProductTile({ p, index }) {
   return (
     <Reveal as="li" delay={(index % 4) * 80} className="product">
-      <a href={`/product.php?id=${p.id}`}>
+      <a href={`/product?id=${p.id}`}>
         <span className={`product-art tone-${p.id % 4}`}>
           <span className="product-cat">{p.category}</span>
           <img className="product-img" style={{ viewTransitionName: `prod-${p.id}` }} src={p.img} alt="" loading="lazy" />
@@ -297,13 +297,13 @@ export function Product() {
   if (!p) {
     return (
       <Page current="shop" label="Marketplace" lines={['Product', 'not found.']} lead="That product isn’t available any more.">
-        <a className="pill" href="/shop.php">Back to shop <Icon name="arrow-right" size={16} /></a>
+        <a className="pill" href="/shop">Back to shop <Icon name="arrow-right" size={16} /></a>
       </Page>
     );
   }
   return (
     <Page current="shop" label={p.category} lines={[p.name]} lead={null} titleClass="is-long">
-      <nav className="crumbs" aria-label="Breadcrumb"><a href="/home.php">Home</a><span>/</span><a href="/shop.php">Shop</a><span>/</span><span>{p.name}</span></nav>
+      <nav className="crumbs" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><a href="/shop">Shop</a><span>/</span><span>{p.name}</span></nav>
       <div className="detail">
         <Reveal className={`detail-art tone-${p.id % 4}`}>
           <img className="product-img" style={{ viewTransitionName: `prod-${p.id}` }} src={p.img} alt={p.name} loading="lazy" />
@@ -326,7 +326,7 @@ export function Product() {
             <div className="buy-actions">
               <button className={`pill${added ? ' is-added' : ''}`} type="submit" name="action" value="add_to_cart"><Icon name={added ? 'check' : 'cart'} size={16} /> {added ? 'Added' : 'Add to cart'}</button>
               <HeartButton id={p.id} name={p.name} />
-              <a className="pill pill-outline" href={`/checkout.php?product_id=${p.id}&quantity=${qty}`} onClick={() => actions.addToCart(p.id, qty)}>Buy now <Icon name="arrow-right" size={16} /></a>
+              <a className="pill pill-outline" href={`/checkout?product_id=${p.id}&quantity=${qty}`} onClick={() => actions.addToCart(p.id, qty)}>Buy now <Icon name="arrow-right" size={16} /></a>
             </div>
           </form>
         </Reveal>
@@ -365,7 +365,7 @@ export function Help() {
         ))}
         {shown.length === 0 && <EmptyState title="No answers found" text="Try different words, or contact us." />}
       </div>
-      <p className="auth-alt">Still stuck? <a href="/contact.php">Contact us</a></p>
+      <p className="auth-alt">Still stuck? <a href="/contact">Contact us</a></p>
     </Page>
   );
 }

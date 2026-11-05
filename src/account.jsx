@@ -22,7 +22,7 @@ function SignInGate({ current, label, lines, lead, icon, points }) {
         </div>
         <div className="gate-actions">
           <a className="pill" href={loginUrl(current)}>Sign in <Icon name="arrow-right" size={16} /></a>
-          <a className="pill pill-outline" href={`/register.php?redirect=${current}`}>Create account</a>
+          <a className="pill pill-outline" href={`/register?redirect=${current}`}>Create account</a>
         </div>
       </Reveal>
     </Page>
@@ -80,10 +80,11 @@ function BookingCard({ b }) {
       {reviewing && <ReviewForm kind="service" target={b.serviceId} bookingId={b.id} label={`How was your ${svc?.name || 'service'}?`} onDone={() => setReviewing(false)} />}
       <div className="booking-actions">
         <span className="booking-id">#{b.id}</span>
+        {['confirmed', 'on_the_way', 'in_progress'].includes(b.status) && <a className="text-link" href={`/track?id=${b.id}`}>Track</a>}
         {live && !editing && <button type="button" className="text-link" onClick={() => setEditing(true)}>Reschedule</button>}
         {live && <button type="button" className="text-link" disabled={busy} onClick={cancel}>Cancel</button>}
         {b.status === 'done' && !reviewed && <button type="button" className="text-link" onClick={() => setReviewing((v) => !v)}>Leave a review</button>}
-        {!live && <a className="text-link" href={`/service-request.php?service_id=${b.serviceId}`}>Book again</a>}
+        {!live && <a className="text-link" href={`/service-request?service_id=${b.serviceId}`}>Book again</a>}
       </div>
     </li>
   );
@@ -103,7 +104,7 @@ export function Orders() {
       {loading && mine.length === 0 ? (
         <p role="status" className="muted">Loading your bookings…</p>
       ) : mine.length === 0 ? (
-        <EmptyState title="No bookings yet" text="Book a service and it will show up here." action={<a className="pill" href="/services.php">Browse services</a>} />
+        <EmptyState title="No bookings yet" text="Book a service and it will show up here." action={<a className="pill" href="/services">Browse services</a>} />
       ) : (
         <ul className="bookings">{mine.map((b) => <BookingCard key={b.id} b={b} />)}</ul>
       )}
@@ -147,10 +148,10 @@ export function Dashboard() {
       <div className="dash">
         <section className="dash-card">
           <h2>Upcoming</h2>
-          {upcoming.length === 0 ? <p>Nothing scheduled. <a className="text-link" href="/services.php">Book a service</a></p> : (
+          {upcoming.length === 0 ? <p>Nothing scheduled. <a className="text-link" href="/services">Book a service</a></p> : (
             <ul>{upcoming.slice(0, 3).map((b) => <li key={b.id}>{services.find((s) => s.id === b.serviceId)?.name} · {fmtDay(b.day)} {b.slot} <Tag tone={TONE[b.status]}>{LABEL[b.status]}</Tag></li>)}</ul>
           )}
-          <a className="text-link" href="/orders.php">All bookings</a>
+          <a className="text-link" href="/orders">All bookings</a>
         </section>
         <section className="dash-card">
           <h2>Profile</h2>
@@ -163,10 +164,10 @@ export function Dashboard() {
         </section>
         <section className="dash-card">
           <h2>Saved items</h2>
-          {saved.length === 0 ? <p>Nothing saved yet.</p> : <ul>{saved.map((p) => <li key={p.id}><a className="text-link" href={`/product.php?id=${p.id}`}>{p.name}</a> · {rupee(p.price)}</li>)}</ul>}
+          {saved.length === 0 ? <p>Nothing saved yet.</p> : <ul>{saved.map((p) => <li key={p.id}><a className="text-link" href={`/product?id=${p.id}`}>{p.name}</a> · {rupee(p.price)}</li>)}</ul>}
         </section>
       </div>
-      <p><button type="button" className="pill pill-outline" onClick={async () => { await actions.signOut(); window.location.assign('/home.php'); }}>Sign out</button></p>
+      <p><button type="button" className="pill pill-outline" onClick={async () => { await actions.signOut(); window.location.assign('/'); }}>Sign out</button></p>
     </Page>
   );
 }

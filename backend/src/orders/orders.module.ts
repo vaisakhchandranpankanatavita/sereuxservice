@@ -49,7 +49,7 @@ class OrdersService {
         },
         include: { items: true },
       });
-      await tx.notification.create({ data: { userId: user.id, text: `Order #${id} placed. Pay on delivery.`, href: '/orders.php' } });
+      await tx.notification.create({ data: { userId: user.id, text: `Order #${id} placed. Pay on delivery.`, href: '/orders' } });
       return order;
     });
   }

@@ -271,3 +271,40 @@ html.lenis { scroll-behavior: auto !important; }
 /* ---- Accessibility: contrast fixes (no opacity on muted text) ---- */
 .svc-meta { opacity: 1; color: inherit; }
 .text-link.demo { opacity: 1; color: var(--muted); }
+
+/* ---------- Live tracking + provider app ---------- */
+.live-map { width: 100%; height: 100%; min-height: 320px; background: #e8e2d6; border-radius: inherit; z-index: 0; }
+.map-pin { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; font-size: 18px; font-weight: 700; color: #fff; box-shadow: 0 6px 16px rgb(0 0 0 / 28%), 0 0 0 3px #fff; }
+.map-pin-home { background: var(--ink); } .map-pin-pro { background: var(--tan); animation: pulse 1.8s ease-in-out infinite; }
+.track { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 20px; align-items: start; }
+.track-map { position: relative; height: clamp(360px, 62vh, 620px); border-radius: var(--r-lg); overflow: hidden; background: #fff; isolation: isolate; }
+.track-live { position: absolute; top: 14px; left: 14px; z-index: 500; display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; box-shadow: 0 4px 14px rgb(0 0 0 / 14%); }
+.track-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 1.8s ease-in-out infinite; }
+.track-side { display: grid; gap: 16px; }
+.track-eta, .fp-card, .track-steps, .job, .fp-stats > div { background: #fff; border-radius: var(--r-lg); }
+.track-eta { padding: 24px; display: grid; gap: 8px; justify-items: start; } .track-eta b { font-size: clamp(44px, 6vw, 68px); letter-spacing: -.05em; line-height: 1; } .track-eta p { color: var(--body); font-size: 14px; }
+.fp-card { padding: 16px 20px; display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; } .fp-card h2 { font-size: 17px; margin: 0 0 2px; } .fp-card p { font-size: 13px; color: var(--body); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.avatar { color: var(--ink); display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #f1ebe1; font-weight: 700; font-size: 14px; flex: none; }
+.track-steps { list-style: none; margin: 0; padding: 20px 24px; display: grid; gap: 12px; font-size: 14px; color: var(--muted); }
+.track-steps li { display: flex; align-items: center; gap: 12px; } .track-steps li::before { content: ""; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--line); flex: none; }
+.track-steps li.is-done { color: var(--ink); } .track-steps li.is-done::before { background: var(--ink); box-shadow: none; }
+.track-steps li.is-now { color: var(--ink); font-weight: 700; } .track-steps li.is-now::before { background: var(--tan); box-shadow: 0 0 0 4px rgba(184,149,106,.3); }
+@media (max-width: 860px) { .track { grid-template-columns: 1fr; } .track-map { height: 52vh; } }
+
+.fp { min-height: 100vh; background: var(--cream); }
+.fp-bar { position: sticky; top: 0; z-index: 800; display: flex; justify-content: space-between; align-items: center; padding: 14px var(--pad); background: rgb(247 244 238 / 90%); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.fp-bar .brand { font-weight: 800; font-size: 22px; letter-spacing: -.04em; display: inline-flex; align-items: baseline; gap: 6px; } .fp-badge { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--ink); color: var(--cream); font-weight: 700; }
+.switch { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; position: relative; }
+.switch input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; cursor: pointer; margin: 0; }
+.switch span { width: 44px; height: 26px; border-radius: 999px; background: var(--line); position: relative; transition: background .25s; } .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .25s var(--ease); }
+.switch input:checked + span { background: var(--success); } .switch input:checked + span::after { transform: translateX(18px); } .switch input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 3px; }
+.fp-main { width: min(100% - var(--pad) * 2, 760px); margin: 0 auto; padding: 28px 0 64px; display: grid; gap: 20px; }
+.fp-hello { display: flex; gap: 16px; align-items: center; } .fp-hello h1 { font-size: clamp(28px, 6vw, 40px); letter-spacing: -.04em; }
+.fp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0; } .fp-stats > div { padding: 16px 18px; } .fp-stats dt { font-size: 12px; color: var(--muted); } .fp-stats dd { margin: 4px 0 0; font-size: 24px; font-weight: 800; letter-spacing: -.03em; display: flex; align-items: center; gap: 4px; }
+.fp-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 999px; background: rgb(20 20 18 / 7%); } .fp-tabs button { border: 0; border-radius: 999px; padding: 11px; background: none; font: inherit; font-weight: 600; font-size: 14px; color: var(--body); cursor: pointer; } .fp-tabs .is-on { background: #fff; color: var(--ink); box-shadow: 0 2px 8px rgb(0 0 0 / 8%); }
+.fp-list { list-style: none; padding: 0; display: grid; gap: 14px; }
+.job { padding: 20px; display: grid; gap: 12px; } .job-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; } .job-head h2 { font-size: 20px; margin: 0 0 2px; } .job-head p, .job-addr { font-size: 14px; color: var(--body); } .job-head b { font-size: 20px; } .job-addr { display: flex; gap: 6px; align-items: center; }
+.job-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.job-map { height: 260px; border-radius: var(--r-md); overflow: hidden; position: relative; isolation: isolate; display: grid; grid-template-rows: 1fr; } .job-map .live-map { min-height: 0; } .job-map p { position: absolute; z-index: 500; left: 10px; bottom: 10px; background: #fff; padding: 6px 12px; border-radius: 999px; box-shadow: 0 4px 14px rgb(0 0 0 / 14%); }
+.fp-foot { text-align: center; }
+@media (prefers-reduced-motion: reduce) { .map-pin-pro, .track-live i { animation: none; } .switch span, .switch span::after { transition: none; } }

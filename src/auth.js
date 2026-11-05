@@ -26,16 +26,16 @@ export const passwordStrength = (pw) => {
 };
 
 /* Only same-site pages from this whitelist are valid redirect targets (no open redirect). */
-const REDIRECTS = ['orders', 'dashboard', 'checkout', 'service-request', 'shop', 'services'];
-export function redirectTarget(fallback = '/dashboard.php') {
+const REDIRECTS = ['track', 'orders', 'dashboard', 'checkout', 'service-request', 'shop', 'services'];
+export function redirectTarget(fallback = '/dashboard') {
   const params = new URLSearchParams(window.location.search);
   const slug = params.get('redirect');
   if (!REDIRECTS.includes(slug)) return fallback;
   const sid = params.get('service_id');
-  return `/${slug}.php${slug === 'service-request' && /^\d+$/.test(sid || '') ? `?service_id=${sid}` : ''}`;
+  return `/${slug}${slug === 'service-request' && /^\d+$/.test(sid || '') ? `?service_id=${sid}` : ''}`;
 }
 
 /* Send signed-out visitors to login, remembering where they were headed. */
 export function loginUrl(slug, extra = '') {
-  return `/login.php?redirect=${slug}${extra}`;
+  return `/login?redirect=${slug}${extra}`;
 }

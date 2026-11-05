@@ -7,11 +7,13 @@ const fromModule = (load, name) => lazy(() => load().then((m) => ({ default: m[n
 const pages = () => import('./pages.jsx');
 const account = () => import('./account.jsx');
 const flows = () => import('./flows.jsx');
+const track = () => import('./track.jsx');
+const provider = () => import('./provider.jsx');
 import { ToastProvider } from './ui.jsx';
 import '../assets/css/redesign.css';
 import '../assets/css/pages.css';
 
-/* Each PHP entry (login.php, shop.php, …) serves this same shell; the page is chosen from the URL. */
+/* Each PHP entry (login, shop, …) serves this same shell; the page is chosen from the URL. */
 const ROUTES = {
   'login': fromModule(pages, 'Login'),
   'register': fromModule(pages, 'Register'),
@@ -24,6 +26,8 @@ const ROUTES = {
   'privacy': fromModule(pages, 'Privacy'),
   'orders': fromModule(account, 'Orders'),
   'dashboard': fromModule(account, 'Dashboard'),
+  'track': fromModule(track, 'Track'),
+  'provider': fromModule(provider, 'ProviderApp'),
   'checkout': fromModule(flows, 'Checkout'),
   'service-request': fromModule(flows, 'ServiceRequest'),
 };
@@ -48,7 +52,7 @@ if (window.matchMedia('(hover: hover) and (pointer: fine)').matches && !window.m
   document.addEventListener('pointerout', (e) => { const el = e.target.closest?.('.pill'); if (el && !el.contains(e.relatedTarget)) reset(el); });
 }
 
-const slug = window.location.pathname.split('/').pop().replace(/\.php$/, '');
+const slug = window.location.pathname.split('/').pop().replace(/\.php$/, ''); // tolerate legacy .php links
 const HOME_SLUGS = ['', 'index', 'home'];
 const NotFound = () => (
   <main style={{ minHeight: '100vh', display: 'grid', placeContent: 'center', textAlign: 'center', gap: 16, padding: 24 }}>

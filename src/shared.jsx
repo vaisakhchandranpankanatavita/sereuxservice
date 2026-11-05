@@ -221,7 +221,7 @@ function CartDrawer({ open, onClose }) {
   return (
     <Drawer open={open} onClose={onClose} title="Your cart">
       {lines.length === 0 ? (
-        <div className="empty-state"><h3>Your cart is empty</h3><p>Find something useful in the marketplace.</p><a className="pill" href="/shop.php">Browse marketplace</a></div>
+        <div className="empty-state"><h3>Your cart is empty</h3><p>Find something useful in the marketplace.</p><a className="pill" href="/shop">Browse marketplace</a></div>
       ) : (
         <>
           <ul className="cart-lines">
@@ -229,7 +229,7 @@ function CartDrawer({ open, onClose }) {
               <li key={l.id} className="cart-line">
                 <img src={l.p.img} alt="" />
                 <div>
-                  <a href={`/product.php?id=${l.id}`}>{l.p.name}</a>
+                  <a href={`/product?id=${l.id}`}>{l.p.name}</a>
                   <span>{rupee(l.p.price)}</span>
                   <div className="qty-mini">
                     <button type="button" aria-label={`Decrease ${l.p.name}`} onClick={() => actions.setQty(l.id, l.qty - 1)}>−</button>
@@ -242,7 +242,7 @@ function CartDrawer({ open, onClose }) {
             ))}
           </ul>
           <div className="cart-total"><span>Subtotal</span><b>{rupee(cartTotal(lines))}</b></div>
-          <a className="pill pill-block" href="/checkout.php">Checkout <Icon name="arrow-right" size={16} /></a>
+          <a className="pill pill-block" href="/checkout">Checkout <Icon name="arrow-right" size={16} /></a>
         </>
       )}
     </Drawer>
@@ -283,13 +283,13 @@ export function Header({ current = '' }) {
     <a className="skip-link" href="#main">Skip to content</a>
     <header className={`site-header${scrolled ? ' is-scrolled' : ''}${menuOpen ? ' menu-open' : ''}`}>
       <div className="header-inner">
-        <a className="brand" href="/home.php" aria-label="Fixzy home">Fixzy<b className="dot">.</b></a>
+        <a className="brand" href="/" aria-label="Fixzy home">Fixzy<b className="dot">.</b></a>
         <span className="brand-rule" aria-hidden="true" />
         <nav className="main-nav" id="main-nav" aria-label="Main navigation">
-          <a href={current === 'home' ? '#services' : '/services.php'} onClick={closeMenu} aria-current={current === 'services' ? 'page' : undefined}>Services</a>
-          <a href="/shop.php" onClick={closeMenu} aria-current={current === 'shop' ? 'page' : undefined}>Marketplace</a>
-          <a href="/orders.php" onClick={closeMenu} aria-current={current === 'orders' ? 'page' : undefined}>Bookings</a>
-          {!user && <a className="nav-mobile-only" href="/login.php">Sign in</a>}
+          <a href={current === 'home' ? '#services' : '/services'} onClick={closeMenu} aria-current={current === 'services' ? 'page' : undefined}>Services</a>
+          <a href="/shop" onClick={closeMenu} aria-current={current === 'shop' ? 'page' : undefined}>Marketplace</a>
+          <a href="/orders" onClick={closeMenu} aria-current={current === 'orders' ? 'page' : undefined}>Bookings</a>
+          {!user && <a className="nav-mobile-only" href="/login">Sign in</a>}
         </nav>
         <div className="header-actions">
           {user && (
@@ -301,11 +301,11 @@ export function Header({ current = '' }) {
             <Icon name="cart" size={20} />{count > 0 && <b key={count} className="cart-count">{count}</b>}
           </button>
           {user ? (
-            <a className="pill pill-small" href="/dashboard.php">{user.name.split(' ')[0]} <Icon name="user" size={14} /></a>
+            <a className="pill pill-small" href="/dashboard">{user.name.split(' ')[0]} <Icon name="user" size={14} /></a>
           ) : (
             <>
-              <a className="sign-in" href="/login.php">Sign in</a>
-              <a className="pill pill-small" href="/register.php">Get started <Icon name="arrow-right" size={14} /></a>
+              <a className="sign-in" href="/login">Sign in</a>
+              <a className="pill pill-small" href="/register">Get started <Icon name="arrow-right" size={14} /></a>
             </>
           )}
         </div>
@@ -330,12 +330,12 @@ export function Footer() {
             <Headline id="cta-title" className="footer-cta" lines={['Ready to book?']} />
             <Reveal as="p" delay={150} className="footer-lead">Create a free account and request your first service.</Reveal>
           </div>
-          <Reveal delay={250}><a className="pill pill-light" href={user ? '/services.php' : '/register.php'}>{user ? 'Book a service' : 'Create an account'} <Icon name="arrow-right" size={16} /></a></Reveal>
+          <Reveal delay={250}><a className="pill pill-light" href={user ? '/services' : '/register'}>{user ? 'Book a service' : 'Create an account'} <Icon name="arrow-right" size={16} /></a></Reveal>
         </div>
         <div className="footer-main">
-          <nav className="footer-column" aria-label="Explore"><h2>Explore</h2><a href="/services.php">Services</a><a href="/shop.php">Marketplace</a><a href="/orders.php">Bookings</a></nav>
-          <nav className="footer-column" aria-label="Your account"><h2>Account</h2>{!user && <><a href="/login.php">Sign in</a><a href="/register.php">Create an account</a></>}<a href="/dashboard.php">Dashboard</a></nav>
-          <nav className="footer-column" aria-label="Support"><h2>Support</h2><a href="/help.php">Help Center</a><a href="/contact.php">Contact</a><a href="/privacy.php">Privacy</a></nav>
+          <nav className="footer-column" aria-label="Explore"><h2>Explore</h2><a href="/services">Services</a><a href="/shop">Marketplace</a><a href="/orders">Bookings</a></nav>
+          <nav className="footer-column" aria-label="Your account"><h2>Account</h2>{!user && <><a href="/login">Sign in</a><a href="/register">Create an account</a></>}<a href="/dashboard">Dashboard</a></nav>
+          <nav className="footer-column" aria-label="Support"><h2>Support</h2><a href="/help">Help Center</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a></nav>
         </div>
         <div className="footer-bottom"><span>© 2026 Fixzy</span><span>Home services, sorted.</span></div>
       </div>

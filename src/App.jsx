@@ -107,7 +107,7 @@ function Services({ query }) {
         <Reveal as="p" delay={100} className="lead">Choose a service to see its starting price and book.</Reveal>
         <Reveal delay={200} className="service-list" aria-live="polite">
           {visible.map((service) => (
-            <a key={service.id} className="service-row" href={`/service-request.php?service_id=${service.id}`}>
+            <a key={service.id} className="service-row" href={`/service-request?service_id=${service.id}`}>
               <span className="service-name">{service.name}</span>
               <span className="service-desc">{service.description}</span>
               <span className="service-price">From {service.price}</span>
@@ -129,9 +129,9 @@ function Marketplace() {
           <Label>03 — Marketplace</Label>
           <Headline id="market-title" lines={['Useful finds', 'for living.']} />
           <Reveal as="p" delay={320} className="lead">Discover curated products and the essentials for a better home.</Reveal>
-          <Reveal delay={420} className="cta"><a className="pill" href="/shop.php">Explore marketplace <Icon name="arrow-right" size={16} /></a></Reveal>
+          <Reveal delay={420} className="cta"><a className="pill" href="/shop">Explore marketplace <Icon name="arrow-right" size={16} /></a></Reveal>
         </div>
-        <Reveal as="a" className="market-art" href="/shop.php" aria-label="Browse the Fixzy marketplace">
+        <Reveal as="a" className="market-art" href="/shop" aria-label="Browse the Fixzy marketplace">
           <img src={IMG.market} alt="A calm, naturally lit living room" loading="lazy" data-speed="0.055" data-limit="0.07" />
         </Reveal>
       </div>

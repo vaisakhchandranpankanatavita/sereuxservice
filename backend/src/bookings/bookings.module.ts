@@ -70,7 +70,7 @@ class BookingsService {
         const booking = await tx.booking.create({
           data: { id, userId: user.id, serviceId: dto.serviceId, providerId: dto.providerId ?? null, day: dto.day, slot: dto.slot, name: dto.name, phone: dto.phone, address: dto.address, notes: dto.notes ?? '', estimate: service.fromPrice },
         });
-        await tx.notification.create({ data: { userId: user.id, text: `Booking #${id} received. We'll confirm shortly.`, href: '/orders.php' } });
+        await tx.notification.create({ data: { userId: user.id, text: `Booking #${id} received. We'll confirm shortly.`, href: '/orders' } });
         return booking;
       }, { isolationLevel: 'Serializable' });
     } catch (e) {
@@ -98,7 +98,7 @@ class BookingsService {
     if (dto.status === 'CANCELLED') {
       return this.prisma.$transaction(async (tx) => {
         const out = await tx.booking.update({ where: { id }, data: { status: 'CANCELLED' } });
-        await tx.notification.create({ data: { userId: user.id, text: `#${id}: ${STATUS_TEXT.CANCELLED}`, href: '/orders.php' } });
+        await tx.notification.create({ data: { userId: user.id, text: `#${id}: ${STATUS_TEXT.CANCELLED}`, href: '/orders' } });
         return out;
       });
     }
@@ -122,7 +122,7 @@ class BookingsService {
     }
     return this.prisma.$transaction(async (tx) => {
       const out = await tx.booking.update({ where: { id }, data: { status } });
-      await tx.notification.create({ data: { userId: b.userId, text: `#${id}: ${STATUS_TEXT[status]}`, href: '/orders.php' } });
+      await tx.notification.create({ data: { userId: b.userId, text: `#${id}: ${STATUS_TEXT[status]}`, href: '/orders' } });
       return out;
     });
   }

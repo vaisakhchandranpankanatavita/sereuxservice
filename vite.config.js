@@ -1,24 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-/* In dev, serve the app shell for the site's *.php URLs (login.php, shop.php, …). */
-const phpShell = {
-  name: 'php-shell',
-  configureServer(server) {
-    server.middlewares.use((req, _res, next) => {
-      const path = (req.url || '').split('?')[0];
-      if (path.endsWith('.php')) req.url = '/index.html';
-      next();
-    });
-  },
-};
-
 export default defineConfig({
-  plugins: [react(), phpShell],
+  plugins: [react()],
   server: { proxy: { '/api': 'http://localhost:4000' } },
   build: {
     outDir: 'assets/build',
     emptyOutDir: true,
+    cssCodeSplit: false, // one app.css, which shell.html links directly
     rollupOptions: {
       input: 'src/main.jsx',
       output: {

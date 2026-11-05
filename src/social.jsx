@@ -47,7 +47,7 @@ export function ReviewForm({ kind, target, label, bookingId, onDone }) {
   const toast = useToast();
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
-  if (!user) return <p className="muted"><a className="text-link" href={`/login.php?redirect=${kind === 'product' ? 'shop' : 'orders'}`}>Sign in</a> to leave a review.</p>;
+  if (!user) return <p className="muted"><a className="text-link" href={`/login?redirect=${kind === 'product' ? 'shop' : 'orders'}`}>Sign in</a> to leave a review.</p>;
   const submit = async (e) => {
     e.preventDefault();
     if (!rating) { toast('Pick a star rating first', { tone: 'error' }); return; }

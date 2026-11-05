@@ -50,14 +50,14 @@ export function Checkout() {
   if (placed) {
     return (
       <Page current="shop" label="Checkout" lines={['Order', 'placed.']} lead={`Order ${placed.id} · ${rupee(placed.total)} to pay on delivery.`}>
-        <a className="pill" href="/shop.php">Keep shopping <Icon name="arrow-right" size={16} /></a>
+        <a className="pill" href="/shop">Keep shopping <Icon name="arrow-right" size={16} /></a>
       </Page>
     );
   }
   return (
     <Page current="shop" label="Checkout" lines={['Almost', 'there.']} lead="Review your order and tell us where to deliver.">
       {lines.length === 0 ? (
-        <EmptyState title="Your cart is empty" text="Add something from the marketplace first." action={<a className="pill" href="/shop.php">Browse marketplace</a>} />
+        <EmptyState title="Your cart is empty" text="Add something from the marketplace first." action={<a className="pill" href="/shop">Browse marketplace</a>} />
       ) : (
         <div className="checkout">
           <form className="form" onSubmit={place}>
@@ -139,7 +139,7 @@ export function ServiceRequest() {
     return (
       <Page current="orders" label="Booking" lines={['Request', 'sent.']} lead={`${service.name} on ${day} at ${slot}. A pro will confirm shortly.`}>
         <Reveal className="done"><svg className="done-check" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24" /><path d="M14 27l8 8 16-17" /></svg></Reveal>
-        <a className="pill" href="/orders.php">View bookings <Icon name="arrow-right" size={16} /></a>
+        <a className="pill" href="/orders">View bookings <Icon name="arrow-right" size={16} /></a>
       </Page>
     );
   }
