@@ -60,7 +60,7 @@ writeFileSync(propsGradle, readFileSync(propsGradle, 'utf8').replace(/^reactNati
 const wrapperProps = join(root, 'android', 'gradle', 'wrapper', 'gradle-wrapper.properties');
 let wp = readFileSync(wrapperProps, 'utf8').replace(/^networkTimeout=.*$/m, 'networkTimeout=180000');
 // If Java cannot reach services.gradle.org (some networks), download the zip another way and set GRADLE_DIST_ZIP=<path>.
-if (process.env.GRADLE_DIST_ZIP) wp = wp.replace(/^distributionUrl=.*$/m, `distributionUrl=file\\://${resolve(process.env.GRADLE_DIST_ZIP).replace(/\\/g, '/')}`);
+if (process.env.GRADLE_DIST_ZIP) wp = wp.replace(/^distributionUrl=.*$/m, `distributionUrl=file\\:///${resolve(process.env.GRADLE_DIST_ZIP).replace(/\\/g, '/').replace(':', '\\:')}`);
 writeFileSync(wrapperProps, wp);
 
 // 4. Build.
