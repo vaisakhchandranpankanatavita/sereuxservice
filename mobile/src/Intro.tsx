@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { font } from './ui';
 
 /* Mirrors the web splash (src/Intro.jsx): five slides that auto-advance, a masked word reveal,
@@ -13,7 +13,6 @@ const SLIDES = [
 ];
 const DURATION = 1700;
 const LOCK = 450;
-const A = Animated.createAnimatedComponent(Text);
 const EASE = Easing.bezier(0.16, 1, 0.3, 1);
 
 export default function Intro({ onDone }: { onDone: () => void }) {
@@ -77,12 +76,13 @@ export default function Intro({ onDone }: { onDone: () => void }) {
 
   return <Animated.View
     accessibilityViewIsModal accessibilityLabel="Welcome to Fixzy"
-    style={[StyleSheet.absoluteFill, { zIndex: 1000, backgroundColor: bgColor, transform: [{ translateY: wipe.interpolate({ inputRange: [0, 1], outputRange: [0, -height] }) }] }]}
+    style={[StyleSheet.absoluteFill, { zIndex: 1000, transform: [{ translateY: wipe.interpolate({ inputRange: [0, 1], outputRange: [0, -height] }) }] }]}
     onTouchStart={(e) => { touchY.current = e.nativeEvent.pageY; }}
     onTouchEnd={(e) => {
       const dy = (touchY.current ?? 0) - e.nativeEvent.pageY;
       if (Math.abs(dy) > 40) go(dy > 0 ? 1 : -1);
     }}>
+    <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bgColor }]} />
     <Pressable style={StyleSheet.absoluteFill} onPress={() => go(1)} accessibilityLabel="Next" accessibilityRole="button" />
 
     <View pointerEvents="box-none" style={[s.top]}>
@@ -100,9 +100,13 @@ export default function Intro({ onDone }: { onDone: () => void }) {
         const noteY = st.interpolate({ inputRange: [0, 1, 2], outputRange: [14, 0, -14] });
         return <View key={i} style={s.slide} importantForAccessibility={i === index ? 'yes' : 'no-hide-descendants'}>
           {sl.lines.map((line) => <View key={line} style={{ height: lineH, overflow: 'hidden' }}>
-            <A style={{ color: fgColor, fontFamily: font.heavy, fontSize: size, lineHeight: lineH, letterSpacing: -size * 0.055, transform: [{ translateY: lineY }] } as any}>{line}</A>
+            <Animated.View style={{ transform: [{ translateY: lineY }] }}>
+              <Animated.Text style={{ color: fgColor, fontFamily: font.heavy, fontSize: size, lineHeight: lineH, letterSpacing: -size * 0.055 }}>{line}</Animated.Text>
+            </Animated.View>
           </View>)}
-          <A style={{ marginTop: 28, color: muteColor, fontFamily: font.bold, fontSize: 16, letterSpacing: -0.2, opacity: noteOpacity, transform: [{ translateY: noteY }] } as any}>{sl.note}</A>
+          <Animated.View style={{ marginTop: 28, opacity: noteOpacity, transform: [{ translateY: noteY }] }}>
+            <Animated.Text style={{ color: muteColor, fontFamily: font.bold, fontSize: 16, letterSpacing: -0.2 }}>{sl.note}</Animated.Text>
+          </Animated.View>
         </View>;
       })}
     </View>

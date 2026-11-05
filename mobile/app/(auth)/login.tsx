@@ -8,8 +8,8 @@ import { Button, Field, Txt, useTheme } from '../../src/ui';
 export default function Login() {
   const { login } = useSession();
   const t = useTheme();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('test@fixzy.app'); // TODO: remove demo prefill before real release
+  const [password, setPassword] = useState('testpass123');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -18,7 +18,7 @@ export default function Login() {
     try { await login(email, password); } catch (e: any) { setErr(e.message); setBusy(false); }
   };
 
-  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <AuthHero ratio={0.62} />
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', padding: 20, paddingBottom: 32, gap: 12 }}>
       <Txt bold size={30}>Good help for the place you love.</Txt>

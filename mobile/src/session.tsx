@@ -8,17 +8,21 @@ type Ctx = {
   register: (d: { name: string; email: string; phone: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (d: { name: string; phone: string }) => Promise<void>;
+  transitioning: boolean; // true right after sign-in/sign-up, while the cinematic loader plays
+  endTransition: () => void;
 };
 const C = createContext<Ctx>(null as any);
 export const useSession = () => useContext(C);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [transitioning, setTransitioning] = useState(false);
   useEffect(() => { restore().then(setUser, () => setUser(null)); }, []);
-  const login = useCallback(async (e: string, p: string) => setUser(await signIn(e.trim().toLowerCase(), p)), []);
-  const register = useCallback(async (d: any) => setUser(await signUp({ ...d, email: d.email.trim().toLowerCase() })), []);
+  const login = useCallback(async (e: string, p: string) => { const u = await signIn(e.trim().toLowerCase(), p); setTransitioning(true); setUser(u); }, []);
+  const register = useCallback(async (d: any) => { const u = await signUp({ ...d, email: d.email.trim().toLowerCase() }); setTransitioning(true); setUser(u); }, []);
   const logout = useCallback(async () => { await signOut(); setUser(null); }, []);
   const updateProfile = useCallback(async (d: any) => setUser(await api('/auth/me', 'PATCH', d)), []);
-  const v = useMemo(() => ({ user, login, register, logout, updateProfile }), [user, login, register, logout, updateProfile]);
+  const endTransition = useCallback(() => setTransitioning(false), []);
+  const v = useMemo(() => ({ user, login, register, logout, updateProfile, transitioning, endTransition }), [user, login, register, logout, updateProfile, transitioning, endTransition]);
   return <C.Provider value={v}>{children}</C.Provider>;
 }

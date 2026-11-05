@@ -18,7 +18,7 @@ export default function Register() {
     try { await register({ ...f, name: f.name.trim() }); } catch (e: any) { setErr(e.message); setBusy(false); }
   };
 
-  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <AuthHero ratio={0.5} />
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end', padding: 20, paddingBottom: 32, gap: 12 }}>
       <Txt bold size={28}>Create your account</Txt>

@@ -78,6 +78,7 @@ model Provider {
   years    Int
   verified Boolean   @default(true)
   response String
+  bio      String    @default("")
   services Service[]
   bookings Booking[]
 }

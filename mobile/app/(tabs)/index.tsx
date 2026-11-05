@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Card, Chip, Eyebrow, Chips, Field, Row, Screen, Status, Stars, Txt, money, useFetch, useTheme } from '../../src/ui';
+import { Chip, Eyebrow, Chips, Field, Screen, Status, Tile, Txt, money, useFetch, useTheme } from '../../src/ui';
+import { ServiceArt } from '../../src/serviceArt';
 
 export default function Services() {
   const router = useRouter();
@@ -22,13 +24,20 @@ export default function Services() {
       {cats.map((c) => <Chip key={c} title={c} on={cat === c} onPress={() => setCat(c)} />)}
     </Chips>
     <Status error={error} loading={!data && !error} empty={data && !rows.length ? 'No services match.' : undefined} />
-    {rows.map((s) => <Card key={s.id} onPress={() => router.push(`/service/${s.id}`)}>
-      <Row between><Txt bold size={17}>{s.name}</Txt><Txt bold color={t.brand}>from {money(s.fromPrice)}</Txt></Row>
-      <Txt muted>{s.description}</Txt>
-      <Row>
-        {s.rating ? <><Stars value={Math.round(s.rating)} /><Txt muted size={13}>{s.rating.toFixed(1)} ({s.reviews})</Txt></> : <Txt muted size={13}>No reviews yet</Txt>}
-        <Txt muted size={13}>· {s.duration} min</Txt>
-      </Row>
-    </Card>)}
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+      {rows.map((s) => <View key={s.id} style={{ width: '47.5%', flexGrow: 1 }}>
+        <Tile onPress={() => router.push(`/service/${s.id}`)} media={<ServiceArt name={s.name} />}>
+          <Txt bold size={16} color="#fff">{s.name}</Txt>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
+            <View style={{ backgroundColor: t.accent, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+              <Txt bold size={15} color="#17160f">{money(s.fromPrice)}</Txt>
+            </View>
+            <View style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+              <Txt bold size={15} color="#17160f">{s.duration} min</Txt>
+            </View>
+          </View>
+        </Tile>
+      </View>)}
+    </View>
   </Screen>;
 }

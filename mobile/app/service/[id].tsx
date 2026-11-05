@@ -1,5 +1,6 @@
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Button, Card, Row, Screen, Status, Stars, Txt, money, useFetch, useTheme } from '../../src/ui';
+import { Avatar, Button, Card, Row, Screen, Status, Stars, Txt, money, useFetch, useTheme } from '../../src/ui';
 
 export default function ServiceDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,8 +22,14 @@ export default function ServiceDetail() {
     <Txt bold size={17} style={{ marginTop: 8 }}>Choose a pro</Txt>
     {!s.providers.length && <Txt muted>No pros listed for this service yet.</Txt>}
     {s.providers.map((p: any) => <Card key={p.id}>
-      <Row between><Txt bold>{p.name}{p.verified ? '  ✓' : ''}</Txt><Txt muted size={13}>{p.years} yrs</Txt></Row>
-      <Txt muted size={13}>Typically responds in {p.response}</Txt>
+      <Row>
+        <Avatar name={p.name} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Row between><Txt bold>{p.name}{p.verified ? '  ✓' : ''}</Txt><Txt muted size={13}>{p.years} yrs</Txt></Row>
+          <Txt muted size={13}>Typically responds in {p.response}</Txt>
+        </View>
+      </Row>
+      {!!p.bio && <Txt muted size={13} style={{ marginTop: 2 }}>{p.bio}</Txt>}
       <Button title={`Book ${p.name.split(' ')[0]}`} kind="ghost" onPress={() => book(p.id)} style={{ marginTop: 6 }} />
     </Card>)}
 

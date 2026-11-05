@@ -7,9 +7,10 @@ import { CartProvider } from '../src/cart';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { font, useTheme } from '../src/ui';
 import Intro from '../src/Intro';
+import ServiceLoader from '../src/ServiceLoader';
 
 function Gate() {
-  const { user } = useSession();
+  const { user, transitioning, endTransition } = useSession();
   const t = useTheme();
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold });
   const segments = useSegments();
@@ -41,6 +42,7 @@ function Gate() {
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
     </Stack>}
     {!introDone && <Intro onDone={() => setIntroDone(true)} />}
+    {introDone && transitioning && <ServiceLoader onDone={endTransition} />}
   </View>;
 }
 

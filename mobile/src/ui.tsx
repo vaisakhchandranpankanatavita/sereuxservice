@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { api } from './api';
 
 /* Tokens mirror the web app (assets/css/redesign.css): cream surface, ink, tan accent, light only. */
@@ -37,8 +38,10 @@ export function useFetch<T = any>(path: string | null, pollMs = 0) {
 
 export function Screen({ children, refresh, refreshing, pad = true }: { children: ReactNode; refresh?: () => void; refreshing?: boolean; pad?: boolean }) {
   const t = useTheme();
-  return <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ padding: pad ? 16 : 0, gap: 12, paddingBottom: 40 }} keyboardShouldPersistTaps="handled"
-    refreshControl={refresh ? <RefreshControl refreshing={!!refreshing} onRefresh={refresh} /> : undefined}>{children}</ScrollView>;
+  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
+    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ padding: pad ? 16 : 0, gap: 12, paddingBottom: 40 }} keyboardShouldPersistTaps="handled"
+      refreshControl={refresh ? <RefreshControl refreshing={!!refreshing} onRefresh={refresh} /> : undefined}>{children}</ScrollView>
+  </KeyboardAvoidingView>;
 }
 
 export function Txt({ children, style, muted, bold, size, color, numberOfLines }: { children: ReactNode; style?: any; muted?: boolean; bold?: boolean; size?: number; color?: string; numberOfLines?: number }) {
@@ -52,6 +55,16 @@ export function Card({ children, onPress, style }: { children: ReactNode; onPres
   const t = useTheme();
   const s = [{ backgroundColor: t.card, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: t.line, padding: 16, gap: 6, shadowColor: '#141412', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 1 }, style];
   return onPress ? <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [...s, pressed && { opacity: 0.75 }]}>{children}</Pressable> : <View style={s}>{children}</View>;
+}
+
+/* Square image tile, full-bleed background with a dark bottom scrim so light text stays readable — no white panel. */
+export function Tile({ children, media, onPress }: { children: ReactNode; media: ReactNode; onPress?: () => void }) {
+  return <Pressable onPress={onPress} accessibilityRole="button"
+    style={({ pressed }) => [{ aspectRatio: 1, borderRadius: R.md, overflow: 'hidden' }, pressed && { opacity: 0.8 }]}>
+    <View style={StyleSheet.absoluteFill}>{media}</View>
+    <LinearGradient colors={['rgba(20,19,15,0)', 'rgba(20,19,15,0.18)', 'rgba(20,19,15,0.82)']} locations={[0, 0.45, 1]}
+      style={{ flex: 1, justifyContent: 'flex-end', padding: 12, gap: 2 }}>{children}</LinearGradient>
+  </Pressable>;
 }
 
 /* Pill buttons, uppercase and tracked like the web's .pill / .pill-outline. */
@@ -94,6 +107,18 @@ export function Badge({ v }: { v: string }) {
   const k = TONE[v];
   const [bg, fg] = k === 'ok' ? [t.okBg, t.ok] : k === 'warn' ? [t.warnBg, t.warn] : k === 'bad' ? [t.badBg, t.bad] : k === 'info' ? [t.infoBg, t.ink] : [t.idleBg, t.muted];
   return <View style={{ backgroundColor: bg, paddingHorizontal: 10, paddingVertical: 3, borderRadius: R.pill, alignSelf: 'flex-start' }}><Text style={{ color: fg, fontSize: 11, fontFamily: font.bold, letterSpacing: 0.6, textTransform: 'uppercase' }}>{label(v)}</Text></View>;
+}
+
+/* Initials avatar: deterministic color per name, standing in for a profile photo. */
+const AVATAR_COLORS = ['#8fb8d6', '#e0b94a', '#8fd0c9', '#c8a373', '#b494d9', '#8fd6a3', '#9ea3c2', '#b7ab6a'];
+const initials = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
+export function Avatar({ name, size = 48 }: { name: string; size?: number }) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+  const bg = AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+    <Text style={{ color: '#17160f', fontFamily: font.bold, fontSize: size * 0.38 }}>{initials(name)}</Text>
+  </View>;
 }
 
 export function Stars({ value, onChange }: { value: number; onChange?: (n: number) => void }) {

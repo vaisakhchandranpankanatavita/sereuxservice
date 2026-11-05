@@ -14,11 +14,11 @@ const services = [
 ];
 
 const providers = [
-  { id: 1, name: 'Anil Kumar', serviceIds: [1], years: 9, response: '15 min' },
-  { id: 2, name: 'Rahul Menon', serviceIds: [2, 7], years: 11, response: '10 min' },
-  { id: 3, name: 'Sajan Thomas', serviceIds: [3], years: 7, response: '25 min' },
-  { id: 4, name: 'Biju Varghese', serviceIds: [4, 5], years: 12, response: '30 min' },
-  { id: 5, name: 'Meera Nair', serviceIds: [6, 8], years: 6, response: '12 min' },
+  { id: 1, name: 'Anil Kumar', serviceIds: [1], years: 9, response: '15 min', bio: 'Licensed plumber specialising in leak repairs and bathroom fittings.' },
+  { id: 2, name: 'Rahul Menon', serviceIds: [2, 7], years: 11, response: '10 min', bio: 'Electrician and appliance technician, handles wiring and repairs.' },
+  { id: 3, name: 'Sajan Thomas', serviceIds: [3], years: 7, response: '25 min', bio: 'AC servicing and installation specialist for homes and offices.' },
+  { id: 4, name: 'Biju Varghese', serviceIds: [4, 5], years: 12, response: '30 min', bio: 'Carpenter and painter known for tidy, detail-oriented work.' },
+  { id: 5, name: 'Meera Nair', serviceIds: [6, 8], years: 6, response: '12 min', bio: 'Deep-cleaning and pest-control expert, thorough and punctual.' },
 ];
 
 const seller1 = "Jithu's Greens & More";
