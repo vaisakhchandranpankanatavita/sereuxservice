@@ -1,9 +1,12 @@
 import { useState } from 'react';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api';
 import { usePayment } from '../../src/payment';
 import { useSession } from '../../src/session';
-import { Badge, Button, Card, Field, Row, Screen, Stars, Status, Txt, money, useFetch, useTheme, when } from '../../src/ui';
+import { Badge, Button, Card, Field, Row, Screen, Stars, Status, Txt, label, money, useFetch, useTheme, when } from '../../src/ui';
+
+const FLOW = ['PLACED', 'SHIPPED', 'DELIVERED'];
 
 function Rate({ productId, onDone }: { productId: number; onDone: () => void }) {
   const t = useTheme();
@@ -37,6 +40,7 @@ export default function OrderDetail() {
 
   if (!o) return <Screen><Status error={error} loading={!error} /></Screen>;
 
+  const step = FLOW.indexOf(o.status);
   const needsPayment = o.paymentMethod === 'ONLINE' && o.payment?.status !== 'PAID';
   const completePayment = async () => {
     if (!user) return;
@@ -49,6 +53,14 @@ export default function OrderDetail() {
   return <Screen refresh={refresh} refreshing={refreshing}>
     <Row between><Txt bold size={22}>#{o.id}</Txt><Badge v={o.status} /></Row>
     <Txt muted>Placed {when(o.createdAt)}</Txt>
+
+    {o.status !== 'CANCELLED' && <Card>
+      {FLOW.map((s, i) => <Row key={s}>
+        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: i <= step ? t.brand : t.line }} />
+        <Txt bold={i === step} muted={i > step}>{label(s)}</Txt>
+      </Row>)}
+    </Card>}
+
     {o.items.map((i: any) => <Card key={i.id}>
       <Row between><Txt bold style={{ flex: 1 }}>{i.qty}× {i.product.name}</Txt><Txt>{money(i.unitPrice * i.qty)}</Txt></Row>
       {o.status === 'DELIVERED' && (done[i.productId] ? <Txt color={t.ok}>Thanks for reviewing!</Txt> : <Rate productId={i.productId} onDone={() => setDone((d) => ({ ...d, [i.productId]: true }))} />)}
