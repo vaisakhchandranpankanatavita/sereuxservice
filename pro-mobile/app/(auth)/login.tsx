@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { Link } from 'expo-router';
 import { useSession } from '../../src/session';
 import { Button, Field, Txt, Wordmark, useTheme } from '../../src/ui';
 
@@ -31,6 +32,7 @@ export default function Login() {
         <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={submit} />
         {!!(err || error) && <Txt color={t.bad}>{err || error}</Txt>}
         <Button title="Sign in" onPress={submit} busy={busy} disabled={!email || !password} />
+        <Link href="/forgot-password" style={{ textAlign: 'center', color: t.ink, padding: 4 }}>Forgot password?</Link>
       </View>
       <Txt color={t.brandInk} muted size={13} style={{ textAlign: 'center', marginTop: 8 }}>Not linked to a provider profile yet? Ask the admin team to set up your account.</Txt>
     </ScrollView>

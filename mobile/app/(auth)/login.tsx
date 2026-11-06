@@ -27,6 +27,7 @@ export default function Login() {
       <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={submit} />
       {!!err && <Txt color={t.bad}>{err}</Txt>}
       <Button title="Sign in" onPress={submit} busy={busy} disabled={!email || !password} />
+      <Link href="/forgot-password" style={{ textAlign: 'center', color: t.ink, padding: 8 }}>Forgot password?</Link>
       <Link href="/register" style={{ textAlign: 'center', color: t.ink, padding: 8 }}>New here? Create an account</Link>
     </ScrollView>
   </KeyboardAvoidingView>;
