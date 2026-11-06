@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { categories, discount, products, providers, rupee, serviceCategories, services } from './data.js';
+import { categories, discount, products, providers, rupee, serviceCategories, serviceImg, services } from './data.js';
 import { Avatar, HeartButton, Reviews, Stars } from './social.jsx';
 import { ActiveFilters, FilterSelect, SearchBox, useQueryState } from './filters.jsx';
 import { actions, useStore } from './store.js';
@@ -179,6 +179,7 @@ export function ServicesPage() {
       <div className="service-list swap" key={JSON.stringify(f)}>
         {visible.map((s, i) => (
           <a key={s.id} className="service-row" style={{ '--i': i }} href={`/service-request?service_id=${s.id}`}>
+            <img className="service-thumb" src={serviceImg(s.name)} alt="" loading="lazy" decoding="async" />
             <span className="service-name">{s.name}</span>
             <span className="service-desc">{s.description}<small className="svc-meta">★ {s.rating} · {s.reviews} reviews · about {s.duration} min</small></span>
             <span className="service-price">From {s.price} / hr</span>

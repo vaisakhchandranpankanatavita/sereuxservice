@@ -15,6 +15,19 @@ export const services = [
 /* Bookable windows, shared by every service for now. */
 export const slots = ['09:00', '11:00', '13:00', '15:00', '17:00'];
 
+/* Same per-service photos the mobile app uses (mobile/assets/services), served from /assets/services. */
+const SERVICE_IMG = {
+  plumbing: '/assets/services/plumbing.png',
+  electrical: '/assets/services/electrical.png',
+  'ac repair': '/assets/services/ac-repair.png',
+  carpentry: '/assets/services/carpentry.png',
+  painting: '/assets/services/painting.png',
+  cleaning: '/assets/services/cleaning.png',
+  appliances: '/assets/services/appliances.png',
+  'pest control': '/assets/services/pest-control.png',
+};
+export const serviceImg = (name) => SERVICE_IMG[name.trim().toLowerCase()] ?? SERVICE_IMG.cleaning;
+
 export const categories = ['Electronics', 'Home & Kitchen', 'Fashion', 'Books', 'Sports & Outdoors', 'Food & Beverages'];
 
 /* Images are placeholders until real product photos exist; categories now match what each product is. */
