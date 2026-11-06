@@ -60,6 +60,24 @@ export function Address({ children, style }: { children: ReactNode; style?: any 
   </View>;
 }
 
+/* A whole card styled like a page torn off a notepad — rough cream paper, a dashed "deckle" edge,
+   a faint tilt, and every line in the handwritten font, ruled off from the next like notebook paper. */
+export function NoteCard({ children, style }: { children: ReactNode; style?: ViewStyle }) {
+  return <View style={[{
+    backgroundColor: '#fbf3df', borderRadius: 6, padding: 20,
+    borderWidth: 1.5, borderColor: 'rgba(74,62,40,0.3)', borderStyle: 'dashed',
+    transform: [{ rotate: '-0.5deg' }],
+    shadowColor: '#241d0f', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 3,
+  }, style]}>{children}</View>;
+}
+
+export function NoteLine({ children, size, bold, muted, last }: { children: ReactNode; size?: number; bold?: boolean; muted?: boolean; last?: boolean }) {
+  const sz = size ?? (bold ? 25 : 19);
+  return <View style={{ paddingVertical: 5, borderBottomWidth: last ? 0 : 1, borderStyle: 'dashed', borderColor: 'rgba(74,62,40,0.2)' }}>
+    <Text style={{ fontFamily: font.hand, fontSize: sz, lineHeight: sz * 1.12, color: muted ? 'rgba(46,38,22,0.62)' : '#2e2616' }}>{children}</Text>
+  </View>;
+}
+
 export function Card({ children, onPress, style }: { children: ReactNode; onPress?: () => void; style?: ViewStyle }) {
   const t = useTheme();
   const s = [{ backgroundColor: t.card, borderRadius: R.md, borderWidth: StyleSheet.hairlineWidth, borderColor: t.line, padding: 16, gap: 6, shadowColor: '#141412', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 1 }, style];

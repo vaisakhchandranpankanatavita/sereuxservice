@@ -5,7 +5,7 @@ import { api } from '../../src/api';
 import { LiveMap } from '../../src/map';
 import { StatusIntro } from '../../src/StatusIntro';
 import { Timeline, type Step } from '../../src/timeline';
-import { Address, Badge, Button, Card, Chip, Eyebrow, Field, Row, Screen, Stars, Status, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
+import { Badge, Button, Card, Chip, Eyebrow, Field, NoteCard, NoteLine, Row, Screen, Stars, Status, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 
 const STEPS: Step[] = [
   { key: 'REQUESTED', label: 'Requested', hint: "We've got your request.", icon: 'hourglass-outline', iconDone: 'hourglass' },
@@ -53,14 +53,14 @@ export default function BookingDetail() {
 
   return <Screen refresh={refresh} refreshing={refreshing}>
     <Row between><Txt bold size={22}>#{b.id}</Txt><Badge v={b.status} /></Row>
-    <Card>
-      <Txt bold size={17}>{b.service.name}</Txt>
-      <Txt>{dayLabel(b.day)} at {b.slot}</Txt>
-      <Txt muted>{b.provider ? `Pro: ${b.provider.name}` : 'Pro will be assigned shortly'}</Txt>
-      <Address>{b.address}</Address>
-      <Txt muted>Estimate {money(b.estimate)}</Txt>
-      {!!b.notes && <Txt muted>Notes: {b.notes}</Txt>}
-    </Card>
+    <NoteCard>
+      <NoteLine bold>{b.service.name}</NoteLine>
+      <NoteLine>{dayLabel(b.day)} at {b.slot}</NoteLine>
+      <NoteLine muted>{b.provider ? `Pro: ${b.provider.name}` : 'Pro will be assigned shortly'}</NoteLine>
+      <NoteLine>{b.address}</NoteLine>
+      <NoteLine muted={!b.notes} last={!b.notes}>Estimate {money(b.estimate)}</NoteLine>
+      {!!b.notes && <NoteLine muted last>Notes: {b.notes}</NoteLine>}
+    </NoteCard>
 
     {b.status !== 'CANCELLED' && <Card>
       <Eyebrow>Booking status</Eyebrow>

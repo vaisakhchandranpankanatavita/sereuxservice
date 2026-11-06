@@ -5,7 +5,7 @@ import { usePayment } from '../../src/payment';
 import { useSession } from '../../src/session';
 import { StatusIntro } from '../../src/StatusIntro';
 import { Timeline, type Step } from '../../src/timeline';
-import { Address, Badge, Button, Card, Eyebrow, Field, Row, Screen, Stars, Status, Txt, money, useFetch, useTheme, when } from '../../src/ui';
+import { Badge, Button, Card, Eyebrow, Field, NoteCard, NoteLine, Row, Screen, Stars, Status, Txt, money, useFetch, useTheme, when } from '../../src/ui';
 
 const STEPS: Step[] = [
   { key: 'PLACED', label: 'Order placed', hint: "We've got it — packing starts shortly.", icon: 'receipt-outline', iconDone: 'receipt' },
@@ -81,7 +81,11 @@ export default function OrderDetail() {
       {!!payErr && <Txt color={t.bad}>{payErr}</Txt>}
       <Button title="Complete payment" busy={paying} onPress={completePayment} />
     </>}
-    <Card><Txt bold>Delivering to</Txt><Txt muted>{o.name} · {o.phone}</Txt><Address>{o.address}, {o.city} {o.pin}</Address></Card>
+    <NoteCard>
+      <NoteLine bold size={21}>Delivering to</NoteLine>
+      <NoteLine muted>{o.name} · {o.phone}</NoteLine>
+      <NoteLine last>{o.address}, {o.city} {o.pin}</NoteLine>
+    </NoteCard>
     <Button title="Back to activity" kind="ghost" onPress={() => router.replace('/activity')} />
     {node}
   </Screen>;
