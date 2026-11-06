@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { api } from '../../src/api';
+import { LiveMap } from '../../src/map';
 import { Badge, Button, Card, Chip, Field, Row, Screen, Stars, Status, Txt, dayLabel, label, money, useFetch, useTheme } from '../../src/ui';
 
 const FLOW = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
@@ -56,6 +57,9 @@ export default function BookingDetail() {
         <Txt bold={i === step} muted={i > step}>{label(s)}</Txt>
       </Row>)}
     </Card>}
+
+    {b.status === 'ON_THE_WAY' && b.provider?.lat != null && b.provider?.lng != null && b.lat != null && b.lng != null &&
+      <LiveMap home={{ lat: b.lat, lng: b.lng }} pro={{ lat: b.provider.lat, lng: b.provider.lng }} label={`${b.provider.name} is on the way`} />}
 
     {!!msg && <Txt color={/fail|cannot|taken|late|closed|Cannot/.test(msg) ? t.bad : t.ok}>{msg}</Txt>}
 

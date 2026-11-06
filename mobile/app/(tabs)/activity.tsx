@@ -5,7 +5,7 @@ import { Badge, Card, Chip, Row, Screen, Status, Txt, dayLabel, money, useFetch,
 export default function Activity() {
   const router = useRouter();
   const [tab, setTab] = useState<'bookings' | 'orders'>('bookings');
-  const { data, error, refreshing, refresh } = useFetch<any[]>(`/${tab}`);
+  const { data, error, refreshing, refresh } = useFetch<any[]>(`/${tab}`, 20000);
 
   return <Screen refresh={refresh} refreshing={refreshing}>
     <Row><Chip title="Bookings" on={tab === 'bookings'} onPress={() => setTab('bookings')} /><Chip title="Orders" on={tab === 'orders'} onPress={() => setTab('orders')} /></Row>
