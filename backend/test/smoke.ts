@@ -137,8 +137,109 @@ async function main() {
   r = await call('POST', '/auth/logout', { cookie: refreshCookie });
   check('auth: logout', r.status === 204, r.status);
 
+  await proFlow();
+
   console.log(failed ? `\n${failed} check(s) FAILED` : '\nAll checks passed');
   process.exit(failed ? 1 : 0);
+}
+
+/* Exercises the provider app's API: linking a login to a provider profile (admin), the request pool,
+   accept/decline races, the status flow, releasing a confirmed job, and earnings/profile.
+   Needs ADMIN_EMAIL/ADMIN_PASSWORD for an existing admin (see `npm run admin:create`); skipped otherwise. */
+async function proFlow() {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword) {
+    console.log('SKIP  pro flow (set ADMIN_EMAIL/ADMIN_PASSWORD to run it)');
+    return;
+  }
+
+  let r = await call('POST', '/auth/login', { body: { email: adminEmail, password: adminPassword } });
+  check('pro: admin login', r.status === 200 && !!r.json.accessToken, r.status);
+  const adminToken = r.json.accessToken as string;
+
+  const run2 = Date.now().toString(36) + '2';
+  const customerEmail = `smokecust_${run2}@example.com`;
+  r = await call('POST', '/auth/register', { body: { name: 'Pro Flow Customer', email: customerEmail, phone: '9876500000', password: 'Passw0rd!x' } });
+  const customerToken = r.json.accessToken as string;
+
+  const proAEmail = `smokepro_a_${run2}@example.com`;
+  const proBEmail = `smokepro_b_${run2}@example.com`;
+  const proA = await call('POST', '/auth/register', { body: { name: 'Pro A', email: proAEmail, phone: '9876500001', password: 'Passw0rd!x' } });
+  const proB = await call('POST', '/auth/register', { body: { name: 'Pro B', email: proBEmail, phone: '9876500002', password: 'Passw0rd!x' } });
+
+  r = await call('GET', '/pro/me', { token: proA.json.accessToken });
+  check('pro: plain CUSTOMER login is forbidden from /pro/me before linking', r.status === 403, r.status);
+
+  r = await call('POST', '/admin/providers', { token: adminToken, body: { name: 'Smoke Pro A', years: 2, response: '20 min', verified: true, serviceIds: [1] } });
+  check('pro: admin creates provider profile', r.status === 201, r);
+  const providerId = r.json.id as number;
+
+  r = await call('POST', '/admin/providers', { token: adminToken, body: { name: 'Smoke Pro B', years: 1, response: '30 min', verified: true, serviceIds: [1] } });
+  const providerBId = r.json.id as number;
+
+  r = await call('PATCH', `/admin/providers/${providerId}/link`, { token: adminToken, body: { email: proAEmail } });
+  check('pro: admin links login to provider', r.status === 200 && r.json.userId, r);
+
+  r = await call('PATCH', `/admin/providers/${providerBId}/link`, { token: adminToken, body: { email: proBEmail } });
+  check('pro: admin links second login to a different provider', r.status === 200 && r.json.userId, r);
+
+  r = await call('PATCH', `/admin/providers/${providerId}/link`, { token: adminToken, body: { email: proBEmail } });
+  check("pro: can't link a login that's already linked to another provider -> 409", r.status === 409, r.status);
+
+  r = await call('PATCH', `/admin/providers/${providerId}/link`, { token: adminToken, body: { email: 'no-such-account@example.com' } });
+  check('pro: linking an unregistered email -> 404', r.status === 404, r.status);
+
+  // Role is baked into the access token at issuance, so a pro must get a fresh token after being linked/promoted.
+  const proALogin = await call('POST', '/auth/login', { body: { email: proAEmail, password: 'Passw0rd!x' } });
+  const proBLogin = await call('POST', '/auth/login', { body: { email: proBEmail, password: 'Passw0rd!x' } });
+  const proAToken = proALogin.json.accessToken as string;
+  const proBToken = proBLogin.json.accessToken as string;
+
+  r = await call('GET', '/pro/me', { token: proAToken });
+  check('pro: linked login reaches /pro/me', r.status === 200 && r.json.id === providerId, r);
+  r = await call('GET', '/pro/me', { token: proBToken });
+  check('pro: pro B reaches its own provider profile', r.status === 200 && r.json.id === providerBId, r);
+
+  r = await call('PATCH', '/pro/online', { token: proAToken, body: { online: true } });
+  check('pro: go online', r.status === 200 && r.json.online === true, r);
+
+  const day2 = new Date(Date.now() + 4 * 864e5).toISOString().slice(0, 10);
+  r = await call('POST', '/bookings', { token: customerToken, body: { serviceId: 1, day: day2, slot: '15:00', name: 'Pro Flow Customer', phone: '9876500000', address: '9 Flow Street' } });
+  check('pro: customer books unassigned', r.status === 201, r);
+  const jobId = r.json.id as string;
+
+  r = await call('GET', '/pro/requests', { token: proAToken });
+  check('pro: open request appears in pool', r.status === 200 && r.json.some((b: any) => b.id === jobId), r.status);
+
+  r = await call('POST', `/pro/bookings/${jobId}/accept`, { token: proAToken });
+  check('pro: accept assigns and confirms', r.status === 201 || (r.status === 200 && r.json.status === 'CONFIRMED'), r);
+
+  r = await call('PATCH', `/bookings/${jobId}/status`, { token: proBToken });
+  check('pro: another pro cannot drive the status (not assigned) -> 403', r.status === 403 || r.status === 400, r.status);
+
+  r = await call('POST', `/pro/bookings/${jobId}/release`, { token: proAToken, body: { reason: 'te' } });
+  check('pro: release rejects a too-short reason', r.status === 400, r.status);
+
+  r = await call('POST', `/pro/bookings/${jobId}/release`, { token: proAToken, body: { reason: 'Vehicle broke down' } });
+  check('pro: release puts the job back in the pool', r.status === 201 && r.json.status === 'REQUESTED' && r.json.providerId === null, r.json);
+
+  r = await call('POST', `/pro/bookings/${jobId}/accept`, { token: proAToken });
+  check('pro: re-accept after release', r.status === 200 || r.status === 201, r.status);
+
+  for (const status of ['ON_THE_WAY', 'IN_PROGRESS', 'DONE']) {
+    r = await call('PATCH', `/bookings/${jobId}/status`, { token: proAToken, body: { status } });
+    check(`pro: status -> ${status}`, r.status === 200 && r.json.status === status, r.json);
+  }
+
+  r = await call('POST', `/pro/bookings/${jobId}/release`, { token: proAToken, body: { reason: 'Too late to release' } });
+  check('pro: cannot release a job that is already done', r.status === 400, r.status);
+
+  r = await call('GET', '/pro/earnings', { token: proAToken });
+  check('pro: earnings reflects the completed job', r.status === 200 && r.json.jobs >= 1 && r.json.lifetime >= 1, r.json);
+
+  r = await call('PATCH', '/pro/profile', { token: proAToken, body: { bio: 'Quick and tidy.', response: '15 min' } });
+  check('pro: update profile', r.status === 200 && r.json.bio === 'Quick and tidy.' && r.json.response === '15 min', r.json);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
