@@ -6,7 +6,7 @@ import { SessionProvider, useSession } from '../src/session';
 import { CartProvider } from '../src/cart';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { ComingSoon_400Regular } from '@expo-google-fonts/coming-soon';
-import { font, useTheme } from '../src/ui';
+import { HeaderTitle, useTheme } from '../src/ui';
 import Intro from '../src/Intro';
 import ServiceLoader from '../src/ServiceLoader';
 import BottomBar from '../src/BottomBar';
@@ -31,7 +31,11 @@ function Gate() {
 
   return <View style={{ flex: 1, backgroundColor: t.bg }}>
     <StatusBar style={introDone ? "dark" : "light"} />
-    {user !== undefined && <Stack screenOptions={{ headerStyle: { backgroundColor: t.bg }, headerShadowVisible: false, headerTintColor: t.ink, headerTitleStyle: { fontFamily: font.bold, fontSize: 16 }, headerBackButtonDisplayMode: 'minimal', contentStyle: { backgroundColor: t.bg } }}>
+    {user !== undefined && <Stack screenOptions={{
+      headerStyle: { backgroundColor: t.bg }, headerShadowVisible: false, headerTintColor: t.ink,
+      headerTitle: ({ children }) => <HeaderTitle>{children}</HeaderTitle>,
+      headerBackButtonDisplayMode: 'minimal', contentStyle: { backgroundColor: t.bg },
+    }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="service/[id]" options={{ title: 'Service' }} />

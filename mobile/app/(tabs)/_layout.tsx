@@ -2,7 +2,7 @@ import { Pressable } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../../src/cart';
-import { Txt, font, useTheme } from '../../src/ui';
+import { HeaderTitle, Txt, useTheme } from '../../src/ui';
 
 /* The tab bar itself is hidden here — the global BottomBar in app/_layout.tsx replaces it so
    navigation stays visible on every screen, not just these four. This layout now only supplies
@@ -14,7 +14,8 @@ export default function TabsLayout() {
 
   return <Tabs screenOptions={{
     tabBarStyle: { display: 'none' },
-    headerStyle: { backgroundColor: t.bg }, headerShadowVisible: false, headerTintColor: t.ink, headerTitleStyle: { fontFamily: font.bold, fontSize: 16 },
+    headerStyle: { backgroundColor: t.bg }, headerShadowVisible: false, headerTintColor: t.ink,
+    headerTitle: ({ children }) => <HeaderTitle>{children}</HeaderTitle>,
   }}>
     <Tabs.Screen name="index" options={{ title: 'Services' }} />
     <Tabs.Screen name="shop" options={{

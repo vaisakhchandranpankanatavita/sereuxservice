@@ -20,11 +20,14 @@ function TabIcon({ source, active }: { source: any; active: boolean }) {
     // Skip the first run — `autoPlay` below already paints the icon as soon as it's ready,
     // without waiting on the ref (which, on first mount, can still be null when this fires).
     if (!mounted.current) { mounted.current = true; return; }
-    if (active) ref.current?.play(); else ref.current?.reset();
+    // Replay the draw-on when a tab becomes active; never reset() a tab that stops being
+    // active — these Lordicon animations start from a blank first frame, so reset() would
+    // snap it back to invisible instead of leaving it at its fully-drawn resting state.
+    if (active) ref.current?.play();
   }, [active]);
   // The JSON itself is pre-recoloured to the app's ink/accent palette (see assets/lottie);
   // active vs. inactive is just opacity, since per-state colour swaps aren't reliable on web.
-  return <LottieView ref={ref} source={source} loop={false} autoPlay style={{ width: 21, height: 21, opacity: active ? 1 : 0.55 }} />;
+  return <LottieView ref={ref} source={source} loop={false} autoPlay style={{ width: 16, height: 16, opacity: active ? 1 : 0.55 }} />;
 }
 
 /* Persistent bottom tab bar, rendered once at the app root so it stays put across every
@@ -40,21 +43,22 @@ export default function BottomBar() {
   return <View style={{
     position: 'absolute', left: 18, right: 18, bottom: Math.max(insets.bottom, 10),
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: t.card, borderRadius: 26, paddingVertical: 8, paddingHorizontal: 10,
-    shadowColor: '#141412', shadowOpacity: 0.16, shadowRadius: 18, shadowOffset: { width: 0, height: 10 },
+    backgroundColor: 'rgba(255,255,255,0.72)', borderRadius: 16, paddingVertical: 2, paddingHorizontal: 6,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)',
+    shadowColor: '#141412', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
     elevation: 12, zIndex: 900,
   }}>
     {TABS.map((tab) => {
       const active = (tab.match as readonly string[]).includes(pathname);
       return <Pressable key={tab.href} onPress={() => router.push(tab.href as any)} accessibilityRole="button" accessibilityLabel={tab.label}
-        style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: 7, borderRadius: 18, backgroundColor: active ? t.idleBg : 'transparent' }}>
+        style={{ flex: 1, alignItems: 'center', paddingVertical: 1, borderRadius: 11, backgroundColor: active ? 'rgba(20,20,18,0.08)' : 'transparent' }}>
         <View>
           <TabIcon source={tab.lottie} active={active} />
-          {tab.href === '/shop' && count > 0 && <View style={{ position: 'absolute', top: -3, right: -9, backgroundColor: t.accent, borderRadius: 8, minWidth: 14, paddingHorizontal: 3, alignItems: 'center' }}>
-            <Txt size={9} bold color={t.brandInk}>{count}</Txt>
+          {tab.href === '/shop' && count > 0 && <View style={{ position: 'absolute', top: -2, right: -8, backgroundColor: t.accent, borderRadius: 7, minWidth: 13, paddingHorizontal: 3, alignItems: 'center' }}>
+            <Txt size={8.5} bold color={t.brandInk}>{count}</Txt>
           </View>}
         </View>
-        <Txt size={9.5} bold={active} muted={!active}>{tab.label}</Txt>
+        <Txt size={8.5} bold color={active ? t.ink : t.muted}>{tab.label}</Txt>
       </Pressable>;
     })}
   </View>;

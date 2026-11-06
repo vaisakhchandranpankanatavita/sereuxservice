@@ -16,6 +16,12 @@ export const useTheme = (): Theme => theme;
 export const R = { sm: 10, md: 18, lg: 24, pill: 999 };
 export const font = { regular: 'Inter_400Regular', medium: 'Inter_500Medium', bold: 'Inter_700Bold', heavy: 'Inter_800ExtraBold', hand: 'ComingSoon_400Regular' };
 
+/* Native-stack's typed headerTitleStyle only allows fontFamily/fontSize/fontWeight/color — no
+   textTransform or letterSpacing — so screen headers use this as a custom headerTitle instead. */
+export function HeaderTitle({ children }: { children: ReactNode }) {
+  return <Text style={{ color: theme.ink, fontFamily: font.heavy, fontSize: 18, letterSpacing: 0.8, textTransform: 'uppercase' }} numberOfLines={1}>{children}</Text>;
+}
+
 export const money = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 export const label = (s: string) => s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 export const when = (d: string) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
