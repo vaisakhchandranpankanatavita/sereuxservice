@@ -15,8 +15,14 @@ const TABS = [
 
 function TabIcon({ source, active }: { source: any; active: boolean }) {
   const ref = useRef<LottieView>(null);
-  useEffect(() => { if (active) { ref.current?.play(); } else { ref.current?.reset(); } }, [active]);
-  return <LottieView ref={ref} source={source} loop={false} autoPlay={false} style={{ width: 26, height: 26 }} />;
+  const mounted = useRef(false);
+  useEffect(() => {
+    // Skip the first run — `autoPlay` below already paints the icon as soon as it's ready,
+    // without waiting on the ref (which, on first mount, can still be null when this fires).
+    if (!mounted.current) { mounted.current = true; return; }
+    if (active) ref.current?.play(); else ref.current?.reset();
+  }, [active]);
+  return <LottieView ref={ref} source={source} loop={false} autoPlay style={{ width: 26, height: 26 }} />;
 }
 
 /* Persistent bottom tab bar, rendered once at the app root so it stays put across every
