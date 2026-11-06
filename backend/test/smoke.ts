@@ -111,6 +111,24 @@ async function main() {
   r = await call('POST', '/orders', { token, body: { name: 'Smoke', phone: '9876543210', address: '1 Road', city: 'Kochi', pin: '682001', items: [{ productId: 1, qty: 2 }, { productId: 3, qty: 1 }], coupon: 'fixzy10' } });
   const expectedSubtotal = 350 * 2 + 1649;
   check('order: server-priced total with coupon', r.status === 201 && r.json.subtotal === expectedSubtotal && r.json.discount === Math.round(expectedSubtotal * 0.1) && r.json.total === expectedSubtotal - r.json.discount, r.json);
+  check('order: defaults to pay on delivery', r.json.paymentMethod === 'COD', r.json.paymentMethod);
+  const codOrderId = r.json.id as string;
+
+  r = await call('POST', '/orders', { token, body: { name: 'Smoke', phone: '9876543210', address: '1 Road', city: 'Kochi', pin: '682001', items: [{ productId: 1, qty: 1 }], paymentMethod: 'ONLINE' } });
+  check('order: can be placed for online payment', r.status === 201 && r.json.paymentMethod === 'ONLINE', r.json);
+  const onlineOrderId = r.json.id as string;
+
+  r = await call('POST', `/payments/orders/${codOrderId}`, { token });
+  check('payment: refuses to start for a COD order', r.status === 400, r.status);
+
+  r = await call('POST', `/payments/orders/${onlineOrderId}`, { token });
+  check('payment: 503 when Razorpay keys are not configured (pay-on-delivery still works)', r.status === 503, r.status);
+
+  r = await call('POST', `/payments/orders/${onlineOrderId}/verify`, { token, body: { razorpay_order_id: 'x', razorpay_payment_id: 'y', razorpay_signature: 'z' } });
+  check('payment: verify 404s without a payment attempt on record', r.status === 404, r.status);
+
+  r = await call('POST', `/payments/orders/${onlineOrderId}`, { token: other.json.accessToken });
+  check("payment: another user can't start payment on this order -> 404", r.status === 404, r.status);
 
   r = await call('POST', '/orders', { token, body: { name: 'Smoke', phone: '9876543210', address: '1 Road', city: 'Kochi', pin: '682001', items: [{ productId: 1, qty: 1 }], coupon: 'BOGUS' } });
   check('order: invalid coupon rejected', r.status === 400, r.status);

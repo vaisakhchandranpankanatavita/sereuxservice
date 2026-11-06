@@ -30,6 +30,18 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PaymentMethod {
+  COD
+  ONLINE
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -132,24 +144,42 @@ model Booking {
 }
 
 model Order {
-  id        String      @id
-  userId    String
-  name      String
-  phone     String
-  address   String
-  city      String
-  pin       String
-  coupon    String?
-  subtotal  Int
-  discount  Int         @default(0)
-  total     Int
-  status    OrderStatus @default(PLACED)
-  createdAt DateTime    @default(now())
+  id            String        @id
+  userId        String
+  name          String
+  phone         String
+  address       String
+  city          String
+  pin           String
+  coupon        String?
+  subtotal      Int
+  discount      Int           @default(0)
+  total         Int
+  status        OrderStatus   @default(PLACED)
+  paymentMethod PaymentMethod @default(COD)
+  createdAt     DateTime      @default(now())
 
-  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items OrderItem[]
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items   OrderItem[]
+  payment Payment?
 
   @@index([userId, createdAt])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  provider          String        @default("razorpay")
+  providerOrderId   String
+  providerPaymentId String?
+  amount            Int
+  status            PaymentStatus @default(CREATED)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([providerOrderId])
 }
 
 model OrderItem {

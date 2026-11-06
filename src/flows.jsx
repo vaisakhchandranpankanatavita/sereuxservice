@@ -9,6 +9,36 @@ import { EmptyState, useToast } from './ui.jsx';
 
 const COUPONS = { FIXZY10: 0.1 };
 
+/* Loads Razorpay's hosted Checkout script once, then opens it for the given (already-created) order.
+   Resolves once the server has verified the payment; rejects on cancel/failure, but the order itself
+   stays placed either way — "Complete payment" can retry from the confirmation screen. */
+function loadRazorpay() {
+  if (window.Razorpay) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Could not load the payment form. Check your connection.'));
+    document.body.appendChild(s);
+  });
+}
+async function payOnline(orderId, user) {
+  const { keyId, razorpayOrderId, amount, currency } = await api(`/payments/orders/${orderId}`, { method: 'POST' });
+  await loadRazorpay();
+  return new Promise((resolve, reject) => {
+    const rp = new window.Razorpay({
+      key: keyId, amount, currency, order_id: razorpayOrderId,
+      name: 'Fixzy', description: `Order #${orderId}`,
+      prefill: { name: user.name, email: user.email, contact: user.phone },
+      theme: { color: '#141412' },
+      handler: (resp) => api(`/payments/orders/${orderId}/verify`, { method: 'POST', body: resp }).then(resolve, reject),
+      modal: { ondismiss: () => reject(new Error('Payment cancelled. You can try again.')) },
+    });
+    rp.on('payment.failed', () => reject(new Error('Payment failed. You can try again.')));
+    rp.open();
+  });
+}
+
 /* ---------- Checkout ---------- */
 export function Checkout() {
   const cart = useStore((s) => s.cart);
@@ -17,6 +47,7 @@ export function Checkout() {
   useEffect(() => { if (!user) window.location.replace(loginUrl('checkout')); }, [user]);
   const [coupon, setCoupon] = useState('');
   const [applied, setApplied] = useState('');
+  const [pay, setPay] = useState('cod');
   const [placed, setPlaced] = useState(null);
   const lines = cartLines(cart);
   const subtotal = cartTotal(lines);
@@ -28,6 +59,12 @@ export function Checkout() {
     else toast('That code isn’t valid', { tone: 'error' });
   };
   const [busy, setBusy] = useState(false);
+  const completePayment = async (orderId) => {
+    setBusy(true);
+    try { await payOnline(orderId, user); setPlaced((p) => ({ ...p, paid: true })); toast('Payment received', { tone: 'success' }); }
+    catch (err) { toast(err.message, { tone: 'error' }); }
+    finally { setBusy(false); }
+  };
   const place = async (e) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget));
@@ -35,10 +72,16 @@ export function Checkout() {
     try {
       const order = await api('/orders', {
         method: 'POST',
-        body: { name: f.name.trim(), phone: f.phone.trim(), address: f.address.trim(), city: f.city.trim(), pin: f.pin.trim(), coupon: applied || undefined, items: cart.map((i) => ({ productId: i.id, qty: i.qty })) },
+        body: { name: f.name.trim(), phone: f.phone.trim(), address: f.address.trim(), city: f.city.trim(), pin: f.pin.trim(), coupon: applied || undefined, paymentMethod: pay === 'online' ? 'ONLINE' : 'COD', items: cart.map((i) => ({ productId: i.id, qty: i.qty })) },
       });
-      setPlaced({ id: order.id, total: order.total });
       actions.clearCart();
+      if (pay === 'online') {
+        setPlaced({ id: order.id, total: order.total, online: true, paid: false });
+        try { await payOnline(order.id, user); setPlaced((p) => ({ ...p, paid: true })); }
+        catch (err) { toast(err.message, { tone: 'error' }); }
+      } else {
+        setPlaced({ id: order.id, total: order.total, online: false, paid: false });
+      }
     } catch (err) {
       toast(err.message, { tone: 'error' });
     } finally {
@@ -48,9 +91,13 @@ export function Checkout() {
 
   if (!user) return null;
   if (placed) {
+    const lead = placed.online
+      ? placed.paid ? `Order ${placed.id} · ${rupee(placed.total)} paid.` : `Order ${placed.id} · ${rupee(placed.total)} awaiting payment.`
+      : `Order ${placed.id} · ${rupee(placed.total)} to pay on delivery.`;
     return (
-      <Page current="shop" label="Checkout" lines={['Order', 'placed.']} lead={`Order ${placed.id} · ${rupee(placed.total)} to pay on delivery.`}>
-        <a className="pill" href="/shop">Keep shopping <Icon name="arrow-right" size={16} /></a>
+      <Page current="shop" label="Checkout" lines={['Order', 'placed.']} lead={lead}>
+        {placed.online && !placed.paid && <button className="pill" disabled={busy} onClick={() => completePayment(placed.id)}>{busy ? 'Opening payment…' : 'Complete payment'} <Icon name="arrow-right" size={16} /></button>}
+        <a className="pill pill-outline" href="/shop">Keep shopping <Icon name="arrow-right" size={16} /></a>
       </Page>
     );
   }
@@ -69,9 +116,10 @@ export function Checkout() {
               <Field label="PIN code" id="pin" inputMode="numeric" pattern="[0-9]{6}" title="6-digit PIN code" autoComplete="postal-code" required />
             </div>
             <fieldset className="pay"><legend>Payment</legend>
-              <label className="check"><input type="radio" name="pay" defaultChecked /><span>Cash on delivery</span></label>
+              <label className="check"><input type="radio" name="pay" checked={pay === 'cod'} onChange={() => setPay('cod')} /><span>Cash on delivery</span></label>
+              <label className="check"><input type="radio" name="pay" checked={pay === 'online'} onChange={() => setPay('online')} /><span>Pay online (UPI, cards, netbanking)</span></label>
             </fieldset>
-            <button className="pill pill-block" type="submit" disabled={busy}>{busy ? 'Placing order…' : `Place order · ${rupee(subtotal - off)}`} <Icon name="arrow-right" size={16} /></button>
+            <button className="pill pill-block" type="submit" disabled={busy}>{busy ? 'Placing order…' : pay === 'online' ? `Pay ${rupee(subtotal - off)}` : `Place order · ${rupee(subtotal - off)}`} <Icon name="arrow-right" size={16} /></button>
           </form>
           <aside className="summary" aria-label="Order summary">
             <h2>Summary</h2>

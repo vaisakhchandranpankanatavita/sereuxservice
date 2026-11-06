@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Injectable, Module, NotFoundException, Param, Post, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
@@ -17,6 +17,7 @@ class PlaceOrderDto {
   @IsString() @MaxLength(80) city: string;
   @Matches(/^[0-9]{6}$/) pin: string;
   @IsOptional() @IsString() @MaxLength(32) coupon?: string;
+  @IsOptional() @IsIn(['COD', 'ONLINE']) paymentMethod?: 'COD' | 'ONLINE';
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => ItemDto) items: ItemDto[];
 }
 
@@ -41,25 +42,28 @@ class OrdersService {
     }
     const id = 'OD' + randomBytes(4).toString('hex').toUpperCase();
     return this.prisma.$transaction(async (tx) => {
+      const paymentMethod = dto.paymentMethod ?? 'COD';
       const order = await tx.order.create({
         data: {
           id, userId: user.id, name: dto.name, phone: dto.phone, address: dto.address, city: dto.city, pin: dto.pin,
-          coupon, subtotal, discount, total: subtotal - discount,
+          coupon, subtotal, discount, total: subtotal - discount, paymentMethod,
           items: { create: products.map((p) => ({ productId: p.id, qty: qty.get(p.id)!, unitPrice: p.price })) },
         },
         include: { items: true },
       });
-      await tx.notification.create({ data: { userId: user.id, text: `Order #${id} placed. Pay on delivery.`, href: '/orders' } });
+      await tx.notification.create({
+        data: { userId: user.id, text: paymentMethod === 'ONLINE' ? `Order #${id} placed. Complete payment to confirm it.` : `Order #${id} placed. Pay on delivery.`, href: '/orders' },
+      });
       return order;
     });
   }
 
   list(user: AuthUser) {
-    return this.prisma.order.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, include: { items: { include: { product: true } } } });
+    return this.prisma.order.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, include: { items: { include: { product: true } }, payment: true } });
   }
 
   async get(user: AuthUser, id: string) {
-    const o = await this.prisma.order.findFirst({ where: { id, userId: user.id }, include: { items: { include: { product: true } } } });
+    const o = await this.prisma.order.findFirst({ where: { id, userId: user.id }, include: { items: { include: { product: true } }, payment: true } });
     if (!o) throw new NotFoundException();
     return o;
   }

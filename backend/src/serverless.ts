@@ -11,7 +11,7 @@ let ready: Promise<express.Express> | undefined;
 function boot() {
   const server = express();
   server.set('trust proxy', 1); // behind Vercel's proxy: real client IPs for the throttler
-  return NestFactory.create(AppModule, new ExpressAdapter(server), { logger: ['error', 'warn'] }).then(async (app) => {
+  return NestFactory.create(AppModule, new ExpressAdapter(server), { logger: ['error', 'warn'], rawBody: true }).then(async (app) => {
     configure(app);
     await app.init();
     return server;

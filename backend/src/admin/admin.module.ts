@@ -3,6 +3,7 @@ import { BookingStatus, OrderStatus, Prisma, Role } from '@prisma/client';
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
+import { PaymentsModule, PaymentsService } from '../payments/payments.module';
 
 const BOOKING_STATUSES = Object.values(BookingStatus);
 const ORDER_STATUSES = Object.values(OrderStatus);
@@ -83,7 +84,7 @@ const page = (skip?: string, take = 50) => ({ skip: Math.max(0, Number(skip) || 
 
 @Injectable()
 class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private payments: PaymentsService) {}
 
   async stats() {
     const today = new Date().toISOString().slice(0, 10);
@@ -148,11 +149,13 @@ class AdminService {
     if (!o) throw new NotFoundException();
     if (o.status === 'DELIVERED' || o.status === 'CANCELLED') throw new BadRequestException('Order is already closed.');
     const text = { PLACED: 'is placed', SHIPPED: 'has shipped', DELIVERED: 'was delivered', CANCELLED: 'was cancelled' }[status];
-    return this.prisma.$transaction(async (tx) => {
+    const out = await this.prisma.$transaction(async (tx) => {
       const out = await tx.order.update({ where: { id }, data: { status } });
       await tx.notification.create({ data: { userId: o.userId, text: `Order #${id} ${text}.`, href: '/orders' } });
       return out;
     });
+    if (status === 'CANCELLED') await this.payments.refundIfPaid(id); // best-effort; never blocks the status change
+    return out;
   }
 
   /* Users */
@@ -289,5 +292,5 @@ class AdminController {
   @Delete('messages/:id') @HttpCode(204) deleteMessage(@Param('id') id: string) { return this.svc.deleteMessage(id); }
 }
 
-@Module({ controllers: [AdminController], providers: [AdminService] })
+@Module({ imports: [PaymentsModule], controllers: [AdminController], providers: [AdminService] })
 export class AdminModule {}
