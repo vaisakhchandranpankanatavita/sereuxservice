@@ -39,7 +39,7 @@ export function useFetch<T = any>(path: string | null, pollMs = 0) {
 export function Screen({ children, refresh, refreshing, pad = true }: { children: ReactNode; refresh?: () => void; refreshing?: boolean; pad?: boolean }) {
   const t = useTheme();
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
-    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ padding: pad ? 16 : 0, gap: 12, paddingBottom: 40 }} keyboardShouldPersistTaps="handled"
+    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ padding: pad ? 16 : 0, gap: 12, paddingBottom: 100 }} keyboardShouldPersistTaps="handled"
       refreshControl={refresh ? <RefreshControl refreshing={!!refreshing} onRefresh={refresh} /> : undefined}>{children}</ScrollView>
   </KeyboardAvoidingView>;
 }
@@ -116,11 +116,11 @@ export function Field({ label: l, ...p }: TextInputProps & { label: string }) {
   </View>;
 }
 
-export function Chip({ title, on, onPress, disabled }: { title: string; on?: boolean; onPress?: () => void; disabled?: boolean }) {
+export function Chip({ title, on, onPress, disabled, big }: { title: string; on?: boolean; onPress?: () => void; disabled?: boolean; big?: boolean }) {
   const t = useTheme();
-  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ selected: !!on, disabled: !!disabled }}
-    style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: R.pill, borderWidth: 1, borderColor: on ? t.ink : t.line, backgroundColor: on ? t.ink : t.card, opacity: disabled ? 0.4 : 1 }}>
-    <Text style={{ color: on ? t.brandInk : t.ink, fontSize: 13, fontFamily: font.medium }}>{title}</Text>
+  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ selected: !!on, disabled: !!disabled }} hitSlop={big ? 4 : undefined}
+    style={{ paddingHorizontal: big ? 22 : 16, paddingVertical: big ? 15 : 9, borderRadius: R.pill, borderWidth: big ? 1.5 : 1, borderColor: on ? t.ink : t.line, backgroundColor: on ? t.ink : t.card, opacity: disabled ? 0.4 : 1, minWidth: big ? 60 : undefined, alignItems: 'center' }}>
+    <Text style={{ color: on ? t.brandInk : t.ink, fontSize: big ? 17 : 13, fontFamily: big ? font.bold : font.medium }}>{title}</Text>
   </Pressable>;
 }
 

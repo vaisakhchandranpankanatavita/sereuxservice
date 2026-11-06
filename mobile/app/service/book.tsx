@@ -53,6 +53,10 @@ export default function Book() {
     : '';
   const ready = !reason;
 
+  const STEPS = ['When', 'Details', 'Review'];
+  const [step, setStep] = useState(0);
+  const stepReady = [!!slot, f.name.trim() && phoneOk && !!f.address.trim(), ready][step];
+
   const submit = async () => {
     setBusy(true); setErr('');
     try {
@@ -79,21 +83,26 @@ export default function Book() {
       {!!pro.bio && <Txt muted size={14} style={{ marginTop: 2 }}>{pro.bio}</Txt>}
     </Card>}
 
-    <Card>
-      <Txt bold size={19}>1. When works for you?</Txt>
-      <Txt bold size={15} style={{ marginTop: 4, marginBottom: 8 }}>Day</Txt>
-      <Chips>{days.map((d) => <Chip key={d} title={dayLabel(d)} on={d === day} onPress={() => setDay(d)} />)}</Chips>
+    <View style={{ flexDirection: 'row', gap: 6 }}>
+      {STEPS.map((s, i) => <View key={s} style={{ flex: 1, gap: 6, alignItems: 'center' }}>
+        <View style={{ height: 3, width: '100%', borderRadius: 2, backgroundColor: i <= step ? t.accent : t.line }} />
+        <Txt size={11} bold muted={i !== step} color={i === step ? t.ink : undefined}>{i + 1}. {s}</Txt>
+      </View>)}
+    </View>
 
-      <Txt bold size={15} style={{ marginTop: 16, marginBottom: 8 }}>Time</Txt>
+    {step === 0 && <Card>
+      <Txt bold size={17} style={{ marginBottom: 10 }}>Day</Txt>
+      <Chips>{days.map((d) => <Chip key={d} title={dayLabel(d)} on={d === day} onPress={() => setDay(d)} big />)}</Chips>
+
+      <Txt bold size={17} style={{ marginTop: 20, marginBottom: 10 }}>Time</Txt>
       {!avail.data ? <Status error={avail.error} loading={!avail.error} /> :
         !avail.data.slots.length ? <Txt muted size={15}>No slots open this day — try another.</Txt> :
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {avail.data.slots.map((s: any) => <Chip key={s.slot} title={s.available ? s.slot : `${s.slot} · taken`} on={slot === s.slot} disabled={!s.available} onPress={() => setSlot(s.slot)} />)}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          {avail.data.slots.map((s: any) => <Chip key={s.slot} title={s.available ? s.slot : `${s.slot} · taken`} on={slot === s.slot} disabled={!s.available} onPress={() => setSlot(s.slot)} big />)}
         </View>}
-    </Card>
+    </Card>}
 
-    <Card>
-      <Txt bold size={19}>2. Your details</Txt>
+    {step === 1 && <Card>
       <Field label="Full name" value={f.name} onChangeText={set('name')} autoComplete="name" />
       <Field label="Phone number" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" autoComplete="tel" />
       {!!f.phone && !phoneOk && <Txt color={t.bad} size={14}>Enter a valid phone number</Txt>}
@@ -124,16 +133,23 @@ export default function Book() {
         </Row>
       </Card>}
       <Field label="Notes for the pro (optional)" value={f.notes} onChangeText={set('notes')} multiline />
-    </Card>
+    </Card>}
 
-    <Card>
-      <Txt bold size={19}>3. Review & confirm</Txt>
-      <Row between style={{ marginTop: 10 }}><Txt muted size={16}>Service</Txt><Txt bold size={16}>{svc.data.name}{pro ? ` · ${pro.name}` : ''}</Txt></Row>
+    {step === 2 && <Card>
+      <Row between style={{ marginTop: 2 }}><Txt muted size={16}>Service</Txt><Txt bold size={16}>{svc.data.name}{pro ? ` · ${pro.name}` : ''}</Txt></Row>
       <Row between><Txt muted size={16}>When</Txt><Txt bold size={16}>{dayLabel(day)}{slot ? ` · ${slot}` : ''}</Txt></Row>
+      <Row between><Txt muted size={16}>Name</Txt><Txt bold size={16}>{f.name}</Txt></Row>
+      <Row between><Txt muted size={16}>Phone</Txt><Txt bold size={16}>{f.phone}</Txt></Row>
+      <Row between style={{ alignItems: 'flex-start' }}><Txt muted size={16}>Address</Txt><Txt bold size={16} style={{ flex: 1, textAlign: 'right' }}>{f.address}</Txt></Row>
       <Row between><Txt muted size={16}>Estimate</Txt><Txt bold size={18} color={t.brand}>from {money(svc.data.fromPrice)}</Txt></Row>
-      {!!err && <Txt color={t.bad} size={15} style={{ marginTop: 8 }}>{err}</Txt>}
-      <Button title="Confirm booking" onPress={submit} busy={busy} disabled={!ready} style={{ marginTop: 12 }} />
-      {!ready && <Txt muted size={14} style={{ textAlign: 'center', marginTop: 8 }}>{reason}</Txt>}
-    </Card>
+    </Card>}
+
+    {!!err && <Txt color={t.bad} size={15}>{err}</Txt>}
+    <Row>
+      {step > 0 && <Button title="Back" kind="ghost" style={{ flex: 1 }} onPress={() => setStep((s) => s - 1)} />}
+      {step < 2
+        ? <Button title="Next" style={{ flex: 1 }} disabled={!stepReady} onPress={() => setStep((s) => s + 1)} />
+        : <Button title="Confirm booking" style={{ flex: 1 }} onPress={submit} busy={busy} disabled={!ready} />}
+    </Row>
   </Screen>;
 }

@@ -9,6 +9,7 @@ import { ComingSoon_400Regular } from '@expo-google-fonts/coming-soon';
 import { font, useTheme } from '../src/ui';
 import Intro from '../src/Intro';
 import ServiceLoader from '../src/ServiceLoader';
+import BottomBar from '../src/BottomBar';
 
 function Gate() {
   const { user, transitioning, endTransition } = useSession();
@@ -43,6 +44,7 @@ function Gate() {
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="wishlist" options={{ title: 'Wishlist' }} />
     </Stack>}
+    {introDone && user && !inAuth && <BottomBar />}
     {!introDone && <Intro onDone={() => setIntroDone(true)} />}
     {introDone && transitioning && <ServiceLoader onDone={endTransition} keepPlaying={!user} />}
   </View>;
