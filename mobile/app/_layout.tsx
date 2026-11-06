@@ -40,6 +40,7 @@ function Gate() {
       <Stack.Screen name="cart" options={{ title: 'Cart' }} />
       <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+      <Stack.Screen name="wishlist" options={{ title: 'Wishlist' }} />
     </Stack>}
     {!introDone && <Intro onDone={() => setIntroDone(true)} />}
     {introDone && transitioning && <ServiceLoader onDone={endTransition} keepPlaying={!user} />}

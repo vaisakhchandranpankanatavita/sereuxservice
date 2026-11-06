@@ -30,6 +30,7 @@ export default function Account() {
   return <Screen refresh={notes.refresh} refreshing={notes.refreshing}>
     <Card><Txt bold size={18}>{user?.name}</Txt><Txt muted>{user?.email}</Txt></Card>
     <Button title={unread ? `Notifications (${unread} new)` : 'Notifications'} kind="ghost" onPress={() => router.push('/notifications')} />
+    <Button title="Wishlist" kind="ghost" onPress={() => router.push('/wishlist')} />
 
     <Txt bold style={{ marginTop: 8 }}>Profile</Txt>
     <Field label="Name" value={name} onChangeText={setName} />

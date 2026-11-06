@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api';
+import { useAddresses } from '../../src/addresses';
 import { useSession } from '../../src/session';
 import { Avatar, Button, Card, Chip, Chips, Eyebrow, Field, Row, Screen, Status, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 
@@ -25,6 +26,8 @@ export default function Book() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [locBusy, setLocBusy] = useState(false);
+  const { list: addrs, add: saveAddr, remove: removeAddr } = useAddresses();
+  const [saving, setSaving] = useState<{ open: boolean; label: string }>({ open: false, label: '' });
   useEffect(() => setSlot(''), [day]);
 
   const useMyLocation = async () => {
@@ -97,7 +100,29 @@ export default function Book() {
       <Pressable onPress={useMyLocation} disabled={locBusy} hitSlop={8} style={{ alignSelf: 'flex-start' }}>
         <Txt size={15} bold color={t.accent}>{locBusy ? 'Locating…' : '📍 Use my current location'}</Txt>
       </Pressable>
+      {addrs.length > 0 && <View style={{ gap: 6 }}>
+        <Txt bold size={15}>Saved addresses</Txt>
+        {addrs.map((a) => <Row key={a.id} between>
+          <Pressable onPress={() => set('address')(a.address)} accessibilityRole="button" style={{ flex: 1 }}>
+            <Txt bold size={14}>{a.label}</Txt>
+            <Txt muted size={13} numberOfLines={1}>{a.address}</Txt>
+          </Pressable>
+          <Pressable onPress={() => removeAddr(a.id)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remove ${a.label}`}>
+            <Txt color={t.bad} size={13}>Remove</Txt>
+          </Pressable>
+        </Row>)}
+      </View>}
       <Field label="Service address" value={f.address} onChangeText={set('address')} multiline autoComplete="street-address" />
+      {!!f.address.trim() && !saving.open && <Pressable onPress={() => setSaving({ open: true, label: '' })} hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+        <Txt size={14} bold color={t.accent}>Save this address for later</Txt>
+      </Pressable>}
+      {saving.open && <Card>
+        <Field label="Label (e.g. Home, Work)" value={saving.label} onChangeText={(label) => setSaving((s) => ({ ...s, label }))} />
+        <Row>
+          <Button title="Save" style={{ flex: 1 }} disabled={!saving.label.trim()} onPress={() => { saveAddr({ label: saving.label.trim(), name: f.name, phone: f.phone, address: f.address.trim() }); setSaving({ open: false, label: '' }); }} />
+          <Button title="Cancel" kind="ghost" style={{ flex: 1 }} onPress={() => setSaving({ open: false, label: '' })} />
+        </Row>
+      </Card>}
       <Field label="Notes for the pro (optional)" value={f.notes} onChangeText={set('notes')} multiline />
     </Card>
 
