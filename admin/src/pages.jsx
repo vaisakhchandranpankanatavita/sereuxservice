@@ -150,19 +150,32 @@ export function Services() {
 
 export function Providers() {
   const services = useList('/services').rows ?? [];
-  return <Crud title="Pros" path="/admin/providers" noun="pro"
-    createExtra={{ verified: true, years: 1, response: '30 min' }}
-    fields={[
-      { key: 'name', label: 'Name', type: 'text' }, { key: 'years', label: 'Years of experience', type: 'number' },
-      { key: 'response', label: 'Typical response (e.g. 30 min)', type: 'text' },
-      { key: 'verified', label: 'Verified', type: 'bool' },
-      { key: 'serviceIds', label: 'Services offered (ctrl/cmd-click for several)', type: 'multi', options: services },
-    ]}
-    cols={[
-      { h: 'ID', render: (p) => p.id }, { h: 'Name', render: (p) => <b>{p.name}</b> }, { h: 'Experience', render: (p) => `${p.years} yrs` },
-      { h: 'Response', render: (p) => p.response }, { h: 'Verified', render: (p) => <Badge v={p.verified ? 'DONE' : 'REQUESTED'} /> },
-      { h: 'Services', wrap: true, render: (p) => p.services.map((s) => s.name).join(', ') }, { h: 'Jobs', render: (p) => p._count.bookings },
-    ]} />;
+  const { rows, reload } = useList('/admin/providers');
+  const [link, setLink] = useState(null); // { provider }
+  return <>
+    <Crud title="Pros" path="/admin/providers" noun="pro"
+      createExtra={{ verified: true, years: 1, response: '30 min' }}
+      fields={[
+        { key: 'name', label: 'Name', type: 'text' }, { key: 'years', label: 'Years of experience', type: 'number' },
+        { key: 'response', label: 'Typical response (e.g. 30 min)', type: 'text' },
+        { key: 'verified', label: 'Verified', type: 'bool' },
+        { key: 'serviceIds', label: 'Services offered (ctrl/cmd-click for several)', type: 'multi', options: services },
+      ]}
+      cols={[
+        { h: 'ID', render: (p) => p.id }, { h: 'Name', render: (p) => <b>{p.name}</b> }, { h: 'Experience', render: (p) => `${p.years} yrs` },
+        { h: 'Response', render: (p) => p.response }, { h: 'Verified', render: (p) => <Badge v={p.verified ? 'DONE' : 'REQUESTED'} /> },
+        { h: 'Services', wrap: true, render: (p) => p.services.map((s) => s.name).join(', ') }, { h: 'Jobs', render: (p) => p._count.bookings },
+        { h: 'App login', render: (p) => {
+          const row = (rows ?? []).find((r) => r.id === p.id);
+          return row?.userId
+            ? <div className="row-actions"><Badge v="DONE" /><button className="btn sm danger" onClick={() => confirm('Unlink this pro’s app login?') && act(() => api(`/admin/providers/${p.id}/link`, { method: 'PATCH', body: { email: null } }), 'Unlinked', reload)}>Unlink</button></div>
+            : <button className="btn sm" onClick={() => setLink({ provider: p })}>Link account</button>;
+        } },
+      ]} />
+    {link && <FormModal title={`Link ${link.provider.name} to a login`} initial={{ email: '' }} onClose={() => setLink(null)}
+      fields={[{ key: 'email', label: 'Account email (must already be registered)', type: 'text' }]}
+      onSubmit={async (v) => { await api(`/admin/providers/${link.provider.id}/link`, { method: 'PATCH', body: { email: v.email } }); await reload(); }} />}
+  </>;
 }
 
 export function Products() {

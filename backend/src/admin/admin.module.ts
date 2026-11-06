@@ -72,6 +72,9 @@ class PatchCouponDto {
 class BookingAssignDto {
   @IsOptional() @IsInt() providerId: number | null;
 }
+class LinkProviderDto {
+  @IsOptional() @IsString() @MaxLength(254) email?: string | null;
+}
 class BookingStatusDto { @IsIn(BOOKING_STATUSES) status: BookingStatus; }
 class OrderStatusDto { @IsIn(ORDER_STATUSES) status: OrderStatus; }
 class RoleDto { @IsIn(ROLES) role: Role; }
@@ -192,6 +195,22 @@ class AdminService {
     await this.must(this.prisma.provider.findUnique({ where: { id } }));
     return this.prisma.provider.update({ where: { id }, data: { ...dto, ...(serviceIds ? { services: { set: serviceIds.map((s) => ({ id: s })) } } : {}) } });
   }
+  /* Link (or unlink with email null) a login to a provider profile, promoting it to PROVIDER.
+     This is how a pro gets app access, instead of running a server-side script per hire. */
+  async linkProvider(id: number, email?: string | null) {
+    const provider = await this.must(this.prisma.provider.findUnique({ where: { id } }));
+    if (!email) return this.prisma.provider.update({ where: { id }, data: { userId: null } });
+    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    if (!user) throw new NotFoundException('No account with that email. Ask them to register in the mobile app first.');
+    const already = await this.prisma.provider.findUnique({ where: { userId: user.id } });
+    if (already && already.id !== provider.id) throw new ConflictException('That account is already linked to another provider profile.');
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: user.id }, data: { role: 'PROVIDER' } }),
+      this.prisma.provider.update({ where: { id }, data: { userId: user.id } }),
+    ]);
+    return updated;
+  }
+
   async deleteProvider(id: number) {
     if (await this.prisma.booking.count({ where: { providerId: id, status: { in: ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS'] } } })) {
       throw new ConflictException('This pro has open bookings. Reassign them first.');
@@ -251,6 +270,7 @@ class AdminController {
   @Get('providers') providers() { return this.svc.listProviders(); }
   @Post('providers') createProvider(@Body() dto: ProviderDto) { return this.svc.createProvider(dto); }
   @Patch('providers/:id') updateProvider(@Param('id', ParseIntPipe) id: number, @Body() dto: PatchProviderDto) { return this.svc.updateProvider(id, dto); }
+  @Patch('providers/:id/link') linkProvider(@Param('id', ParseIntPipe) id: number, @Body() dto: LinkProviderDto) { return this.svc.linkProvider(id, dto.email); }
   @Delete('providers/:id') @HttpCode(204) deleteProvider(@Param('id', ParseIntPipe) id: number) { return this.svc.deleteProvider(id); }
 
   @Post('products') createProduct(@Body() dto: ProductDto) { return this.svc.createProduct(dto); }
