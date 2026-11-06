@@ -14,7 +14,7 @@ const theme = {
 export type Theme = typeof theme;
 export const useTheme = (): Theme => theme;
 export const R = { sm: 10, md: 18, lg: 24, pill: 999 };
-export const font = { regular: 'Inter_400Regular', medium: 'Inter_500Medium', bold: 'Inter_700Bold', heavy: 'Inter_800ExtraBold' };
+export const font = { regular: 'Inter_400Regular', medium: 'Inter_500Medium', bold: 'Inter_700Bold', heavy: 'Inter_800ExtraBold', hand: 'ComingSoon_400Regular' };
 
 export const money = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 export const label = (s: string) => s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
@@ -49,6 +49,15 @@ export function Txt({ children, style, muted, bold, size, color, numberOfLines }
   const sz = size ?? 15;
   const big = bold && sz >= 20; // headings: heavy weight, tight tracking, like the web
   return <Text numberOfLines={numberOfLines} style={[{ color: color ?? (muted ? t.muted : t.ink), fontSize: sz, fontFamily: big ? font.heavy : bold ? font.bold : font.regular, letterSpacing: big ? -sz * 0.04 : 0, lineHeight: big ? sz * 1.15 : undefined }, style]}>{children}</Text>;
+}
+
+/* A service/delivery address, styled like it was jotted on a notepad: handwritten font, faint
+   rotation, pencil-grey ink, with a dashed underline standing in for notepad ruling. */
+export function Address({ children, style }: { children: ReactNode; style?: any }) {
+  return <View style={[{ transform: [{ rotate: '-0.8deg' }], paddingBottom: 2 }, style]}>
+    <Text style={{ color: '#3f3a2f', fontFamily: font.hand, fontSize: 20, lineHeight: 24 }}>{children}</Text>
+    <View style={{ height: 1, borderBottomWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(63,58,47,0.35)', marginTop: 2 }} />
+  </View>;
 }
 
 export function Card({ children, onPress, style }: { children: ReactNode; onPress?: () => void; style?: ViewStyle }) {

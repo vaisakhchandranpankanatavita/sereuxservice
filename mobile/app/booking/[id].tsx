@@ -5,7 +5,7 @@ import { api } from '../../src/api';
 import { LiveMap } from '../../src/map';
 import { StatusIntro } from '../../src/StatusIntro';
 import { Timeline, type Step } from '../../src/timeline';
-import { Badge, Button, Card, Chip, Eyebrow, Field, Row, Screen, Stars, Status, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
+import { Address, Badge, Button, Card, Chip, Eyebrow, Field, Row, Screen, Stars, Status, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 
 const STEPS: Step[] = [
   { key: 'REQUESTED', label: 'Requested', hint: "We've got your request.", icon: 'hourglass-outline', iconDone: 'hourglass' },
@@ -57,7 +57,7 @@ export default function BookingDetail() {
       <Txt bold size={17}>{b.service.name}</Txt>
       <Txt>{dayLabel(b.day)} at {b.slot}</Txt>
       <Txt muted>{b.provider ? `Pro: ${b.provider.name}` : 'Pro will be assigned shortly'}</Txt>
-      <Txt muted>{b.address}</Txt>
+      <Address>{b.address}</Address>
       <Txt muted>Estimate {money(b.estimate)}</Txt>
       {!!b.notes && <Txt muted>Notes: {b.notes}</Txt>}
     </Card>

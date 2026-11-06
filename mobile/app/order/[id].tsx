@@ -5,7 +5,7 @@ import { usePayment } from '../../src/payment';
 import { useSession } from '../../src/session';
 import { StatusIntro } from '../../src/StatusIntro';
 import { Timeline, type Step } from '../../src/timeline';
-import { Badge, Button, Card, Eyebrow, Field, Row, Screen, Stars, Status, Txt, money, useFetch, useTheme, when } from '../../src/ui';
+import { Address, Badge, Button, Card, Eyebrow, Field, Row, Screen, Stars, Status, Txt, money, useFetch, useTheme, when } from '../../src/ui';
 
 const STEPS: Step[] = [
   { key: 'PLACED', label: 'Order placed', hint: "We've got it — packing starts shortly.", icon: 'receipt-outline', iconDone: 'receipt' },
@@ -81,7 +81,7 @@ export default function OrderDetail() {
       {!!payErr && <Txt color={t.bad}>{payErr}</Txt>}
       <Button title="Complete payment" busy={paying} onPress={completePayment} />
     </>}
-    <Card><Txt bold>Delivering to</Txt><Txt muted>{o.name} · {o.phone}</Txt><Txt muted>{o.address}, {o.city} {o.pin}</Txt></Card>
+    <Card><Txt bold>Delivering to</Txt><Txt muted>{o.name} · {o.phone}</Txt><Address>{o.address}, {o.city} {o.pin}</Address></Card>
     <Button title="Back to activity" kind="ghost" onPress={() => router.replace('/activity')} />
     {node}
   </Screen>;

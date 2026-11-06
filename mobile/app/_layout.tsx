@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SessionProvider, useSession } from '../src/session';
 import { CartProvider } from '../src/cart';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
+import { ComingSoon_400Regular } from '@expo-google-fonts/coming-soon';
 import { font, useTheme } from '../src/ui';
 import Intro from '../src/Intro';
 import ServiceLoader from '../src/ServiceLoader';
@@ -12,7 +13,7 @@ import ServiceLoader from '../src/ServiceLoader';
 function Gate() {
   const { user, transitioning, endTransition } = useSession();
   const t = useTheme();
-  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold });
+  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold, ComingSoon_400Regular });
   const segments = useSegments();
   const router = useRouter();
   const [introDone, setIntroDone] = useState(false);
