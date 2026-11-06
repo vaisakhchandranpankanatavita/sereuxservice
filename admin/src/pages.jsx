@@ -216,6 +216,20 @@ export function Coupons() {
 }
 
 /* ---------- Reviews & messages ---------- */
+export function AuditLog() {
+  const [q, setQ] = useState('');
+  const { rows, error } = useList('/admin/audit-log', { q });
+  return <Page title="Audit log" actions={<Filters q={q} setQ={setQ} />}>
+    <Table error={error} rows={rows} empty="No admin activity yet." cols={[
+      { h: 'When', render: (a) => when(a.createdAt) },
+      { h: 'Admin', render: (a) => a.actorEmail },
+      { h: 'Action', render: (a) => a.action },
+      { h: 'Target', render: (a) => a.target },
+      { h: 'Details', wrap: true, render: (a) => a.meta ? JSON.stringify(a.meta) : '—' },
+    ]} />
+  </Page>;
+}
+
 export function Inbox() {
   const msgs = useList('/admin/messages');
   const reviews = useList('/admin/reviews');

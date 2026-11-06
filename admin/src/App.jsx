@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { login, logout, refresh } from './api.js';
 import { Toaster } from './ui.jsx';
-import { Bookings, Coupons, Dashboard, Inbox, Orders, Products, Providers, Services, Users } from './pages.jsx';
+import { AuditLog, Bookings, Coupons, Dashboard, Inbox, Orders, Products, Providers, Services, Users } from './pages.jsx';
 
 const ROUTES = [
   ['dashboard', 'Dashboard', Dashboard], ['bookings', 'Bookings', Bookings], ['orders', 'Orders', Orders],
   ['users', 'Users', Users], ['services', 'Services', Services], ['pros', 'Pros', Providers],
   ['products', 'Products', Products], ['coupons', 'Coupons', Coupons], ['inbox', 'Inbox', Inbox],
+  ['audit-log', 'Audit log', AuditLog],
 ];
 
 const useHash = () => {

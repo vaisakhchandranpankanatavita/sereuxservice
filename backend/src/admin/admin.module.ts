@@ -86,6 +86,17 @@ const page = (skip?: string, take = 50) => ({ skip: Math.max(0, Number(skip) || 
 class AdminService {
   constructor(private prisma: PrismaService, private payments: PaymentsService) {}
 
+  private audit(me: AuthUser, action: string, target: string, meta?: unknown) {
+    return this.prisma.auditLog.create({ data: { actorId: me.id, actorEmail: me.email, action, target, meta: meta as Prisma.InputJsonValue } });
+  }
+
+  listAuditLog(q: { skip?: string; action?: string; q?: string }) {
+    const where: Prisma.AuditLogWhereInput = {};
+    if (q.action) where.action = q.action;
+    if (q.q) where.OR = [{ actorEmail: { contains: q.q, mode: 'insensitive' } }, { target: { contains: q.q, mode: 'insensitive' } }];
+    return this.prisma.auditLog.findMany({ where, orderBy: { createdAt: 'desc' }, ...page(q.skip, 100) });
+  }
+
   async stats() {
     const today = new Date().toISOString().slice(0, 10);
     const since = new Date(Date.now() - 30 * 864e5);
@@ -124,7 +135,7 @@ class AdminService {
     return this.prisma.booking.findMany({ where, orderBy: { createdAt: 'desc' }, ...page(q.skip), include: { service: true, provider: true } });
   }
 
-  async assign(id: string, providerId: number | null) {
+  async assign(me: AuthUser, id: string, providerId: number | null) {
     const b = await this.prisma.booking.findUnique({ where: { id } });
     if (!b) throw new NotFoundException();
     if (providerId !== null && providerId !== undefined) {
@@ -133,7 +144,9 @@ class AdminService {
       const clash = await this.prisma.booking.findFirst({ where: { providerId, day: b.day, slot: b.slot, status: { not: 'CANCELLED' }, id: { not: id } } });
       if (clash) throw new ConflictException('That pro already has a job in this slot.');
     }
-    return this.prisma.booking.update({ where: { id }, data: { providerId: providerId ?? null }, include: { service: true, provider: true } });
+    const out = await this.prisma.booking.update({ where: { id }, data: { providerId: providerId ?? null }, include: { service: true, provider: true } });
+    await this.audit(me, 'booking.assign', `booking:${id}`, { providerId });
+    return out;
   }
 
   /* Orders */
@@ -144,7 +157,7 @@ class AdminService {
     return this.prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, ...page(q.skip), include: { items: { include: { product: { select: { name: true } } } } } });
   }
 
-  async setOrderStatus(id: string, status: OrderStatus) {
+  async setOrderStatus(me: AuthUser, id: string, status: OrderStatus) {
     const o = await this.prisma.order.findUnique({ where: { id } });
     if (!o) throw new NotFoundException();
     if (o.status === 'DELIVERED' || o.status === 'CANCELLED') throw new BadRequestException('Order is already closed.');
@@ -154,6 +167,7 @@ class AdminService {
       await tx.notification.create({ data: { userId: o.userId, text: `Order #${id} ${text}.`, href: '/orders' } });
       return out;
     });
+    await this.audit(me, 'order.status', `order:${id}`, { from: o.status, to: status });
     if (status === 'CANCELLED') await this.payments.refundIfPaid(id); // best-effort; never blocks the status change
     return out;
   }
@@ -173,7 +187,9 @@ class AdminService {
     if (me.id === id) throw new BadRequestException('You cannot change your own role.');
     const u = await this.prisma.user.findUnique({ where: { id } });
     if (!u) throw new NotFoundException();
-    return this.prisma.user.update({ where: { id }, data: { role }, select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true } });
+    const out = await this.prisma.user.update({ where: { id }, data: { role }, select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true } });
+    await this.audit(me, 'user.role', `user:${id}`, { email: u.email, from: u.role, to: role });
+    return out;
   }
 
   /* Catalog: ids are manually assigned integers, so next id = max + 1 */
@@ -182,27 +198,47 @@ class AdminService {
     return (r._max.id ?? 0) + 1;
   }
 
-  createService(dto: ServiceDto) { return this.nextId('service').then((id) => this.prisma.service.create({ data: { id, ...dto, terms: dto.terms ?? '' } })); }
-  async updateService(id: number, dto: PatchServiceDto) { await this.must(this.prisma.service.findUnique({ where: { id } })); return this.prisma.service.update({ where: { id }, data: dto }); }
-  async deleteService(id: number) {
+  async createService(me: AuthUser, dto: ServiceDto) {
+    const id = await this.nextId('service');
+    const out = await this.prisma.service.create({ data: { id, ...dto, terms: dto.terms ?? '' } });
+    await this.audit(me, 'service.create', `service:${id}`, { name: dto.name });
+    return out;
+  }
+  async updateService(me: AuthUser, id: number, dto: PatchServiceDto) {
+    await this.must(this.prisma.service.findUnique({ where: { id } }));
+    const out = await this.prisma.service.update({ where: { id }, data: dto });
+    await this.audit(me, 'service.update', `service:${id}`, dto);
+    return out;
+  }
+  async deleteService(me: AuthUser, id: number) {
     if (await this.prisma.booking.count({ where: { serviceId: id } })) throw new ConflictException('This service has bookings and cannot be deleted.');
     await this.must(this.prisma.service.findUnique({ where: { id } }));
     await this.prisma.service.delete({ where: { id } });
+    await this.audit(me, 'service.delete', `service:${id}`);
   }
 
   listProviders() { return this.prisma.provider.findMany({ orderBy: { id: 'asc' }, include: { services: { select: { id: true, name: true } }, _count: { select: { bookings: true } } } }); }
-  createProvider({ serviceIds, ...dto }: ProviderDto) {
-    return this.nextId('provider').then((id) => this.prisma.provider.create({ data: { id, ...dto, services: { connect: serviceIds.map((s) => ({ id: s })) } } }));
+  async createProvider(me: AuthUser, { serviceIds, ...dto }: ProviderDto) {
+    const id = await this.nextId('provider');
+    const out = await this.prisma.provider.create({ data: { id, ...dto, services: { connect: serviceIds.map((s) => ({ id: s })) } } });
+    await this.audit(me, 'provider.create', `provider:${id}`, { name: dto.name });
+    return out;
   }
-  async updateProvider(id: number, { serviceIds, ...dto }: PatchProviderDto) {
+  async updateProvider(me: AuthUser, id: number, { serviceIds, ...dto }: PatchProviderDto) {
     await this.must(this.prisma.provider.findUnique({ where: { id } }));
-    return this.prisma.provider.update({ where: { id }, data: { ...dto, ...(serviceIds ? { services: { set: serviceIds.map((s) => ({ id: s })) } } : {}) } });
+    const out = await this.prisma.provider.update({ where: { id }, data: { ...dto, ...(serviceIds ? { services: { set: serviceIds.map((s) => ({ id: s })) } } : {}) } });
+    await this.audit(me, 'provider.update', `provider:${id}`, dto);
+    return out;
   }
   /* Link (or unlink with email null) a login to a provider profile, promoting it to PROVIDER.
      This is how a pro gets app access, instead of running a server-side script per hire. */
-  async linkProvider(id: number, email?: string | null) {
+  async linkProvider(me: AuthUser, id: number, email?: string | null) {
     const provider = await this.must(this.prisma.provider.findUnique({ where: { id } }));
-    if (!email) return this.prisma.provider.update({ where: { id }, data: { userId: null } });
+    if (!email) {
+      const out = await this.prisma.provider.update({ where: { id }, data: { userId: null } });
+      await this.audit(me, 'provider.unlink', `provider:${id}`);
+      return out;
+    }
     const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
     if (!user) throw new NotFoundException('No account with that email. Ask them to register in the mobile app first.');
     const already = await this.prisma.provider.findUnique({ where: { userId: user.id } });
@@ -211,40 +247,72 @@ class AdminService {
       this.prisma.user.update({ where: { id: user.id }, data: { role: 'PROVIDER' } }),
       this.prisma.provider.update({ where: { id }, data: { userId: user.id } }),
     ]);
+    await this.audit(me, 'provider.link', `provider:${id}`, { email: user.email });
     return updated;
   }
 
-  async deleteProvider(id: number) {
+  async deleteProvider(me: AuthUser, id: number) {
     if (await this.prisma.booking.count({ where: { providerId: id, status: { in: ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS'] } } })) {
       throw new ConflictException('This pro has open bookings. Reassign them first.');
     }
     await this.must(this.prisma.provider.findUnique({ where: { id } }));
     await this.prisma.booking.updateMany({ where: { providerId: id }, data: { providerId: null } });
     await this.prisma.provider.delete({ where: { id } });
+    await this.audit(me, 'provider.delete', `provider:${id}`);
   }
 
-  createProduct(dto: ProductDto) { return this.nextId('product').then((id) => this.prisma.product.create({ data: { id, ...dto } })); }
-  async updateProduct(id: number, dto: PatchProductDto) { await this.must(this.prisma.product.findUnique({ where: { id } })); return this.prisma.product.update({ where: { id }, data: dto }); }
-  async deleteProduct(id: number) {
+  async createProduct(me: AuthUser, dto: ProductDto) {
+    const id = await this.nextId('product');
+    const out = await this.prisma.product.create({ data: { id, ...dto } });
+    await this.audit(me, 'product.create', `product:${id}`, { name: dto.name });
+    return out;
+  }
+  async updateProduct(me: AuthUser, id: number, dto: PatchProductDto) {
+    await this.must(this.prisma.product.findUnique({ where: { id } }));
+    const out = await this.prisma.product.update({ where: { id }, data: dto });
+    await this.audit(me, 'product.update', `product:${id}`, dto);
+    return out;
+  }
+  async deleteProduct(me: AuthUser, id: number) {
     if (await this.prisma.orderItem.count({ where: { productId: id } })) throw new ConflictException('This product appears in orders and cannot be deleted.');
     await this.must(this.prisma.product.findUnique({ where: { id } }));
     await this.prisma.product.delete({ where: { id } });
+    await this.audit(me, 'product.delete', `product:${id}`);
   }
 
   /* Coupons, reviews, messages */
   listCoupons() { return this.prisma.coupon.findMany({ orderBy: { code: 'asc' } }); }
-  async createCoupon(dto: CouponDto) {
+  async createCoupon(me: AuthUser, dto: CouponDto) {
     if (await this.prisma.coupon.findUnique({ where: { code: dto.code } })) throw new ConflictException('That code already exists.');
-    return this.prisma.coupon.create({ data: { code: dto.code, percent: dto.percent, active: dto.active ?? true } });
+    const out = await this.prisma.coupon.create({ data: { code: dto.code, percent: dto.percent, active: dto.active ?? true } });
+    await this.audit(me, 'coupon.create', `coupon:${dto.code}`, { percent: dto.percent });
+    return out;
   }
-  async updateCoupon(code: string, dto: PatchCouponDto) { await this.must(this.prisma.coupon.findUnique({ where: { code } })); return this.prisma.coupon.update({ where: { code }, data: dto }); }
-  async deleteCoupon(code: string) { await this.must(this.prisma.coupon.findUnique({ where: { code } })); await this.prisma.coupon.delete({ where: { code } }); }
+  async updateCoupon(me: AuthUser, code: string, dto: PatchCouponDto) {
+    await this.must(this.prisma.coupon.findUnique({ where: { code } }));
+    const out = await this.prisma.coupon.update({ where: { code }, data: dto });
+    await this.audit(me, 'coupon.update', `coupon:${code}`, dto);
+    return out;
+  }
+  async deleteCoupon(me: AuthUser, code: string) {
+    await this.must(this.prisma.coupon.findUnique({ where: { code } }));
+    await this.prisma.coupon.delete({ where: { code } });
+    await this.audit(me, 'coupon.delete', `coupon:${code}`);
+  }
 
   listReviews(skip?: string) { return this.prisma.review.findMany({ orderBy: { createdAt: 'desc' }, ...page(skip), include: { user: { select: { name: true, email: true } } } }); }
-  async deleteReview(id: string) { await this.must(this.prisma.review.findUnique({ where: { id } })); await this.prisma.review.delete({ where: { id } }); }
+  async deleteReview(me: AuthUser, id: string) {
+    await this.must(this.prisma.review.findUnique({ where: { id } }));
+    await this.prisma.review.delete({ where: { id } });
+    await this.audit(me, 'review.delete', `review:${id}`);
+  }
 
   listMessages(skip?: string) { return this.prisma.contactMessage.findMany({ orderBy: { createdAt: 'desc' }, ...page(skip) }); }
-  async deleteMessage(id: string) { await this.must(this.prisma.contactMessage.findUnique({ where: { id } })); await this.prisma.contactMessage.delete({ where: { id } }); }
+  async deleteMessage(me: AuthUser, id: string) {
+    await this.must(this.prisma.contactMessage.findUnique({ where: { id } }));
+    await this.prisma.contactMessage.delete({ where: { id } });
+    await this.audit(me, 'message.delete', `message:${id}`);
+  }
 
   private async must<T>(p: Promise<T | null>) { const r = await p; if (!r) throw new NotFoundException(); return r; }
 }
@@ -258,38 +326,40 @@ class AdminController {
   @Get('stats') stats() { return this.svc.stats(); }
 
   @Get('bookings') bookings(@Query() q: any) { return this.svc.listBookings(q); }
-  @Patch('bookings/:id/provider') assign(@Param('id') id: string, @Body() dto: BookingAssignDto) { return this.svc.assign(id, dto.providerId ?? null); }
+  @Patch('bookings/:id/provider') assign(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() dto: BookingAssignDto) { return this.svc.assign(me, id, dto.providerId ?? null); }
 
   @Get('orders') orders(@Query() q: any) { return this.svc.listOrders(q); }
-  @Patch('orders/:id/status') orderStatus(@Param('id') id: string, @Body() dto: OrderStatusDto) { return this.svc.setOrderStatus(id, dto.status); }
+  @Patch('orders/:id/status') orderStatus(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() dto: OrderStatusDto) { return this.svc.setOrderStatus(me, id, dto.status); }
 
   @Get('users') users(@Query() q: any) { return this.svc.listUsers(q); }
   @Patch('users/:id/role') role(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() dto: RoleDto) { return this.svc.setRole(me, id, dto.role); }
 
-  @Post('services') createService(@Body() dto: ServiceDto) { return this.svc.createService(dto); }
-  @Patch('services/:id') updateService(@Param('id', ParseIntPipe) id: number, @Body() dto: PatchServiceDto) { return this.svc.updateService(id, dto); }
-  @Delete('services/:id') @HttpCode(204) deleteService(@Param('id', ParseIntPipe) id: number) { return this.svc.deleteService(id); }
+  @Post('services') createService(@CurrentUser() me: AuthUser, @Body() dto: ServiceDto) { return this.svc.createService(me, dto); }
+  @Patch('services/:id') updateService(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchServiceDto) { return this.svc.updateService(me, id, dto); }
+  @Delete('services/:id') @HttpCode(204) deleteService(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.deleteService(me, id); }
 
   @Get('providers') providers() { return this.svc.listProviders(); }
-  @Post('providers') createProvider(@Body() dto: ProviderDto) { return this.svc.createProvider(dto); }
-  @Patch('providers/:id') updateProvider(@Param('id', ParseIntPipe) id: number, @Body() dto: PatchProviderDto) { return this.svc.updateProvider(id, dto); }
-  @Patch('providers/:id/link') linkProvider(@Param('id', ParseIntPipe) id: number, @Body() dto: LinkProviderDto) { return this.svc.linkProvider(id, dto.email); }
-  @Delete('providers/:id') @HttpCode(204) deleteProvider(@Param('id', ParseIntPipe) id: number) { return this.svc.deleteProvider(id); }
+  @Post('providers') createProvider(@CurrentUser() me: AuthUser, @Body() dto: ProviderDto) { return this.svc.createProvider(me, dto); }
+  @Patch('providers/:id') updateProvider(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchProviderDto) { return this.svc.updateProvider(me, id, dto); }
+  @Patch('providers/:id/link') linkProvider(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: LinkProviderDto) { return this.svc.linkProvider(me, id, dto.email); }
+  @Delete('providers/:id') @HttpCode(204) deleteProvider(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.deleteProvider(me, id); }
 
-  @Post('products') createProduct(@Body() dto: ProductDto) { return this.svc.createProduct(dto); }
-  @Patch('products/:id') updateProduct(@Param('id', ParseIntPipe) id: number, @Body() dto: PatchProductDto) { return this.svc.updateProduct(id, dto); }
-  @Delete('products/:id') @HttpCode(204) deleteProduct(@Param('id', ParseIntPipe) id: number) { return this.svc.deleteProduct(id); }
+  @Post('products') createProduct(@CurrentUser() me: AuthUser, @Body() dto: ProductDto) { return this.svc.createProduct(me, dto); }
+  @Patch('products/:id') updateProduct(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchProductDto) { return this.svc.updateProduct(me, id, dto); }
+  @Delete('products/:id') @HttpCode(204) deleteProduct(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.deleteProduct(me, id); }
 
   @Get('coupons') coupons() { return this.svc.listCoupons(); }
-  @Post('coupons') createCoupon(@Body() dto: CouponDto) { return this.svc.createCoupon(dto); }
-  @Patch('coupons/:code') updateCoupon(@Param('code') code: string, @Body() dto: PatchCouponDto) { return this.svc.updateCoupon(code, dto); }
-  @Delete('coupons/:code') @HttpCode(204) deleteCoupon(@Param('code') code: string) { return this.svc.deleteCoupon(code); }
+  @Post('coupons') createCoupon(@CurrentUser() me: AuthUser, @Body() dto: CouponDto) { return this.svc.createCoupon(me, dto); }
+  @Patch('coupons/:code') updateCoupon(@CurrentUser() me: AuthUser, @Param('code') code: string, @Body() dto: PatchCouponDto) { return this.svc.updateCoupon(me, code, dto); }
+  @Delete('coupons/:code') @HttpCode(204) deleteCoupon(@CurrentUser() me: AuthUser, @Param('code') code: string) { return this.svc.deleteCoupon(me, code); }
 
   @Get('reviews') reviews(@Query('skip') skip?: string) { return this.svc.listReviews(skip); }
-  @Delete('reviews/:id') @HttpCode(204) deleteReview(@Param('id') id: string) { return this.svc.deleteReview(id); }
+  @Delete('reviews/:id') @HttpCode(204) deleteReview(@CurrentUser() me: AuthUser, @Param('id') id: string) { return this.svc.deleteReview(me, id); }
 
   @Get('messages') messages(@Query('skip') skip?: string) { return this.svc.listMessages(skip); }
-  @Delete('messages/:id') @HttpCode(204) deleteMessage(@Param('id') id: string) { return this.svc.deleteMessage(id); }
+  @Delete('messages/:id') @HttpCode(204) deleteMessage(@CurrentUser() me: AuthUser, @Param('id') id: string) { return this.svc.deleteMessage(me, id); }
+
+  @Get('audit-log') auditLog(@Query() q: any) { return this.svc.listAuditLog(q); }
 }
 
 @Module({ imports: [PaymentsModule], controllers: [AdminController], providers: [AdminService] })
