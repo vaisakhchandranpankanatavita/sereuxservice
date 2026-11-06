@@ -42,6 +42,17 @@
         "web"
       ],
       "port": 8081
+    },
+    {
+      "name": "pro-mobile-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "pro-mobile",
+        "run",
+        "web"
+      ],
+      "port": 8090
     }
   ]
 }

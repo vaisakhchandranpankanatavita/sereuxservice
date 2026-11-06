@@ -42,7 +42,7 @@ function Gate() {
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
     </Stack>}
     {!introDone && <Intro onDone={() => setIntroDone(true)} />}
-    {introDone && transitioning && <ServiceLoader onDone={endTransition} />}
+    {introDone && transitioning && <ServiceLoader onDone={endTransition} keepPlaying={!user} />}
   </View>;
 }
 

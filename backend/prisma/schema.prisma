@@ -45,6 +45,7 @@ model User {
   notifications Notification[]
   wishlist      WishlistItem[]
   refreshTokens RefreshToken[]
+  provider      Provider?
 }
 
 model RefreshToken {
@@ -74,13 +75,18 @@ model Service {
 
 model Provider {
   id       Int       @id
+  userId   String?   @unique
   name     String
   years    Int
   verified Boolean   @default(true)
   response String
   bio      String    @default("")
+  online   Boolean   @default(false)
+  lat      Float?
+  lng      Float?
   services Service[]
   bookings Booking[]
+  user     User?     @relation(fields: [userId], references: [id])
 }
 
 model Product {
@@ -108,6 +114,8 @@ model Booking {
   name       String
   phone      String
   address    String
+  lat        Float?
+  lng        Float?
   notes      String        @default("")
   estimate   Int
   status     BookingStatus @default(REQUESTED)

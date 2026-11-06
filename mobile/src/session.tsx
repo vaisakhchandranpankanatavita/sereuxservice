@@ -18,8 +18,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [transitioning, setTransitioning] = useState(false);
   useEffect(() => { restore().then(setUser, () => setUser(null)); }, []);
-  const login = useCallback(async (e: string, p: string) => { const u = await signIn(e.trim().toLowerCase(), p); setTransitioning(true); setUser(u); }, []);
-  const register = useCallback(async (d: any) => { const u = await signUp({ ...d, email: d.email.trim().toLowerCase() }); setTransitioning(true); setUser(u); }, []);
+  const login = useCallback(async (e: string, p: string) => {
+    setTransitioning(true);
+    try { setUser(await signIn(e.trim().toLowerCase(), p)); } catch (err) { setTransitioning(false); throw err; }
+  }, []);
+  const register = useCallback(async (d: any) => {
+    setTransitioning(true);
+    try { setUser(await signUp({ ...d, email: d.email.trim().toLowerCase() })); } catch (err) { setTransitioning(false); throw err; }
+  }, []);
   const logout = useCallback(async () => { await signOut(); setUser(null); }, []);
   const updateProfile = useCallback(async (d: any) => setUser(await api('/auth/me', 'PATCH', d)), []);
   const endTransition = useCallback(() => setTransitioning(false), []);

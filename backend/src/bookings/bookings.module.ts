@@ -8,8 +8,8 @@ import { SLOTS } from '../catalog/catalog.module';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_DAYS_AHEAD = 60;
-const FLOW: BookingStatus[] = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
-const STATUS_TEXT: Record<BookingStatus, string> = {
+export const FLOW: BookingStatus[] = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
+export const STATUS_TEXT: Record<BookingStatus, string> = {
   REQUESTED: 'Your booking was received.',
   CONFIRMED: 'Your booking is confirmed.',
   ON_THE_WAY: 'Your pro is on the way.',
@@ -26,6 +26,8 @@ class CreateBookingDto {
   @IsString() @MaxLength(80) name: string;
   @Matches(/^[0-9+\s-]{8,15}$/) phone: string;
   @IsString() @MaxLength(300) address: string;
+  @IsOptional() lat?: number;
+  @IsOptional() lng?: number;
   @IsOptional() @IsString() @MaxLength(1000) notes?: string;
 }
 
@@ -68,7 +70,7 @@ class BookingsService {
       return await this.prisma.$transaction(async (tx) => {
         await this.assertFree(tx, { providerId: dto.providerId, serviceId: dto.serviceId }, dto.day, dto.slot);
         const booking = await tx.booking.create({
-          data: { id, userId: user.id, serviceId: dto.serviceId, providerId: dto.providerId ?? null, day: dto.day, slot: dto.slot, name: dto.name, phone: dto.phone, address: dto.address, notes: dto.notes ?? '', estimate: service.fromPrice },
+          data: { id, userId: user.id, serviceId: dto.serviceId, providerId: dto.providerId ?? null, day: dto.day, slot: dto.slot, name: dto.name, phone: dto.phone, address: dto.address, lat: dto.lat ?? null, lng: dto.lng ?? null, notes: dto.notes ?? '', estimate: service.fromPrice },
         });
         await tx.notification.create({ data: { userId: user.id, text: `Booking #${id} received. We'll confirm shortly.`, href: '/orders' } });
         return booking;
@@ -87,7 +89,9 @@ class BookingsService {
 
   async get(user: AuthUser, id: string) {
     const b = await this.prisma.booking.findUnique({ where: { id }, include: { service: true, provider: true, review: true } });
-    if (!b || (b.userId !== user.id && user.role === 'CUSTOMER')) throw new NotFoundException();
+    if (!b) throw new NotFoundException();
+    if (user.role === 'CUSTOMER' && b.userId !== user.id) throw new NotFoundException();
+    if (user.role === 'PROVIDER' && b.provider?.userId !== user.id) throw new NotFoundException();
     return b;
   }
 
@@ -113,9 +117,13 @@ class BookingsService {
     }, { isolationLevel: 'Serializable' });
   }
 
-  async setStatus(id: string, status: BookingStatus) {
+  async setStatus(user: AuthUser, id: string, status: BookingStatus) {
     const b = await this.prisma.booking.findUnique({ where: { id } });
     if (!b) throw new NotFoundException();
+    if (user.role === 'PROVIDER') {
+      const me = await this.prisma.provider.findUnique({ where: { userId: user.id } });
+      if (!me || b.providerId !== me.id) throw new ForbiddenException('This job is not assigned to you.');
+    }
     if (b.status === 'DONE' || b.status === 'CANCELLED') throw new BadRequestException('Booking is already closed.');
     if (status !== 'CANCELLED' && FLOW.indexOf(status) !== FLOW.indexOf(b.status) + 1) {
       throw new BadRequestException(`Status must move from ${b.status} to ${FLOW[FLOW.indexOf(b.status) + 1]}.`);
@@ -137,7 +145,7 @@ class BookingsController {
   @Get(':id') get(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.get(u, id); }
   @Patch(':id') update(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: UpdateBookingDto) { return this.svc.update(u, id, dto); }
   @Patch(':id/status') @Roles(Role.PROVIDER, Role.ADMIN)
-  setStatus(@Param('id') id: string, @Body() dto: SetStatusDto) { return this.svc.setStatus(id, dto.status); }
+  setStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: SetStatusDto) { return this.svc.setStatus(u, id, dto.status); }
 }
 
 @Module({ controllers: [BookingsController], providers: [BookingsService] })

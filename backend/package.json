@@ -11,6 +11,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "admin:create": "tsx prisma/create-admin.ts",
+    "pro:create": "tsx prisma/create-provider.ts",
     "test:e2e": "tsx test/smoke.ts"
   },
   "prisma": {

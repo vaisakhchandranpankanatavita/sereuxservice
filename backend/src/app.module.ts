@@ -9,12 +9,13 @@ import { BookingsModule } from './bookings/bookings.module';
 import { OrdersModule } from './orders/orders.module';
 import { AccountModule } from './account/account.module';
 import { AdminModule } from './admin/admin.module';
+import { ProModule } from './pro/pro.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
-    PrismaModule, AuthModule, CatalogModule, BookingsModule, OrdersModule, AccountModule, AdminModule,
+    PrismaModule, AuthModule, CatalogModule, BookingsModule, OrdersModule, AccountModule, AdminModule, ProModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

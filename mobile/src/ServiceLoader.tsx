@@ -15,21 +15,33 @@ const IMAGES = [
 ];
 const STEP = 150; // ms between cuts — fast
 
-export default function ServiceLoader({ onDone }: { onDone: () => void }) {
+/* keepPlaying: while true, the montage loops (covering however long sign-in actually takes);
+   once it flips false, the current pass finishes and onDone fires. */
+export default function ServiceLoader({ onDone, keepPlaying }: { onDone: () => void; keepPlaying: boolean }) {
   const opacities = useRef(IMAGES.map(() => new Animated.Value(0))).current;
   const scales = useRef(IMAGES.map(() => new Animated.Value(1.22))).current;
+  const keepPlayingRef = useRef(keepPlaying);
+  keepPlayingRef.current = keepPlaying;
 
   useEffect(() => {
-    const anims = IMAGES.map((_, i) => Animated.parallel([
-      Animated.sequence([
-        Animated.timing(opacities[i], { toValue: 1, duration: STEP * 0.35, useNativeDriver: true }),
-        Animated.timing(opacities[i], { toValue: 0, duration: STEP * 0.65, delay: STEP * 0.25, useNativeDriver: true }),
-      ]),
-      Animated.timing(scales[i], { toValue: 1, duration: STEP * 1.4, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-    ]));
-    const run = Animated.stagger(STEP, anims);
-    run.start(() => onDone());
-    return () => run.stop();
+    let cancelled = false;
+    const playOnce = () => new Promise<void>((resolve) => {
+      opacities.forEach((v) => v.setValue(0));
+      scales.forEach((v) => v.setValue(1.22));
+      const anims = IMAGES.map((_, i) => Animated.parallel([
+        Animated.sequence([
+          Animated.timing(opacities[i], { toValue: 1, duration: STEP * 0.35, useNativeDriver: true }),
+          Animated.timing(opacities[i], { toValue: 0, duration: STEP * 0.65, delay: STEP * 0.25, useNativeDriver: true }),
+        ]),
+        Animated.timing(scales[i], { toValue: 1, duration: STEP * 1.4, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]));
+      Animated.stagger(STEP, anims).start(() => resolve());
+    });
+    (async () => {
+      do { await playOnce(); } while (!cancelled && keepPlayingRef.current);
+      if (!cancelled) onDone();
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
