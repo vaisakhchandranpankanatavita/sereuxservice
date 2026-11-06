@@ -3,9 +3,16 @@ import { Alert, Platform, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { api } from '../../src/api';
 import { LiveMap } from '../../src/map';
-import { Badge, Button, Card, Chip, Field, Row, Screen, Stars, Status, Txt, dayLabel, label, money, useFetch, useTheme } from '../../src/ui';
+import { Timeline, type Step } from '../../src/timeline';
+import { Badge, Button, Card, Chip, Eyebrow, Field, Row, Screen, Stars, Status, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 
-const FLOW = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
+const STEPS: Step[] = [
+  { key: 'REQUESTED', label: 'Requested', hint: "We've got your request.", icon: 'hourglass-outline', iconDone: 'hourglass' },
+  { key: 'CONFIRMED', label: 'Confirmed', hint: 'A pro has been assigned.', icon: 'checkmark-circle-outline', iconDone: 'checkmark-circle' },
+  { key: 'ON_THE_WAY', label: 'On the way', hint: 'Your pro is heading over.', icon: 'car-outline', iconDone: 'car' },
+  { key: 'IN_PROGRESS', label: 'In progress', hint: "The job's underway.", icon: 'construct-outline', iconDone: 'construct' },
+  { key: 'DONE', label: 'Done', icon: 'checkmark-done-outline', iconDone: 'checkmark-done' },
+];
 const isoDay = (offset: number) => {
   const d = new Date(); d.setDate(d.getDate() + offset);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -38,7 +45,7 @@ export default function BookingDetail() {
   };
   const open = b.status !== 'DONE' && b.status !== 'CANCELLED';
   const canMove = b.status === 'REQUESTED' || b.status === 'CONFIRMED';
-  const step = FLOW.indexOf(b.status);
+  const step = STEPS.findIndex((s) => s.key === b.status);
 
   return <Screen refresh={refresh} refreshing={refreshing}>
     <Row between><Txt bold size={22}>#{b.id}</Txt><Badge v={b.status} /></Row>
@@ -52,14 +59,11 @@ export default function BookingDetail() {
     </Card>
 
     {b.status !== 'CANCELLED' && <Card>
-      {FLOW.map((s, i) => <Row key={s}>
-        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: i <= step ? t.brand : t.line }} />
-        <Txt bold={i === step} muted={i > step}>{label(s)}</Txt>
-      </Row>)}
+      <Eyebrow>Booking status</Eyebrow>
+      <Timeline steps={STEPS} current={step} />
+      {b.status === 'ON_THE_WAY' && b.provider?.lat != null && b.provider?.lng != null && b.lat != null && b.lng != null &&
+        <LiveMap home={{ lat: b.lat, lng: b.lng }} pro={{ lat: b.provider.lat, lng: b.provider.lng }} label={`${b.provider.name} is on the way`} />}
     </Card>}
-
-    {b.status === 'ON_THE_WAY' && b.provider?.lat != null && b.provider?.lng != null && b.lat != null && b.lng != null &&
-      <LiveMap home={{ lat: b.lat, lng: b.lng }} pro={{ lat: b.provider.lat, lng: b.provider.lng }} label={`${b.provider.name} is on the way`} />}
 
     {!!msg && <Txt color={/fail|cannot|taken|late|closed|Cannot/.test(msg) ? t.bad : t.ok}>{msg}</Txt>}
 

@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api';
 import { usePayment } from '../../src/payment';
 import { useSession } from '../../src/session';
-import { Badge, Button, Card, Field, Row, Screen, Stars, Status, Txt, label, money, useFetch, useTheme, when } from '../../src/ui';
+import { Timeline, type Step } from '../../src/timeline';
+import { Badge, Button, Card, Eyebrow, Field, Row, Screen, Stars, Status, Txt, money, useFetch, useTheme, when } from '../../src/ui';
 
-const FLOW = ['PLACED', 'SHIPPED', 'DELIVERED'];
+const STEPS: Step[] = [
+  { key: 'PLACED', label: 'Order placed', hint: "We've got it — packing starts shortly.", icon: 'receipt-outline', iconDone: 'receipt' },
+  { key: 'SHIPPED', label: 'Shipped', hint: 'On its way to you.', icon: 'cube-outline', iconDone: 'cube' },
+  { key: 'DELIVERED', label: 'Delivered', icon: 'home-outline', iconDone: 'checkmark-done' },
+];
 
 function Rate({ productId, onDone }: { productId: number; onDone: () => void }) {
   const t = useTheme();
@@ -40,7 +44,7 @@ export default function OrderDetail() {
 
   if (!o) return <Screen><Status error={error} loading={!error} /></Screen>;
 
-  const step = FLOW.indexOf(o.status);
+  const step = STEPS.findIndex((s) => s.key === o.status);
   const needsPayment = o.paymentMethod === 'ONLINE' && o.payment?.status !== 'PAID';
   const completePayment = async () => {
     if (!user) return;
@@ -55,10 +59,8 @@ export default function OrderDetail() {
     <Txt muted>Placed {when(o.createdAt)}</Txt>
 
     {o.status !== 'CANCELLED' && <Card>
-      {FLOW.map((s, i) => <Row key={s}>
-        <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: i <= step ? t.brand : t.line }} />
-        <Txt bold={i === step} muted={i > step}>{label(s)}</Txt>
-      </Row>)}
+      <Eyebrow>Order status</Eyebrow>
+      <Timeline steps={STEPS} current={step} />
     </Card>}
 
     {o.items.map((i: any) => <Card key={i.id}>
