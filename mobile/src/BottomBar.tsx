@@ -27,7 +27,7 @@ function TabIcon({ source, active }: { source: any; active: boolean }) {
   }, [active]);
   // The JSON itself is pre-recoloured to the app's ink/accent palette (see assets/lottie);
   // active vs. inactive is just opacity, since per-state colour swaps aren't reliable on web.
-  return <LottieView ref={ref} source={source} loop={false} autoPlay style={{ width: 16, height: 16, opacity: active ? 1 : 0.55 }} />;
+  return <LottieView ref={ref} source={source} loop={false} autoPlay style={{ width: 13, height: 13, opacity: active ? 1 : 0.55 }} />;
 }
 
 /* Persistent bottom tab bar, rendered once at the app root so it stays put across every
