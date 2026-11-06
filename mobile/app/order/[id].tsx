@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api';
 import { usePayment } from '../../src/payment';
 import { useSession } from '../../src/session';
+import { StatusIntro } from '../../src/StatusIntro';
 import { Timeline, type Step } from '../../src/timeline';
 import { Badge, Button, Card, Eyebrow, Field, Row, Screen, Stars, Status, Txt, money, useFetch, useTheme, when } from '../../src/ui';
 
@@ -41,10 +42,13 @@ export default function OrderDetail() {
   const { payNow, node } = usePayment();
   const [payErr, setPayErr] = useState('');
   const [paying, setPaying] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
 
   if (!o) return <Screen><Status error={error} loading={!error} /></Screen>;
 
   const step = STEPS.findIndex((s) => s.key === o.status);
+  if (!introDone && step >= 0) return <StatusIntro steps={STEPS} current={step} eyebrow="Order" title={`#${o.id}`} onDone={() => setIntroDone(true)} />;
+
   const needsPayment = o.paymentMethod === 'ONLINE' && o.payment?.status !== 'PAID';
   const completePayment = async () => {
     if (!user) return;

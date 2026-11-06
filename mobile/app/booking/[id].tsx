@@ -3,6 +3,7 @@ import { Alert, Platform, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { api } from '../../src/api';
 import { LiveMap } from '../../src/map';
+import { StatusIntro } from '../../src/StatusIntro';
 import { Timeline, type Step } from '../../src/timeline';
 import { Badge, Button, Card, Chip, Eyebrow, Field, Row, Screen, Stars, Status, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 
@@ -35,8 +36,12 @@ export default function BookingDetail() {
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
 
   if (!b) return <Screen><Status error={error} loading={!error} /></Screen>;
+
+  const step = STEPS.findIndex((s) => s.key === b.status);
+  if (!introDone && step >= 0) return <StatusIntro steps={STEPS} current={step} eyebrow="Booking" title={`${b.service.name} · #${b.id}`} onDone={() => setIntroDone(true)} />;
 
   const run = async (fn: () => Promise<any>, ok: string) => {
     setBusy(true); setMsg('');
@@ -45,7 +50,6 @@ export default function BookingDetail() {
   };
   const open = b.status !== 'DONE' && b.status !== 'CANCELLED';
   const canMove = b.status === 'REQUESTED' || b.status === 'CONFIRMED';
-  const step = STEPS.findIndex((s) => s.key === b.status);
 
   return <Screen refresh={refresh} refreshing={refreshing}>
     <Row between><Txt bold size={22}>#{b.id}</Txt><Badge v={b.status} /></Row>
