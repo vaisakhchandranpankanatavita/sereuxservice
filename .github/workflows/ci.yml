@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (typecheck, build, e2e)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: fixzy
+          POSTGRES_PASSWORD: fixzy
+          POSTGRES_DB: fixzy
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fixzy"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://fixzy:fixzy@localhost:5432/fixzy?schema=public
+      JWT_SECRET: ci-only-secret-not-used-anywhere-real-0000
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:5173
+      ADMIN_EMAIL: ci-admin@example.com
+      ADMIN_PASSWORD: CiAdminPassw0rd!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run db:deploy
+      - run: npm run db:seed
+      - run: npm run admin:create
+      - run: npm run build
+      - name: Start server and wait for it
+        run: |
+          npm run start &
+          npx --yes wait-on -t 30000 http://localhost:4000/api/services
+      - name: Smoke test (e2e)
+        run: npm run test:e2e
+
+  web:
+    name: Web app (build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  admin:
+    name: Admin app (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  mobile-typecheck:
+    name: Mobile apps (typecheck)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [mobile, pro-mobile]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck

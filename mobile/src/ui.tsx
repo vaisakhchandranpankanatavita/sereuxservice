@@ -137,8 +137,8 @@ export function Status({ error, loading, empty }: { error?: string; loading?: bo
   return null;
 }
 
-export const Row = ({ children, between }: { children: ReactNode; between?: boolean }) =>
-  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: between ? 'space-between' : undefined }}>{children}</View>;
+export const Row = ({ children, between, style }: { children: ReactNode; between?: boolean; style?: ViewStyle }) =>
+  <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: between ? 'space-between' : undefined }, style]}>{children}</View>;
 
 /* "fixzy." wordmark: heavy, tight tracking, tan period (web .brand + .dot). */
 export function Wordmark({ size = 34 }: { size?: number }) {
