@@ -18,6 +18,7 @@ const ROUTES = {
   'login': fromModule(pages, 'Login'),
   'register': fromModule(pages, 'Register'),
   'forgot-password': fromModule(pages, 'ForgotPassword'),
+  'reset-password': fromModule(pages, 'ResetPassword'),
   'services': fromModule(pages, 'ServicesPage'),
   'shop': fromModule(pages, 'Shop'),
   'product': fromModule(pages, 'Product'),

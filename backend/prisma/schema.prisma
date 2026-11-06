@@ -57,6 +57,7 @@ model User {
   notifications Notification[]
   wishlist      WishlistItem[]
   refreshTokens RefreshToken[]
+  resetTokens   PasswordResetToken[]
   provider      Provider?
 }
 
@@ -67,6 +68,18 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

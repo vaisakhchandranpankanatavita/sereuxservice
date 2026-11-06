@@ -3,7 +3,7 @@ import { categories, discount, products, providers, rupee, serviceCategories, se
 import { Avatar, HeartButton, Reviews, Stars } from './social.jsx';
 import { ActiveFilters, FilterSelect, SearchBox, useQueryState } from './filters.jsx';
 import { actions, useStore } from './store.js';
-import { login, passwordStrength, redirectTarget, register } from './auth.js';
+import { forgotPassword, login, passwordStrength, redirectTarget, register, resetPassword } from './auth.js';
 import { EmptyState, flyToCart, useToast } from './ui.jsx';
 import { Footer, Header, Headline, Icon, Label, Reveal, useParallax } from './shared.jsx';
 
@@ -125,12 +125,64 @@ export function Register() {
   );
 }
 
-/* Self-service reset needs an email provider, which the API doesn't have yet. */
 export function ForgotPassword() {
+  const [sent, setSent] = useState(false);
+  const { error, busy, onSubmit } = useSubmit(async (d) => {
+    await forgotPassword(d.email);
+    setSent(true);
+    return null;
+  });
   return (
-    <AuthShell current="login" label="Account" lines={['Reset your', 'password.']} lead="Password reset by email isn’t available yet."
+    <AuthShell current="login" label="Account" lines={['Reset your', 'password.']} lead="Enter your account email and we’ll send a reset link."
       alt={<>Remembered it? <a href="/login">Back to sign in</a></>}>
-      <p role="status">Please <a className="text-link" href="/contact">contact support</a> from the email address on your account and we’ll help you get back in.</p>
+      {sent ? (
+        <p role="status">If that email has an account, a reset link is on its way. It expires in 30 minutes.</p>
+      ) : (
+        <form className="form" onSubmit={onSubmit}>
+          <Field label="Email address" id="email" type="email" autoComplete="email" required />
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <button className="pill pill-block" type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send reset link'} <Icon name="arrow-right" size={16} /></button>
+        </form>
+      )}
+    </AuthShell>
+  );
+}
+
+export function ResetPassword() {
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [done, setDone] = useState(false);
+  const token = new URLSearchParams(window.location.search).get('token') || '';
+  const { error, busy, onSubmit } = useSubmit(async () => {
+    if (!token) return 'This reset link is missing its token.';
+    if (pw !== pw2) return 'The two passwords do not match.';
+    const msg = await resetPassword(token, pw);
+    if (!msg) setDone(true);
+    return msg;
+  });
+  if (done) {
+    return (
+      <AuthShell current="login" label="Account" lines={['Password', 'updated.']} lead="You can sign in with your new password now."
+        alt={null}>
+        <a className="pill" href="/login">Sign in <Icon name="arrow-right" size={16} /></a>
+      </AuthShell>
+    );
+  }
+  return (
+    <AuthShell current="login" label="Account" lines={['Choose a new', 'password.']} lead="Pick something you haven’t used before."
+      alt={<>Remembered it? <a href="/login">Back to sign in</a></>}>
+      {!token ? (
+        <p className="form-error" role="alert">This reset link is invalid. Request a new one from <a className="text-link" href="/forgot-password">the reset page</a>.</p>
+      ) : (
+        <form className="form" onSubmit={onSubmit}>
+          <div className="field-pair">
+            <PasswordField label="New password" id="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} meter />
+            <PasswordField label="Confirm password" id="confirm_password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+          </div>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <button className="pill pill-block" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save new password'} <Icon name="arrow-right" size={16} /></button>
+        </form>
+      )}
     </AuthShell>
   );
 }

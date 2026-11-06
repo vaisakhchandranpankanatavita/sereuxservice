@@ -16,6 +16,16 @@ async function enter(path, body) {
 export const register = ({ name, email, phone, password }) => enter('/auth/register', { name: name.trim(), email: email.trim(), phone: phone.trim(), password });
 export const login = ({ email, password }) => enter('/auth/login', { email: email.trim(), password });
 
+/* Always resolves null (no error): the API never reveals whether an email has an account. */
+export async function forgotPassword(email) {
+  try { await api('/auth/forgot-password', { method: 'POST', body: { email: email.trim() } }); } catch { /* ignore: still show the same confirmation */ }
+  return null;
+}
+export async function resetPassword(token, password) {
+  try { await api('/auth/reset-password', { method: 'POST', body: { token, password } }); return null; }
+  catch (e) { return e instanceof ApiError ? e.message : 'Something went wrong. Try again.'; }
+}
+
 export const passwordStrength = (pw) => {
   let n = 0;
   if (pw.length >= 8) n++;

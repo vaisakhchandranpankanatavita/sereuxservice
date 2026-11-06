@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UseGuards } fro
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, UpdateProfileDto } from './auth.dto';
+import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
 
 const COOKIE = 'fixzy_rt';
@@ -44,6 +44,16 @@ export class AuthController {
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     await this.auth.logout(isMobile(req) ? req.body?.refreshToken : req.cookies?.[COOKIE]);
     res.clearCookie(COOKIE, { path: '/api/auth' });
+  }
+
+  @Post('forgot-password') @HttpCode(200) @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto, process.env.APP_URL || 'http://localhost:5173');
+  }
+
+  @Post('reset-password') @HttpCode(204) @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.auth.resetPassword(dto);
   }
 
   @Get('me') @UseGuards(JwtAuthGuard)

@@ -152,6 +152,28 @@ async function main() {
   r = await call('POST', '/contact', { body: { name: 'Visitor', email: 'v@example.com', message: 'Hello, this is a message.' } });
   check('contact: public submit', r.status === 201, r.status);
 
+  r = await call('POST', '/auth/forgot-password', { body: { email: 'no-such-account@example.com' } });
+  check('password reset: unknown email still returns 200 (no account enumeration)', r.status === 200 && !r.json.token, r);
+
+  r = await call('POST', '/auth/forgot-password', { body: { email } });
+  check('password reset: known email returns a token outside production', r.status === 200 && !!r.json.token, r);
+  const resetToken = r.json.token as string;
+
+  r = await call('POST', '/auth/reset-password', { body: { token: 'not-a-real-token', password: 'Whatever1!x' } });
+  check('password reset: bogus token rejected', r.status === 400, r.status);
+
+  r = await call('POST', '/auth/reset-password', { body: { token: resetToken, password: 'NewPassw0rd!x' } });
+  check('password reset: valid token resets the password', r.status === 204, r.status);
+
+  r = await call('POST', '/auth/login', { body: { email, password: 'Passw0rd!x' } });
+  check('password reset: old password no longer works', r.status === 401, r.status);
+
+  r = await call('POST', '/auth/login', { body: { email, password: 'NewPassw0rd!x' } });
+  check('password reset: new password works', r.status === 200 && !!r.json.accessToken, r.status);
+
+  r = await call('POST', '/auth/reset-password', { body: { token: resetToken, password: 'Whatever1!x' } });
+  check('password reset: the same token cannot be reused', r.status === 400, r.status);
+
   r = await call('POST', '/auth/logout', { cookie: refreshCookie });
   check('auth: logout', r.status === 204, r.status);
 
