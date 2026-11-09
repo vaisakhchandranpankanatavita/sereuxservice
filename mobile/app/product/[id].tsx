@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Image } from 'react-native';
+import { Image, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api, img } from '../../src/api';
 import { useCart } from '../../src/cart';
-import { Button, Card, Row, Screen, Stars, Status, Txt, money, useFetch, useTheme } from '../../src/ui';
+import { Banner, Button, Card, H, R, RoundBtn, Row, Screen, Skeleton, Stars, Status, Txt, Wash, money, useFetch, useTheme } from '../../src/ui';
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,22 +21,32 @@ export default function ProductDetail() {
     wish.reload();
   };
 
-  if (!p.data) return <Screen><Status error={p.error} loading={!p.error} /></Screen>;
+  if (!p.data) return <Screen><Status error={p.error} /><Skeleton height={320} count={2} /></Screen>;
   const d = p.data;
   const save = d.oldPrice > d.price ? Math.round((1 - d.price / d.oldPrice) * 100) : 0;
 
   return <Screen>
-    <Image source={{ uri: img(d.img) }} style={{ width: '100%', aspectRatio: 1, borderRadius: 12, backgroundColor: t.idleBg }} resizeMode="contain" accessibilityLabel={d.name} />
-    <Txt bold size={22}>{d.name}</Txt>
-    <Txt muted>Sold by {d.seller}</Txt>
-    <Row><Txt bold size={20} color={t.brand}>{money(d.price)}</Txt><Txt muted style={{ textDecorationLine: 'line-through' }}>{money(d.oldPrice)}</Txt>{save > 0 && <Txt color={t.ok} bold>{save}% off</Txt>}</Row>
-    {!!d.blurb && <Txt>{d.blurb}</Txt>}
-    <Button title={added ? 'Added ✓  Add another' : 'Add to cart'} onPress={() => { cart.add(d); setAdded(true); }} />
-    {added && <Button title="Go to cart" kind="ghost" onPress={() => router.push('/cart')} />}
-    <Button title={saved ? 'Remove from wishlist' : 'Save to wishlist'} kind="ghost" onPress={toggleWish} />
+    <View style={{ backgroundColor: t.lime, borderRadius: R.lg + 4, padding: 18, overflow: 'hidden' }}>
+      <Wash />
+      <Image source={{ uri: img(d.img) }} style={{ width: '100%', aspectRatio: 1, borderRadius: R.lg, backgroundColor: '#fff' }} resizeMode="contain" accessibilityLabel={d.name} />
+      <View style={{ position: 'absolute', top: 28, right: 28 }}>
+        <RoundBtn icon={saved ? 'heart' : 'heart-outline'} dark={saved} label={saved ? 'Remove from wishlist' : 'Save to wishlist'} onPress={toggleWish} />
+      </View>
+      {save > 0 && <View style={{ position: 'absolute', top: 28, left: 28, backgroundColor: t.ink, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}><Txt bold size={13} color="#fff">{save}% off</Txt></View>}
+    </View>
+    <Txt bold size={28}>{d.name}</Txt>
+    <Txt color={t.body}>Sold by {d.seller}</Txt>
+    <Row style={{ alignItems: 'baseline', gap: 10 }}>
+      <Txt bold size={30}>{money(d.price)}</Txt>
+      {d.oldPrice > d.price && <Txt muted size={16} style={{ textDecorationLine: 'line-through' }}>{money(d.oldPrice)}</Txt>}
+    </Row>
+    {!!d.blurb && <Txt color={t.body} style={{ lineHeight: 22 }}>{d.blurb}</Txt>}
+    {added && <Banner kind="ok">Added to your cart.</Banner>}
+    <Button title={added ? 'Add another' : 'Add to cart'} onPress={() => { cart.add(d); setAdded(true); }} />
+    {added && <Button title="Go to cart" kind="accent" onPress={() => router.push('/cart')} />}
 
-    <Txt bold size={17} style={{ marginTop: 8 }}>Reviews</Txt>
+    <H>Reviews</H>
     {reviews.data && !reviews.data.length && <Txt muted>No reviews yet. Buyers can review from their order.</Txt>}
-    {(reviews.data ?? []).map((r) => <Card key={r.id}><Row between><Txt bold>{r.user.name}</Txt><Stars value={r.rating} /></Row>{!!r.text && <Txt>{r.text}</Txt>}</Card>)}
+    {(reviews.data ?? []).map((r) => <Card key={r.id} style={{ gap: 8 }}><Row between><Txt bold>{r.user.name}</Txt><Stars value={r.rating} /></Row>{!!r.text && <Txt color={t.body}>{r.text}</Txt>}</Card>)}
   </Screen>;
 }

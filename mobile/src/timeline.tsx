@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Txt, useTheme } from './ui';
 
@@ -36,23 +36,52 @@ function StepDot({ icon, active, done }: { icon: keyof typeof Ionicons.glyphMap;
   </View>;
 }
 
-/* Vertical animated step timeline: filled dot + connecting line up through the current step, pulsing ring on the active one. */
-export function Timeline({ steps, current }: { steps: Step[]; current: number }) {
+/* Vertical animated step timeline: filled dot + connecting line up through the current step, pulsing ring on the active one.
+   On first show the steps build in one after another (dot pops, label slides in, the line fills down to the next step).
+   `play` lets a screen hold the reveal until it is actually visible (e.g. after a loader overlay has gone). */
+export function Timeline({ steps, current, play = true }: { steps: Step[]; current: number; play?: boolean }) {
   const t = useTheme();
+  const dots = useRef(steps.map(() => new Animated.Value(0))).current;
+  const lines = useRef(steps.map(() => new Animated.Value(0))).current;
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!play || started.current) return;
+    started.current = true;
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (!live) return;
+      if (reduce) { dots.forEach((d) => d.setValue(1)); lines.forEach((l) => l.setValue(1)); return; }
+      const seq: Animated.CompositeAnimation[] = [Animated.delay(150)];
+      steps.forEach((_, i) => {
+        seq.push(Animated.spring(dots[i], { toValue: 1, friction: 6, tension: 140, useNativeDriver: true }));
+        if (i < current) seq.push(Animated.timing(lines[i], { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: false }));
+      });
+      Animated.sequence(seq).start();
+    }).catch(() => { dots.forEach((d) => d.setValue(1)); lines.forEach((l) => l.setValue(1)); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [play]);
+
   return <View>
     {steps.map((s, i) => {
       const done = i < current;
       const active = i === current;
       const last = i === steps.length - 1;
+      const r = dots[i];
       return <View key={s.key} style={{ flexDirection: 'row', gap: 14 }}>
         <View style={{ alignItems: 'center' }}>
-          <StepDot icon={done ? s.iconDone : s.icon} active={active} done={done} />
-          {!last && <View style={{ width: 2, flex: 1, minHeight: 26, backgroundColor: i < current ? t.brand : t.line }} />}
+          <Animated.View style={{ opacity: r, transform: [{ scale: r.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }] }}>
+            <StepDot icon={done ? s.iconDone : s.icon} active={active && play} done={done} />
+          </Animated.View>
+          {!last && <View style={{ width: 2, flex: 1, minHeight: 26, backgroundColor: t.line, overflow: 'hidden' }}>
+            {i < current && <Animated.View style={{ width: 2, backgroundColor: t.brand, height: lines[i].interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />}
+          </View>}
         </View>
-        <View style={{ paddingBottom: last ? 2 : 20, paddingTop: 6 }}>
-          <Txt bold={active} muted={i > current} size={15}>{s.label}</Txt>
-          {active && !!s.hint && <Txt muted size={12}>{s.hint}</Txt>}
-        </View>
+        <Animated.View style={{ paddingBottom: last ? 2 : 20, paddingTop: 6, opacity: r, transform: [{ translateX: r.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }] }}>
+          <Txt bold={active || done} muted={i > current} size={18}>{s.label}</Txt>
+          {active && !!s.hint && <Txt muted size={14}>{s.hint}</Txt>}
+        </Animated.View>
       </View>;
     })}
   </View>;

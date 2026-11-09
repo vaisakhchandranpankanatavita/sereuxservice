@@ -35,6 +35,7 @@ class UpdateBookingDto {
   @IsOptional() @Matches(DAY) day?: string;
   @IsOptional() @IsIn(SLOTS) slot?: string;
   @IsOptional() @IsIn(['CANCELLED']) status?: 'CANCELLED';
+  @IsOptional() @IsString() @MaxLength(300) reason?: string;
 }
 
 class SetStatusDto {
@@ -101,7 +102,7 @@ class BookingsService {
     if (b.status === 'DONE' || b.status === 'CANCELLED') throw new BadRequestException('This booking can no longer be changed.');
     if (dto.status === 'CANCELLED') {
       return this.prisma.$transaction(async (tx) => {
-        const out = await tx.booking.update({ where: { id }, data: { status: 'CANCELLED' } });
+        const out = await tx.booking.update({ where: { id }, data: { status: 'CANCELLED', cancelReason: dto.reason?.trim() || null } });
         await tx.notification.create({ data: { userId: user.id, text: `#${id}: ${STATUS_TEXT.CANCELLED}`, href: '/orders' } });
         return out;
       });

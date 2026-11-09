@@ -46,7 +46,7 @@ export default function ServiceLoader({ onDone, keepPlaying }: { onDone: () => v
   }, []);
 
   return <View style={[StyleSheet.absoluteFill, { zIndex: 1000, elevation: 1000 }]} pointerEvents="none">
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#141412' }]} />
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: '#232323' }]} />
     {IMAGES.map((src, i) => <Animated.Image key={i} source={src} resizeMode="cover"
       style={[StyleSheet.absoluteFill, { width: '100%', height: '100%', opacity: opacities[i], transform: [{ scale: scales[i] }] }]} />)}
   </View>;

@@ -9,7 +9,7 @@ type Cfg = { keyId: string; orderId: string; amount: number; currency: string; d
    on web the same script is loaded straight into the page instead (see usePayment below). */
 function checkoutHtml(cfg: Cfg) {
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"/></head>
-<body style="margin:0;background:#f9f5f2">
+<body style="margin:0;background:#ffffff">
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 function send(msg){ window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(msg)); }
@@ -17,7 +17,7 @@ var rp = new Razorpay({
   key: ${JSON.stringify(cfg.keyId)}, amount: ${cfg.amount}, currency: ${JSON.stringify(cfg.currency)}, order_id: ${JSON.stringify(cfg.orderId)},
   name: 'Fixzy', description: ${JSON.stringify(cfg.description)},
   prefill: { name: ${JSON.stringify(cfg.name)}, email: ${JSON.stringify(cfg.email)}, contact: ${JSON.stringify(cfg.contact)} },
-  theme: { color: '#141412' },
+  theme: { color: '#232323' },
   handler: function (resp) { send({ type: 'success', resp: resp }); },
   modal: { ondismiss: function () { send({ type: 'dismiss' }); } },
 });
@@ -56,7 +56,7 @@ export function usePayment() {
             await loadRazorpayWeb();
             const rp = new (window as any).Razorpay({
               key: cfg.keyId, amount: cfg.amount, currency: cfg.currency, order_id: cfg.orderId, name: 'Fixzy', description: cfg.description,
-              prefill: { name: cfg.name, email: cfg.email, contact: cfg.contact }, theme: { color: '#141412' },
+              prefill: { name: cfg.name, email: cfg.email, contact: cfg.contact }, theme: { color: '#232323' },
               handler: (resp: any) => api(`/payments/orders/${orderId}/verify`, 'POST', resp).then(resolve, reject),
               modal: { ondismiss: () => reject(new Error('Payment cancelled. You can try again.')) },
             });

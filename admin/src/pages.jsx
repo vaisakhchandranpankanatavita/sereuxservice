@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { api } from './api.js';
-import { Badge, FormModal, Page, Table, act, money, useList, when } from './ui.jsx';
+import { LordIcon } from './LordIcon.jsx';
+import { ICONS } from './icons.js';
+import { Badge, FormModal, MiniCalendar, Page, Spotlight, Table, act, money, useList, when } from './ui.jsx';
 
 const FLOW = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
 const ORDER_FLOW = ['PLACED', 'SHIPPED', 'DELIVERED'];
@@ -16,25 +18,53 @@ function Filters({ q, setQ, status, setStatus, options }) {
 }
 
 /* ---------- Dashboard ---------- */
-export function Dashboard() {
+export function Dashboard({ me }) {
   const { rows: s, error } = useList('/admin/stats');
   if (error) return <Page title="Dashboard"><div className="card err">{error}</div></Page>;
   if (!s) return <Page title="Dashboard"><div className="empty">Loading…</div></Page>;
   const max = Math.max(1, ...s.series.map((d) => d.bookings));
   const rmax = Math.max(1, ...s.series.map((d) => d.revenue));
-  const kpis = [['Open bookings', s.openBookings], ['Today’s jobs', s.todayBookings], ['Total bookings', s.bookings], ['Orders', s.orders], ['Shop revenue', money(s.productRevenue)], ['Users', s.users], ['Messages', s.messages]];
+  const kpis = [
+    ['Open bookings', s.openBookings, ICONS.chartGrow, 'c2'],
+    ['Today’s jobs', s.todayBookings, ICONS.clock, 'c5'],
+    ['Total bookings', s.bookings, ICONS.bookings, 'c1'],
+    ['Orders', s.orders, ICONS.orders, 'c3'],
+    ['Shop revenue', money(s.productRevenue), ICONS.coins, 'c6'],
+    ['Users', s.users, ICONS.users, 'c4'],
+    ['Messages', s.messages, ICONS.chat, 'c9'],
+  ];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
   return <Page title="Dashboard">
-    <div className="kpis">{kpis.map(([l, n]) => <div className="card kpi" key={l}><div className="l">{l}</div><div className="n">{n}</div></div>)}</div>
-    <div className="grid2">
-      <div className="card"><h2>Bookings, last 30 days</h2>
-        <div className="bars">{s.series.map((d) => <div key={d.day} style={{ height: `${(d.bookings / max) * 100}%` }} title={`${d.day}: ${d.bookings}`} />)}</div>
-        <div className="axis"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div></div>
-      <div className="card"><h2>Shop revenue, last 30 days</h2>
-        <div className="bars">{s.series.map((d) => <div key={d.day} style={{ height: `${(d.revenue / rmax) * 100}%` }} title={`${d.day}: ${money(d.revenue)}`} />)}</div>
-        <div className="axis"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div></div>
-      <div className="card"><h2>Bookings by status</h2>
-        {Object.entries(s.bookingsByStatus).map(([k, n]) => <div className="statusrow" key={k}><Badge v={k} /><b>{n}</b></div>)}
-        {!Object.keys(s.bookingsByStatus).length && <div className="empty">No bookings yet.</div>}</div>
+    <div className="kpis">{kpis.map(([l, n, icon, hue]) => <div className="card kpi" key={l}>
+      <div className="icon-badge" style={{ '--kpi-bg': `var(--${hue}-bg)` }}>
+        <LordIcon icon={icon} size={24} colors={`primary:var(--${hue}),secondary:var(--${hue})`} trigger="hover" />
+      </div>
+      <div><div className="n">{n}</div><div className="l">{l}</div></div>
+    </div>)}</div>
+
+    <div className="dash-grid">
+      <div style={{ display: 'grid', gap: 16 }}>
+        <div className="grid2">
+          <div className="card"><h2>Bookings, last 30 days</h2>
+            <div className="bars" style={{ '--bar-c': 'var(--c1)', '--bar-c2': '#a99bff' }}>{s.series.map((d) => <div key={d.day} style={{ height: `${(d.bookings / max) * 100}%` }} title={`${d.day}: ${d.bookings}`} />)}</div>
+            <div className="axis"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div></div>
+          <div className="card"><h2>Shop revenue, last 30 days</h2>
+            <div className="bars" style={{ '--bar-c': 'var(--c3)', '--bar-c2': '#7fe0bf' }}>{s.series.map((d) => <div key={d.day} style={{ height: `${(d.revenue / rmax) * 100}%` }} title={`${d.day}: ${money(d.revenue)}`} />)}</div>
+            <div className="axis"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div></div>
+        </div>
+        <div className="card"><h2>Bookings by status</h2>
+          {Object.entries(s.bookingsByStatus).map(([k, n]) => <div className="statusrow" key={k}><Badge v={k} /><b>{n}</b></div>)}
+          {!Object.keys(s.bookingsByStatus).length && <div className="empty">No bookings yet.</div>}</div>
+      </div>
+
+      <div style={{ display: 'grid', gap: 16 }}>
+        <Spotlight icon={ICONS.trophy} title={`${greeting}, ${(me?.name || 'Admin').split(' ')[0]}.`}
+          text={s.openBookings ? `${s.openBookings} booking${s.openBookings === 1 ? '' : 's'} need attention right now.` : "You're all caught up — nothing open right now."}
+          cta="Review bookings" onPress={() => (location.hash = '#/bookings')} />
+        <div className="card"><MiniCalendar /></div>
+      </div>
     </div>
   </Page>;
 }

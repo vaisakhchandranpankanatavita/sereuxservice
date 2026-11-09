@@ -8,11 +8,10 @@ import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800Ex
 import { ComingSoon_400Regular } from '@expo-google-fonts/coming-soon';
 import { HeaderTitle, useTheme } from '../src/ui';
 import Intro from '../src/Intro';
-import ServiceLoader from '../src/ServiceLoader';
 import BottomBar from '../src/BottomBar';
 
 function Gate() {
-  const { user, transitioning, endTransition } = useSession();
+  const { user } = useSession();
   const t = useTheme();
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold, ComingSoon_400Regular });
   const segments = useSegments();
@@ -34,23 +33,22 @@ function Gate() {
     {user !== undefined && <Stack screenOptions={{
       headerStyle: { backgroundColor: t.bg }, headerShadowVisible: false, headerTintColor: t.ink,
       headerTitle: ({ children }) => <HeaderTitle>{children}</HeaderTitle>,
-      headerBackButtonDisplayMode: 'minimal', contentStyle: { backgroundColor: t.bg },
+      headerBackButtonDisplayMode: 'minimal', contentStyle: { backgroundColor: t.bg }, animation: 'slide_from_right', animationDuration: 260,
     }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="service/[id]" options={{ title: 'Service' }} />
+      <Stack.Screen name="service/[id]" options={{ title: 'Service', headerShown: false }} />
       <Stack.Screen name="service/book" options={{ title: 'Book a pro' }} />
-      <Stack.Screen name="booking/[id]" options={{ title: 'Booking' }} />
+      <Stack.Screen name="booking/[id]" options={{ title: 'Booking', headerShown: false }} />
       <Stack.Screen name="product/[id]" options={{ title: 'Product' }} />
-      <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
-      <Stack.Screen name="cart" options={{ title: 'Cart' }} />
+      <Stack.Screen name="order/[id]" options={{ title: 'Order', headerShown: false }} />
+      <Stack.Screen name="cart" options={{ title: 'Cart', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
-      <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+      <Stack.Screen name="notifications" options={{ title: 'Notifications', animation: 'slide_from_bottom' }} />
       <Stack.Screen name="wishlist" options={{ title: 'Wishlist' }} />
     </Stack>}
     {introDone && user && !inAuth && <BottomBar />}
     {!introDone && <Intro onDone={() => setIntroDone(true)} />}
-    {introDone && transitioning && <ServiceLoader onDone={endTransition} keepPlaying={!user} />}
   </View>;
 }
 

@@ -5,11 +5,11 @@ import { font } from './ui';
 /* Mirrors the web splash (src/Intro.jsx): five slides that auto-advance, a masked word reveal,
    Skip, a loading percentage with a progress bar, tap/swipe to advance, and a wipe-up exit. */
 const SLIDES = [
-  { lines: ['Fixzy.'], note: 'Home services, made simple', bg: '#1d201c', fg: '#f8f8f5', mute: 'rgba(248,248,245,0.55)' },
-  { lines: ['Trusted pros', 'for your home.'], note: 'Plumbing, electrical, AC, cleaning and more', bg: '#c9d4aa', fg: '#20231f', mute: 'rgba(32,35,31,0.55)' },
-  { lines: ['See the price', 'first.'], note: 'Every service shows its starting price', bg: '#f8f8f5', fg: '#20231f', mute: 'rgba(32,35,31,0.5)' },
-  { lines: ['Book a time', 'that suits you.'], note: 'Sign in, request a visit, track it online', bg: '#1d201c', fg: '#f8f8f5', mute: 'rgba(248,248,245,0.55)' },
-  { lines: ['Let’s begin.'], note: 'Choose a service on the next screen', bg: '#c9d4aa', fg: '#20231f', mute: 'rgba(32,35,31,0.55)' },
+  { lines: ['Fixzy.'], note: 'Home services, made simple', bg: '#232323', fg: '#ffffff', mute: 'rgba(248,248,245,0.55)' },
+  { lines: ['Trusted pros', 'for your home.'], note: 'Plumbing, electrical, AC, cleaning and more', bg: '#e3ea7c', fg: '#232323', mute: 'rgba(35,35,35,0.55)' },
+  { lines: ['See the price', 'first.'], note: 'Every service shows its starting price', bg: '#ffffff', fg: '#232323', mute: 'rgba(32,35,31,0.5)' },
+  { lines: ['Book a time', 'that suits you.'], note: 'Sign in, request a visit, track it online', bg: '#232323', fg: '#ffffff', mute: 'rgba(248,248,245,0.55)' },
+  { lines: ['Let’s begin.'], note: 'Choose a service on the next screen', bg: '#e3ea7c', fg: '#232323', mute: 'rgba(35,35,35,0.55)' },
 ];
 const DURATION = 1700;
 const LOCK = 450;

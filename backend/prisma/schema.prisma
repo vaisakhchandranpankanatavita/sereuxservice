@@ -157,6 +157,7 @@ model Booking {
   notes      String        @default("")
   estimate   Int
   status     BookingStatus @default(REQUESTED)
+  cancelReason String?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 

@@ -10,7 +10,7 @@ function html(home: LatLng, pro: LatLng | null, label: string) {
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>html,body,#m{height:100%;margin:0}
   .pin{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;font-size:17px;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.35)}
-  .pin-home{background:#141412}.pin-pro{background:#b8956a}</style></head>
+  .pin-home{background:#232323}.pin-pro{background:#8f8cf0}</style></head>
   <body><div id="m" role="img" aria-label="${label.replace(/"/g, '')}"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
@@ -22,7 +22,7 @@ function html(home: LatLng, pro: LatLng | null, label: string) {
     L.marker([home.lat,home.lng],{icon:homeIcon}).addTo(m);
     if(pro){
       var pm=L.marker([pro.lat,pro.lng],{icon:proIcon,zIndexOffset:500}).addTo(m);
-      var line=L.polyline([[pro.lat,pro.lng],[home.lat,home.lng]],{color:'#141412',weight:4,opacity:.5,dashArray:'2 9'}).addTo(m);
+      var line=L.polyline([[pro.lat,pro.lng],[home.lat,home.lng]],{color:'#232323',weight:4,opacity:.5,dashArray:'2 9'}).addTo(m);
       m.fitBounds(line.getBounds(),{padding:[40,40]});
     }
   </script></body></html>`;

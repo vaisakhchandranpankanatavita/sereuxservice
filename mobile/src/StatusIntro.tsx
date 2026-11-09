@@ -11,9 +11,9 @@ import type { Step } from './timeline';
 const STEP_MS = 420;
 const HOLD_MS = 550;
 const EASE = Easing.bezier(0.16, 1, 0.3, 1);
-const INK = '#141412';
-const CREAM = '#f8f8f5';
-const ACCENT = '#b8956a';
+const INK = '#232323';
+const CREAM = '#ffffff';
+const ACCENT = '#aaa7ff';
 
 export function StatusIntro({ steps, current, eyebrow, title, onDone }: { steps: Step[]; current: number; eyebrow: string; title: string; onDone: () => void }) {
   const { height } = useWindowDimensions();
@@ -75,7 +75,7 @@ export function StatusIntro({ steps, current, eyebrow, title, onDone }: { steps:
   return <Animated.View
     accessibilityViewIsModal accessibilityLabel={`${title} status`}
     style={[StyleSheet.absoluteFill, {
-      zIndex: 1000, elevation: 1000, backgroundColor: INK,
+      zIndex: 1000, elevation: 1000, backgroundColor: 'rgba(20,20,20,0.6)', // see-through: the page shows beneath a light dark scrim
       transform: [{ translateY: wipe.interpolate({ inputRange: [0, 1], outputRange: [0, -height] }) }],
     }]}>
     <Pressable style={StyleSheet.absoluteFill} onPress={finish} accessibilityRole="button" accessibilityLabel="Skip" />

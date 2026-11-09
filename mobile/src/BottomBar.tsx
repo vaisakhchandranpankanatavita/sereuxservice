@@ -1,65 +1,58 @@
-import { useEffect, useRef } from 'react';
-import { Pressable, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Platform, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
-import LottieView from 'lottie-react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useCart } from './cart';
 import { Txt, useTheme } from './ui';
 
 const TABS = [
-  { href: '/', match: ['/'], label: 'Services', lottie: require('../assets/lottie/services.json') },
-  { href: '/shop', match: ['/shop'], label: 'Shop', lottie: require('../assets/lottie/shop.json') },
-  { href: '/activity', match: ['/activity'], label: 'Activity', lottie: require('../assets/lottie/activity.json') },
-  { href: '/account', match: ['/account'], label: 'Account', lottie: require('../assets/lottie/account.json') },
+  { href: '/', match: ['/'], label: 'Services', on: 'home', off: 'home-outline' },
+  { href: '/shop', match: ['/shop'], label: 'Shop', on: 'bag-handle', off: 'bag-handle-outline' },
+  { href: '/activity', match: ['/activity'], label: 'Activity', on: 'calendar', off: 'calendar-outline' },
+  { href: '/account', match: ['/account'], label: 'Account', on: 'person', off: 'person-outline' },
 ] as const;
 
-function TabIcon({ source, active }: { source: any; active: boolean }) {
-  const ref = useRef<LottieView>(null);
-  const mounted = useRef(false);
-  useEffect(() => {
-    // Skip the first run — `autoPlay` below already paints the icon as soon as it's ready,
-    // without waiting on the ref (which, on first mount, can still be null when this fires).
-    if (!mounted.current) { mounted.current = true; return; }
-    // Replay the draw-on when a tab becomes active; never reset() a tab that stops being
-    // active — these Lordicon animations start from a blank first frame, so reset() would
-    // snap it back to invisible instead of leaving it at its fully-drawn resting state.
-    if (active) ref.current?.play();
-  }, [active]);
-  // The JSON itself is pre-recoloured to the app's ink/accent palette (see assets/lottie);
-  // active vs. inactive is just opacity, since per-state colour swaps aren't reliable on web.
-  return <LottieView ref={ref} source={source} loop={false} autoPlay style={{ width: 13, height: 13, opacity: active ? 1 : 0.55 }} />;
-}
-
-/* Persistent bottom tab bar, rendered once at the app root so it stays put across every
-   screen (not just the (tabs) group) — a floating rounded island (inset from the edges, its
-   own shadow) rather than a full-bleed bar, with the active tab picked out by a soft pill. */
+/* Persistent floating nav, rendered once at the app root. A single highlight glides between tabs
+   on a spring instead of each tab flashing its own background. */
 export default function BottomBar() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const router = useRouter();
   const { count } = useCart();
+  const [w, setW] = useState(0);
+  const idx = Math.max(0, TABS.findIndex((tab) => (tab.match as readonly string[]).includes(pathname)));
+  const x = useRef(new Animated.Value(0)).current;
+  const slot = w / TABS.length;
 
-  return <View style={{
-    position: 'absolute', left: 18, right: 18, bottom: Math.max(insets.bottom, 10),
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.72)', borderRadius: 16, paddingVertical: 2, paddingHorizontal: 6,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)',
-    shadowColor: '#141412', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
-    elevation: 12, zIndex: 900,
-  }}>
-    {TABS.map((tab) => {
-      const active = (tab.match as readonly string[]).includes(pathname);
-      return <Pressable key={tab.href} onPress={() => router.push(tab.href as any)} accessibilityRole="button" accessibilityLabel={tab.label}
-        style={{ flex: 1, alignItems: 'center', paddingVertical: 1, borderRadius: 11, backgroundColor: active ? 'rgba(20,20,18,0.08)' : 'transparent' }}>
-        <View>
-          <TabIcon source={tab.lottie} active={active} />
-          {tab.href === '/shop' && count > 0 && <View style={{ position: 'absolute', top: -2, right: -8, backgroundColor: t.accent, borderRadius: 7, minWidth: 13, paddingHorizontal: 3, alignItems: 'center' }}>
-            <Txt size={8.5} bold color={t.brandInk}>{count}</Txt>
+  useEffect(() => {
+    if (slot) Animated.spring(x, { toValue: idx * slot, useNativeDriver: true, speed: 16, bounciness: 7 }).start();
+  }, [idx, slot, x]);
+
+  return <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: Math.max(insets.bottom, 12), zIndex: 900, alignItems: 'center' }}>
+   <View style={{
+    alignSelf: 'center',
+    backgroundColor: 'rgba(35,35,35,0.55)', borderRadius: 40, padding: 7,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)',
+    shadowColor: '#232323', shadowOpacity: 0.16, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 10,
+    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(18px) saturate(180%)', WebkitBackdropFilter: 'blur(18px) saturate(180%)' } : {}),
+  } as any}>
+    <View style={{ flexDirection: 'row' }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      {!!slot && <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: slot, alignItems: 'center', transform: [{ translateX: x }] }}>
+        <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: t.accent }} />
+      </Animated.View>}
+      {TABS.map((tab, i) => {
+        const active = i === idx;
+        return <Pressable key={tab.href} onPress={() => router.push(tab.href as any)} accessibilityRole="button" accessibilityLabel={tab.label} accessibilityState={{ selected: active }}
+          style={{ width: 62, height: 54, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={(active ? tab.on : tab.off) as any} size={23} color={active ? t.ink : 'rgba(255,255,255,0.8)'} />
+          {tab.href === '/shop' && count > 0 && <View style={{ position: 'absolute', top: 2, right: '24%', backgroundColor: t.pink, borderRadius: 8, minWidth: 16, height: 16, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' }}>
+            <Txt size={10} bold color={t.ink}>{count}</Txt>
           </View>}
-        </View>
-        <Txt size={8.5} bold color={active ? t.ink : t.muted}>{tab.label}</Txt>
-      </Pressable>;
-    })}
+        </Pressable>;
+      })}
+    </View>
+   </View>
   </View>;
 }
