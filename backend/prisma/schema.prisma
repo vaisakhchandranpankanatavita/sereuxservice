@@ -59,6 +59,7 @@ model User {
   refreshTokens RefreshToken[]
   resetTokens   PasswordResetToken[]
   provider      Provider?
+  pushTokens    PushToken[]
 }
 
 model RefreshToken {
@@ -156,6 +157,8 @@ model Booking {
   lng        Float?
   notes      String        @default("")
   estimate   Int
+  coupon     String?
+  discount   Int           @default(0)
   status     BookingStatus @default(REQUESTED)
   cancelReason String?
   createdAt  DateTime      @default(now())
@@ -165,6 +168,7 @@ model Booking {
   service  Service   @relation(fields: [serviceId], references: [id])
   provider Provider? @relation(fields: [providerId], references: [id])
   review   Review?
+  payment  Payment?
 
   @@index([userId, createdAt])
   @@index([providerId, day, slot])
@@ -195,7 +199,8 @@ model Order {
 
 model Payment {
   id                String        @id @default(cuid())
-  orderId           String        @unique
+  orderId           String?       @unique
+  bookingId         String?       @unique
   provider          String        @default("razorpay")
   providerOrderId   String
   providerPaymentId String?
@@ -204,7 +209,8 @@ model Payment {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([providerOrderId])
 }
@@ -269,4 +275,14 @@ model Coupon {
   code    String  @id
   percent Int
   active  Boolean @default(true)
+}
+
+model PushToken {
+  token     String   @id
+  userId    String
+  platform  String   @default("")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

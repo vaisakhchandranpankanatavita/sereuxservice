@@ -11,13 +11,14 @@ import { OrdersModule } from './orders/orders.module';
 import { AccountModule } from './account/account.module';
 import { AdminModule } from './admin/admin.module';
 import { ProModule } from './pro/pro.module';
+import { PushModule } from './common/push';
 import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
-    PrismaModule, MailerModule, AuthModule, CatalogModule, BookingsModule, OrdersModule, AccountModule, AdminModule, ProModule, PaymentsModule,
+    PrismaModule, MailerModule, PushModule, AuthModule, CatalogModule, BookingsModule, OrdersModule, AccountModule, AdminModule, ProModule, PaymentsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

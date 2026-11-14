@@ -3,6 +3,7 @@ import { BookingStatus, OrderStatus, Prisma, Role } from '@prisma/client';
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
+import { PushService } from '../common/push';
 import { PaymentsModule, PaymentsService } from '../payments/payments.module';
 
 const BOOKING_STATUSES = Object.values(BookingStatus);
@@ -84,7 +85,7 @@ const page = (skip?: string, take = 50) => ({ skip: Math.max(0, Number(skip) || 
 
 @Injectable()
 class AdminService {
-  constructor(private prisma: PrismaService, private payments: PaymentsService) {}
+  constructor(private prisma: PrismaService, private payments: PaymentsService, private push: PushService) {}
 
   private audit(me: AuthUser, action: string, target: string, meta?: unknown) {
     return this.prisma.auditLog.create({ data: { actorId: me.id, actorEmail: me.email, action, target, meta: meta as Prisma.InputJsonValue } });
@@ -167,6 +168,7 @@ class AdminService {
       await tx.notification.create({ data: { userId: o.userId, text: `Order #${id} ${text}.`, href: '/orders' } });
       return out;
     });
+    await this.push.send(o.userId, `Order #${id} ${text}.`, 'Fixzy', { href: '/orders' });
     await this.audit(me, 'order.status', `order:${id}`, { from: o.status, to: status });
     if (status === 'CANCELLED') await this.payments.refundIfPaid(id); // best-effort; never blocks the status change
     return out;

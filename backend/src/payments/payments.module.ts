@@ -36,6 +36,48 @@ export class PaymentsService {
     return { keyId: process.env.RAZORPAY_KEY_ID, razorpayOrderId: rp.id, amount, currency: 'INR' };
   }
 
+  /* Online payment for a service booking: charges the booking's estimate. Allowed any time before
+     cancellation, so a customer can pay up front or once the job is done. */
+  async startBookingPayment(user: AuthUser, bookingId: string) {
+    const b = await this.prisma.booking.findFirst({ where: { id: bookingId, userId: user.id }, include: { payment: true } });
+    if (!b) throw new NotFoundException();
+    if (b.status === 'CANCELLED') throw new BadRequestException('This booking was cancelled.');
+    if (b.payment?.status === 'PAID') throw new BadRequestException('This booking is already paid.');
+    if (b.payment && b.payment.status === 'CREATED') {
+      return { keyId: process.env.RAZORPAY_KEY_ID, razorpayOrderId: b.payment.providerOrderId, amount: b.payment.amount, currency: 'INR' };
+    }
+    const amount = b.estimate * 100;
+    const rp = await this.razorpay.createOrder(amount, b.id);
+    await this.prisma.payment.upsert({
+      where: { bookingId: b.id },
+      create: { bookingId: b.id, providerOrderId: rp.id, amount },
+      update: { providerOrderId: rp.id, amount, status: 'CREATED', providerPaymentId: null },
+    });
+    return { keyId: process.env.RAZORPAY_KEY_ID, razorpayOrderId: rp.id, amount, currency: 'INR' };
+  }
+
+  async verifyBookingPayment(user: AuthUser, bookingId: string, dto: VerifyDto) {
+    const b = await this.prisma.booking.findFirst({ where: { id: bookingId, userId: user.id }, include: { payment: true } });
+    if (!b?.payment) throw new NotFoundException();
+    if (b.payment.providerOrderId !== dto.razorpay_order_id) throw new BadRequestException('Payment does not match this booking.');
+    if (!this.razorpay.verifyCheckoutSignature(dto.razorpay_order_id, dto.razorpay_payment_id, dto.razorpay_signature)) {
+      throw new BadRequestException('Payment could not be verified.');
+    }
+    if (b.payment.status !== 'PAID') {
+      await this.prisma.payment.update({ where: { bookingId: b.id }, data: { status: 'PAID', providerPaymentId: dto.razorpay_payment_id } });
+      await this.prisma.notification.create({ data: { userId: user.id, text: `Payment received for booking #${b.id}. Thank you!`, href: '/orders' } }).catch(() => {});
+    }
+    return { paid: true };
+  }
+
+  /* Called when a paid booking is cancelled; never throws. */
+  async refundBookingIfPaid(bookingId: string) {
+    const payment = await this.prisma.payment.findUnique({ where: { bookingId } });
+    if (!payment || payment.status !== 'PAID' || !payment.providerPaymentId) return;
+    const refunded = await this.razorpay.refund(payment.providerPaymentId, payment.amount);
+    if (refunded) await this.prisma.payment.update({ where: { bookingId }, data: { status: 'REFUNDED' } });
+  }
+
   /* Client-side confirmation right after Checkout succeeds. The webhook is the source of truth if this never arrives. */
   async verifyOrderPayment(user: AuthUser, orderId: string, dto: VerifyDto) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, userId: user.id }, include: { payment: true } });
@@ -86,6 +128,12 @@ class PaymentsController {
 
   @Post('orders/:id/verify') @UseGuards(JwtAuthGuard)
   verify(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: VerifyDto) { return this.svc.verifyOrderPayment(u, id, dto); }
+
+  @Post('bookings/:id') @UseGuards(JwtAuthGuard)
+  startBooking(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.startBookingPayment(u, id); }
+
+  @Post('bookings/:id/verify') @UseGuards(JwtAuthGuard)
+  verifyBooking(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: VerifyDto) { return this.svc.verifyBookingPayment(u, id, dto); }
 
   /* Public: Razorpay calls this directly. Signed with RAZORPAY_WEBHOOK_SECRET, not a user token. */
   @Post('webhook') @HttpCode(200)

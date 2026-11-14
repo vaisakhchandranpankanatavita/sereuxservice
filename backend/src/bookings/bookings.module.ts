@@ -4,6 +4,8 @@ import { IsIn, IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'clas
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
+import { PaymentsModule, PaymentsService } from '../payments/payments.module';
+import { PushService } from '../common/push';
 import { SLOTS } from '../catalog/catalog.module';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -29,6 +31,7 @@ class CreateBookingDto {
   @IsOptional() lat?: number;
   @IsOptional() lng?: number;
   @IsOptional() @IsString() @MaxLength(1000) notes?: string;
+  @IsOptional() @IsString() @MaxLength(32) coupon?: string;
 }
 
 class UpdateBookingDto {
@@ -48,7 +51,7 @@ const newId = () => 'FX' + randomBytes(4).toString('hex').toUpperCase();
 
 @Injectable()
 class BookingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private push: PushService, private payments: PaymentsService) {}
 
   private assertWindow(day: string) {
     if (day <= isoToday() || day > addDays(MAX_DAYS_AHEAD)) throw new BadRequestException('Pick a day within the next 60 days.');
@@ -66,16 +69,27 @@ class BookingsService {
     const service = await this.prisma.service.findUnique({ where: { id: dto.serviceId }, include: { providers: { select: { id: true } } } });
     if (!service) throw new NotFoundException('Service not found.');
     if (dto.providerId && !service.providers.some((p) => p.id === dto.providerId)) throw new BadRequestException('That pro does not offer this service.');
+    let coupon: string | null = null;
+    let discount = 0;
+    if (dto.coupon?.trim()) {
+      const c = await this.prisma.coupon.findUnique({ where: { code: dto.coupon.trim().toUpperCase() } });
+      if (!c?.active) throw new BadRequestException('That code isn’t valid.');
+      coupon = c.code;
+      discount = Math.round(service.fromPrice * (c.percent / 100));
+    }
     const id = newId();
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const created = await this.prisma.$transaction(async (tx) => {
         await this.assertFree(tx, { providerId: dto.providerId, serviceId: dto.serviceId }, dto.day, dto.slot);
         const booking = await tx.booking.create({
-          data: { id, userId: user.id, serviceId: dto.serviceId, providerId: dto.providerId ?? null, day: dto.day, slot: dto.slot, name: dto.name, phone: dto.phone, address: dto.address, lat: dto.lat ?? null, lng: dto.lng ?? null, notes: dto.notes ?? '', estimate: service.fromPrice },
+          data: { id, userId: user.id, serviceId: dto.serviceId, providerId: dto.providerId ?? null, day: dto.day, slot: dto.slot, name: dto.name, phone: dto.phone, address: dto.address, lat: dto.lat ?? null, lng: dto.lng ?? null, notes: dto.notes ?? '', estimate: service.fromPrice - discount, coupon, discount },
         });
         await tx.notification.create({ data: { userId: user.id, text: `Booking #${id} received. We'll confirm shortly.`, href: '/orders' } });
         return booking;
       }, { isolationLevel: 'Serializable' });
+      await this.alertPros(created.id, service.name, dto.day, dto.slot, dto.providerId).catch(() => {});
+      await this.push.send(user.id, `Booking #${created.id} received. We'll confirm shortly.`, 'Fixzy', { href: '/orders' });
+      return created;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && (e.code === 'P2002' || e.code === 'P2034')) {
         throw new ConflictException('That slot was just taken. Please pick another.');
@@ -84,12 +98,21 @@ class BookingsService {
     }
   }
 
+  /* New request: tell the chosen pro, or every online pro who offers the service when none was picked. */
+  private async alertPros(id: string, service: string, day: string, slot: string, providerId?: number) {
+    const pros = await this.prisma.provider.findMany({
+      where: { userId: { not: null }, ...(providerId ? { id: providerId } : { online: true, services: { some: { name: service } } }) },
+      select: { userId: true },
+    });
+    await Promise.all(pros.map((p) => this.push.alert(p.userId!, `New ${service} request for ${day}, ${slot} (#${id}).`, 'New job request')));
+  }
+
   list(user: AuthUser) {
-    return this.prisma.booking.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, include: { service: true, provider: true, review: true } });
+    return this.prisma.booking.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, include: { service: true, provider: true, review: true, payment: { select: { status: true, amount: true } } } });
   }
 
   async get(user: AuthUser, id: string) {
-    const b = await this.prisma.booking.findUnique({ where: { id }, include: { service: true, provider: true, review: true } });
+    const b = await this.prisma.booking.findUnique({ where: { id }, include: { service: true, provider: true, review: true, payment: { select: { status: true, amount: true } } } });
     if (!b) throw new NotFoundException();
     if (user.role === 'CUSTOMER' && b.userId !== user.id) throw new NotFoundException();
     if (user.role === 'PROVIDER' && b.provider?.userId !== user.id) throw new NotFoundException();
@@ -104,6 +127,14 @@ class BookingsService {
       return this.prisma.$transaction(async (tx) => {
         const out = await tx.booking.update({ where: { id }, data: { status: 'CANCELLED', cancelReason: dto.reason?.trim() || null } });
         await tx.notification.create({ data: { userId: user.id, text: `#${id}: ${STATUS_TEXT.CANCELLED}`, href: '/orders' } });
+        return out;
+      }).then(async (out) => {
+        await this.payments.refundBookingIfPaid(id);
+        await this.push.send(user.id, `#${id}: ${STATUS_TEXT.CANCELLED}`, 'Fixzy', { href: '/orders' });
+        if (b.providerId) {
+          const p = await this.prisma.provider.findUnique({ where: { id: b.providerId }, select: { userId: true } });
+          if (p?.userId) await this.push.alert(p.userId, `Job #${id} was cancelled by the customer.`, 'Job cancelled');
+        }
         return out;
       });
     }
@@ -133,6 +164,10 @@ class BookingsService {
       const out = await tx.booking.update({ where: { id }, data: { status } });
       await tx.notification.create({ data: { userId: b.userId, text: `#${id}: ${STATUS_TEXT[status]}`, href: '/orders' } });
       return out;
+    }).then(async (out) => {
+      if (status === 'CANCELLED') await this.payments.refundBookingIfPaid(id);
+      await this.push.send(b.userId, `#${id}: ${STATUS_TEXT[status]}`, 'Fixzy', { href: '/orders' });
+      return out;
     });
   }
 }
@@ -149,5 +184,5 @@ class BookingsController {
   setStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: SetStatusDto) { return this.svc.setStatus(u, id, dto.status); }
 }
 
-@Module({ controllers: [BookingsController], providers: [BookingsService] })
+@Module({ imports: [PaymentsModule], controllers: [BookingsController], providers: [BookingsService] })
 export class BookingsModule {}

@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { api } from '../src/api';
+import CouponBox, { type AppliedCoupon } from '../src/CouponBox';
 import { useAddresses, type SavedAddress } from '../src/addresses';
 import { useCart } from '../src/cart';
 import { usePayment } from '../src/payment';
@@ -16,7 +17,9 @@ export default function Checkout() {
   const t = useTheme();
   const { payNow, node } = usePayment();
   const { list: addrs, add: saveAddr, remove: removeAddr } = useAddresses();
-  const [f, setF] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', address: '', city: '', pin: '', coupon: '' });
+  const [f, setF] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', address: '', city: '', pin: '' });
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  const off = coupon ? Math.round(subtotal * coupon.percent / 100) : 0;
   const [pay, setPay] = useState<'COD' | 'ONLINE'>('COD');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -31,7 +34,7 @@ export default function Checkout() {
     try {
       const o = await api('/orders', 'POST', {
         name: f.name.trim(), phone: f.phone, address: f.address.trim(), city: f.city.trim(), pin: f.pin,
-        ...(f.coupon.trim() ? { coupon: f.coupon.trim() } : {}),
+        ...(coupon ? { coupon: coupon.code } : {}),
         paymentMethod: pay,
         items: lines.map((l) => ({ productId: l.product.id, qty: l.qty })),
       });
@@ -45,7 +48,7 @@ export default function Checkout() {
   };
 
   return <Screen>
-    <Card tint={t.lime} style={{ borderRadius: R.lg, padding: 18 }}><Row between><Txt size={15}>{lines.length} item{lines.length === 1 ? '' : 's'} in your order</Txt><Txt bold size={26}>{money(subtotal)}</Txt></Row></Card>
+    <Card tint={t.lime} style={{ borderRadius: R.lg, padding: 18 }}><Row between><Txt size={15}>{lines.length} item{lines.length === 1 ? '' : 's'} in your order</Txt><Txt bold size={26}>{money(subtotal - off)}</Txt></Row>{off > 0 && <Txt size={13}>You save {money(off)} with {coupon!.code}</Txt>}</Card>
 
     {addrs.length > 0 && <Card>
       <Txt bold size={18}>Saved addresses</Txt>
@@ -66,7 +69,7 @@ export default function Checkout() {
     <Field label="Address" value={f.address} onChangeText={set('address')} multiline />
     <Field label="City" value={f.city} onChangeText={set('city')} />
     <Field label="PIN code (6 digits)" value={f.pin} onChangeText={set('pin')} keyboardType="number-pad" maxLength={6} />
-    <Field label="Coupon code (optional)" value={f.coupon} onChangeText={set('coupon')} autoCapitalize="characters" />
+    <CouponBox applied={coupon} onChange={setCoupon} />
     <H>Payment</H>
     <Row style={{ alignItems: 'stretch' }}>
       {([['COD', 'Cash on delivery', 'cash-outline'], ['ONLINE', 'Pay online', 'card-outline']] as const).map(([k, label, icon]) => <Tap key={k} onPress={() => setPay(k)} accessibilityRole="button" accessibilityState={{ selected: pay === k }} scaleTo={0.96}

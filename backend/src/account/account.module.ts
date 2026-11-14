@@ -3,6 +3,7 @@ import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
+import { PushService } from '../common/push';
 
 class ReviewDto {
   @IsIn(['service', 'product']) kind: 'service' | 'product';
@@ -10,6 +11,11 @@ class ReviewDto {
   @IsOptional() @IsString() bookingId?: string;
   @IsInt() @Min(1) @Max(5) rating: number;
   @IsOptional() @IsString() @MaxLength(1000) text?: string;
+}
+
+class PushTokenDto {
+  @IsString() @MinLength(10) @MaxLength(200) token: string;
+  @IsOptional() @IsString() @MaxLength(20) platform?: string;
 }
 
 class ContactDto {
@@ -20,7 +26,17 @@ class ContactDto {
 
 @Controller()
 class AccountController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private push: PushService) {}
+
+  @Put('push-token') @HttpCode(204) @UseGuards(JwtAuthGuard)
+  async registerPush(@CurrentUser() u: AuthUser, @Body() dto: PushTokenDto) {
+    await this.push.register(u.id, dto.token, dto.platform ?? '');
+  }
+
+  @Delete('push-token') @HttpCode(204) @UseGuards(JwtAuthGuard)
+  async unregisterPush(@CurrentUser() u: AuthUser, @Body() dto: PushTokenDto) {
+    await this.push.unregister(u.id, dto.token);
+  }
 
   @Get('notifications') @UseGuards(JwtAuthGuard)
   notifications(@CurrentUser() u: AuthUser) {

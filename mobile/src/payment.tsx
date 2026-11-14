@@ -38,7 +38,8 @@ async function loadRazorpayWeb() {
   });
 }
 
-type Session = { orderId: string; cfg: Cfg; resolve: () => void; reject: (e: Error) => void };
+type Kind = 'orders' | 'bookings';
+type Session = { orderId: string; kind: Kind; cfg: Cfg; resolve: () => void; reject: (e: Error) => void };
 
 /* payNow(orderId, user) starts (or resumes) online payment for an order already placed with
    paymentMethod ONLINE. Render `node` somewhere in the screen's tree — it's the full-screen
@@ -46,24 +47,24 @@ type Session = { orderId: string; cfg: Cfg; resolve: () => void; reject: (e: Err
 export function usePayment() {
   const [session, setSession] = useState<Session | null>(null);
 
-  const payNow = useCallback((orderId: string, user: PayUser) => {
+  const payNow = useCallback((orderId: string, user: PayUser, kind: Kind = 'orders') => {
     return new Promise<void>((resolve, reject) => {
       (async () => {
         try {
-          const { keyId, razorpayOrderId, amount, currency } = await api(`/payments/orders/${orderId}`, 'POST');
-          const cfg: Cfg = { keyId, orderId: razorpayOrderId, amount, currency, description: `Order #${orderId}`, name: user.name, email: user.email, contact: user.phone };
+          const { keyId, razorpayOrderId, amount, currency } = await api(`/payments/${kind}/${orderId}`, 'POST');
+          const cfg: Cfg = { keyId, orderId: razorpayOrderId, amount, currency, description: `${kind === 'orders' ? 'Order' : 'Booking'} #${orderId}`, name: user.name, email: user.email, contact: user.phone };
           if (Platform.OS === 'web') {
             await loadRazorpayWeb();
             const rp = new (window as any).Razorpay({
               key: cfg.keyId, amount: cfg.amount, currency: cfg.currency, order_id: cfg.orderId, name: 'Fixzy', description: cfg.description,
               prefill: { name: cfg.name, email: cfg.email, contact: cfg.contact }, theme: { color: '#232323' },
-              handler: (resp: any) => api(`/payments/orders/${orderId}/verify`, 'POST', resp).then(resolve, reject),
+              handler: (resp: any) => api(`/payments/${kind}/${orderId}/verify`, 'POST', resp).then(resolve, reject),
               modal: { ondismiss: () => reject(new Error('Payment cancelled. You can try again.')) },
             });
             rp.on('payment.failed', () => reject(new Error('Payment failed. You can try again.')));
             rp.open();
           } else {
-            setSession({ orderId, cfg, resolve, reject });
+            setSession({ orderId, kind, cfg, resolve, reject });
           }
         } catch (e: any) { reject(e); }
       })();
@@ -73,9 +74,9 @@ export function usePayment() {
   const onMessage = useCallback((e: any) => {
     if (!session) return;
     const msg = JSON.parse(e.nativeEvent.data);
-    const { orderId, resolve, reject } = session;
+    const { orderId, kind, resolve, reject } = session;
     setSession(null);
-    if (msg.type === 'success') api(`/payments/orders/${orderId}/verify`, 'POST', msg.resp).then(resolve, reject);
+    if (msg.type === 'success') api(`/payments/${kind}/${orderId}/verify`, 'POST', msg.resp).then(resolve, reject);
     else if (msg.type === 'dismiss') reject(new Error('Payment cancelled. You can try again.'));
     else reject(new Error(msg.error || 'Payment failed. You can try again.'));
   }, [session]);

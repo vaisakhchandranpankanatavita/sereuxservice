@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api';
+import CouponBox, { type AppliedCoupon } from '../../src/CouponBox';
 import { useAddresses } from '../../src/addresses';
 import { useSession } from '../../src/session';
 import { Avatar, Banner, Button, Card, Chip, FadeIn, Field, Row, Screen, Skeleton, Status, Tap, Txt, dayLabel, font, money, useFetch, useTheme } from '../../src/ui';
@@ -51,6 +52,7 @@ export default function Book() {
   const [slot, setSlot] = useState('');
   const avail = useFetch<any>(`/services/${serviceId}/availability?day=${day}${providerId ? `&providerId=${providerId}` : ''}`);
   const [f, setF] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', address: '', notes: '' });
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [locBusy, setLocBusy] = useState(false);
@@ -88,7 +90,7 @@ export default function Book() {
   const submit = async () => {
     setBusy(true); setErr('');
     try {
-      const b = await api('/bookings', 'POST', { serviceId: Number(serviceId), ...(providerId ? { providerId: Number(providerId) } : {}), day, slot, name: f.name.trim(), phone: f.phone, address: f.address.trim(), ...(f.notes.trim() ? { notes: f.notes.trim() } : {}) });
+      const b = await api('/bookings', 'POST', { serviceId: Number(serviceId), ...(providerId ? { providerId: Number(providerId) } : {}), day, slot, name: f.name.trim(), phone: f.phone, address: f.address.trim(), ...(f.notes.trim() ? { notes: f.notes.trim() } : {}), ...(coupon ? { coupon: coupon.code } : {}) });
       router.replace(`/booking/${b.id}`);
     } catch (e: any) { setErr(e.message); setBusy(false); if (e.status === 409) avail.reload(); }
   };
@@ -181,7 +183,8 @@ export default function Book() {
       <Row between><Txt muted size={14}>Name</Txt><Txt bold size={14}>{f.name}</Txt></Row>
       <Row between><Txt muted size={14}>Phone</Txt><Txt bold size={14}>{f.phone}</Txt></Row>
       <Row between style={{ alignItems: 'flex-start' }}><Txt muted size={14}>Address</Txt><Txt bold size={14} style={{ flex: 1, textAlign: 'right' }}>{f.address}</Txt></Row>
-      <Row between><Txt muted size={14}>Estimate</Txt><Txt bold size={18}>from {money(svc.data.fromPrice)}</Txt></Row>
+      <CouponBox onCard applied={coupon} onChange={setCoupon} />
+      <Row between><Txt muted size={14}>Estimate</Txt><Txt bold size={18}>from {money(svc.data.fromPrice - (coupon ? Math.round(svc.data.fromPrice * coupon.percent / 100) : 0))}</Txt></Row>
     </Card></FadeIn>}
 
     {!!err && <Banner kind="bad">{err}</Banner>}

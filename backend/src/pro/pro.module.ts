@@ -3,6 +3,7 @@ import { Prisma, Role } from '@prisma/client';
 import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
+import { PushService } from '../common/push';
 import { STATUS_TEXT } from '../bookings/bookings.module';
 
 class OnlineDto { @IsBoolean() online: boolean; }
@@ -15,7 +16,7 @@ class LocationDto { @IsOptional() lat?: number; @IsOptional() lng?: number; }
 
 @Injectable()
 class ProService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private push: PushService) {}
 
   private async mine(userId: string) {
     const p = await this.prisma.provider.findUnique({ where: { userId } });
@@ -77,7 +78,10 @@ class ProService {
         const out = await tx.booking.findUniqueOrThrow({ where: { id }, include: { service: true } });
         await tx.notification.create({ data: { userId: b.userId, text: `#${id}: ${STATUS_TEXT.CONFIRMED}`, href: '/orders' } });
         return out;
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }).then(async (out) => {
+        await this.push.send(b.userId, `#${id}: ${STATUS_TEXT.CONFIRMED}`, 'Fixzy', { href: '/orders' });
+        return out;
+      });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) throw new ConflictException('This request was just taken by another pro.');
       throw e;
@@ -138,6 +142,9 @@ class ProService {
     return this.prisma.$transaction(async (tx) => {
       const out = await tx.booking.update({ where: { id }, data: { providerId: null, status: 'REQUESTED' }, include: { service: true } });
       await tx.notification.create({ data: { userId: b.userId, text: `#${id}: Your pro can no longer make it (${reason}). We're finding you another pro.`, href: '/orders' } });
+      return out;
+    }).then(async (out) => {
+      await this.push.send(b.userId, `#${id}: Your pro can no longer make it. We're finding you another pro.`, 'Fixzy', { href: '/orders' });
       return out;
     });
   }

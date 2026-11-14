@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SessionProvider, useSession } from '../src/session';
+import { onNotificationTap, registerPush } from '../src/push';
 import { CartProvider } from '../src/cart';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { ComingSoon_400Regular } from '@expo-google-fonts/coming-soon';
@@ -18,6 +19,9 @@ function Gate() {
   const router = useRouter();
   const [introDone, setIntroDone] = useState(false);
   const inAuth = segments[0] === '(auth)';
+
+  useEffect(() => { if (user) registerPush(); }, [user?.id]);
+  useEffect(() => onNotificationTap((p) => router.push(p as any)), [router]);
 
   useEffect(() => {
     if (user === undefined) return;

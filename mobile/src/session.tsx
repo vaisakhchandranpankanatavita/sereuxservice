@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { unregisterPush } from './push';
 import { api, restore, signIn, signOut, signUp } from './api';
 
 export type User = { id: string; name: string; email: string; phone: string; role: string };
@@ -24,7 +25,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (d: any) => {
     try { setUser(await signUp({ ...d, email: d.email.trim().toLowerCase() })); } catch (err) { throw err; }
   }, []);
-  const logout = useCallback(async () => { await signOut(); setUser(null); }, []);
+  const logout = useCallback(async () => { await unregisterPush(); await signOut(); setUser(null); }, []);
   const updateProfile = useCallback(async (d: any) => setUser(await api('/auth/me', 'PATCH', d)), []);
   const endTransition = useCallback(() => setTransitioning(false), []);
   const v = useMemo(() => ({ user, login, register, logout, updateProfile, transitioning, endTransition }), [user, login, register, logout, updateProfile, transitioning, endTransition]);

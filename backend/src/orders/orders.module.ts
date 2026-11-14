@@ -4,6 +4,7 @@ import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString,
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
+import { PushService } from '../common/push';
 
 class ItemDto {
   @IsInt() productId: number;
@@ -23,7 +24,13 @@ class PlaceOrderDto {
 
 @Injectable()
 class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private push: PushService) {}
+
+  async findCoupon(code: string) {
+    const c = await this.prisma.coupon.findUnique({ where: { code: code.trim().toUpperCase() } });
+    if (!c?.active) throw new BadRequestException('That code isn’t valid.');
+    return c;
+  }
 
   async place(user: AuthUser, dto: PlaceOrderDto) {
     const qty = new Map<number, number>();
@@ -74,6 +81,11 @@ class OrdersService {
 class OrdersController {
   constructor(private svc: OrdersService) {}
   @Post() place(@CurrentUser() u: AuthUser, @Body() dto: PlaceOrderDto) { return this.svc.place(u, dto); }
+  /* Preview a code before checkout; the same rule is re-checked when the order or booking is placed. */
+  @Get('coupon/:code') async coupon(@Param('code') code: string) {
+    const c = await this.svc.findCoupon(code);
+    return { code: c.code, percent: c.percent };
+  }
   @Get() list(@CurrentUser() u: AuthUser) { return this.svc.list(u); }
   @Get(':id') get(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.get(u, id); }
 }

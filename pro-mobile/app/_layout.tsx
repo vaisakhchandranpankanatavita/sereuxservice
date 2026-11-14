@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { SessionProvider, useSession } from '../src/session';
+import { onNotificationTap, registerPush } from '../src/push';
 import { font, useTheme } from '../src/ui';
 
 function Gate() {
@@ -13,6 +14,9 @@ function Gate() {
   const segments = useSegments();
   const router = useRouter();
   const inAuth = segments[0] === '(auth)';
+
+  useEffect(() => { if (user) registerPush(); }, [user?.id]);
+  useEffect(() => onNotificationTap((p) => router.push(p as any)), [router]);
 
   useEffect(() => {
     if (user === undefined) return;

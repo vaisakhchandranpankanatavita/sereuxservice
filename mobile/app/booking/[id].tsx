@@ -4,6 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import PageHeader, { PageSpace } from '../../src/PageHeader';
 import { api } from '../../src/api';
+import { usePayment } from '../../src/payment';
+import { useSession } from '../../src/session';
 import { LiveMap } from '../../src/map';
 import { Timeline, type Step } from '../../src/timeline';
 import { Avatar, Badge, Banner, Button, Card, Chip, Field, RoundBtn, Screen, Skeleton, Stars, Status, Tap, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
@@ -36,6 +38,8 @@ export default function BookingDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useTheme();
   const router = useRouter();
+  const { user } = useSession();
+  const { payNow, node: payNode } = usePayment();
   const [tracking, setTracking] = useState(false);
   const { data: b, error, refreshing, refresh, reload } = useFetch<any>(`/bookings/${id}`, 15000);
   const [msg, setMsg] = useState('');
@@ -61,13 +65,17 @@ export default function BookingDetail() {
     try { await fn(); setMsg(ok); await reload(); } catch (e: any) { setMsg(e.message); }
     setBusy(false);
   };
+  const paid = b.payment?.status === 'PAID';
+  const refunded = b.payment?.status === 'REFUNDED';
+  const canPay = b.status !== 'CANCELLED' && !paid && !refunded && !!user;
+  const pay = () => run(() => payNow(b.id, { name: user!.name, email: user!.email, phone: user!.phone }, 'bookings'), 'Payment received. Thank you!');
   const open = b.status !== 'DONE' && b.status !== 'CANCELLED';
   const canMove = b.status === 'REQUESTED' || b.status === 'CONFIRMED';
 
   const live = b.status === 'ON_THE_WAY' && b.provider?.lat != null && b.provider?.lng != null && b.lat != null && b.lng != null;
   const facts = [
     { icon: 'calendar', chip: t.accent, label: 'Date', value: dayLabel(b.day), sub: `at ${b.slot}` },
-    { icon: 'cash', chip: t.green, label: 'Estimate', value: money(b.estimate), sub: 'pay after the job' },
+    { icon: 'cash', chip: t.green, label: 'Estimate', value: money(b.estimate), sub: paid ? 'paid online' : 'pay online or after the job' },
   ] as const;
 
   const canTrack = !!b.provider && open;
@@ -81,6 +89,7 @@ ${dayLabel(b.day)} at ${b.slot}
 ${b.address}` }).catch(() => {});
 
   return <View style={{ flex: 1 }}>
+   {payNode}
    <View style={{ zIndex: 1100, elevation: 1100 }}>{header}</View>
    <Screen pad={false} bottomPad={110} refresh={refresh} refreshing={refreshing}>
     <PageSpace />
@@ -151,7 +160,7 @@ ${b.address}` }).catch(() => {});
       {/* booking summary */}
       <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 10 }}>
         <Txt bold size={24}>Booking summary</Txt>
-        {([['Booked for', b.name], ['Contact', b.phone], ['Booked on', new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })], ['Estimate', money(b.estimate)], ['Payment', 'Pay after the job']] as const).map(([k, v]) =>
+        {([['Booked for', b.name], ['Contact', b.phone], ['Booked on', new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })], ['Estimate', money(b.estimate)], ['Payment', paid ? 'Paid online' : refunded ? 'Refunded' : 'Not paid yet']] as const).map(([k, v]) =>
           <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}><Txt size={15} color={t.body}>{k}</Txt><Txt bold size={15} style={{ flexShrink: 1, textAlign: 'right' }}>{v}</Txt></View>)}
       </View>
 
@@ -171,7 +180,13 @@ ${b.address}` }).catch(() => {});
           : <Txt size={14} color={t.body}>No map location was saved for this booking.</Txt>)}
       </View>}
 
-      {!!msg && <Banner kind={/fail|cannot|taken|late|closed|Cannot/.test(msg) ? 'bad' : 'ok'}>{msg}</Banner>}
+      {canPay && <Card style={{ borderRadius: 26, padding: 18, gap: 10 }}>
+        <Txt bold size={24}>Pay online</Txt>
+        <Txt size={15} color={t.body}>Settle the {money(b.estimate)} estimate now with UPI, card or netbanking, or pay your pro after the job.</Txt>
+        <Button title={`Pay ${money(b.estimate)}`} busy={busy} onPress={pay} />
+      </Card>}
+
+      {!!msg && <Banner kind={/fail|cannot|taken|late|closed|Cannot|Payment cancelled/.test(msg) ? 'bad' : 'ok'}>{msg}</Banner>}
 
       {resched && <Card style={{ borderRadius: 26, padding: 18, gap: 14 }}>
         <Txt bold size={24}>Pick a new time</Txt>
