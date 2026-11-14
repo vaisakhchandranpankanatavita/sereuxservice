@@ -278,6 +278,21 @@ async function proFlow() {
   r = await call('GET', '/pro/earnings', { token: proAToken });
   check('pro: earnings reflects the completed job', r.status === 200 && r.json.jobs >= 1 && r.json.lifetime >= 1, r.json);
 
+  r = await call('GET', '/pro/reviews', { token: proAToken });
+  check('pro: reviews starts empty', r.status === 200 && r.json.count === 0 && r.json.average === null && r.json.items.length === 0, r.json);
+
+  r = await call('POST', '/reviews', { token: customerToken, body: { kind: 'service', target: 1, bookingId: jobId, rating: 4, text: 'On time and tidy' } });
+  check('pro: customer reviews the completed job', r.status === 201, r.json);
+
+  r = await call('GET', '/pro/reviews', { token: proAToken });
+  check('pro: reviews shows the customer review', r.status === 200 && r.json.count === 1 && r.json.average === 4 && r.json.items[0].text === 'On time and tidy' && r.json.breakdown.find((b: any) => b.stars === 4).count === 1, r.json);
+
+  r = await call('GET', '/pro/reviews', { token: proBToken });
+  check("pro: another pro does not see this pro's reviews", r.status === 200 && r.json.count === 0, r.json);
+
+  r = await call('GET', '/pro/me', { token: proAToken });
+  check('pro: /pro/me rating reflects the review', r.status === 200 && r.json.rating === 4, r.json);
+
   r = await call('PATCH', '/pro/profile', { token: proAToken, body: { bio: 'Quick and tidy.', response: '15 min' } });
   check('pro: update profile', r.status === 200 && r.json.bio === 'Quick and tidy.' && r.json.response === '15 min', r.json);
 }

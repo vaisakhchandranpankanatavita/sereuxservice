@@ -28,7 +28,7 @@ class ProService {
     const [done, earnings, rating] = await Promise.all([
       this.prisma.booking.count({ where: { providerId: p.id, status: 'DONE' } }),
       this.prisma.booking.aggregate({ _sum: { estimate: true }, where: { providerId: p.id, status: 'DONE' } }),
-      this.prisma.review.aggregate({ _avg: { rating: true }, where: { kind: 'provider', target: p.id } }),
+      this.prisma.review.aggregate({ _avg: { rating: true }, where: { kind: 'service', booking: { providerId: p.id } } }),
     ]);
     return { ...p, done, earned: earnings._sum.estimate ?? 0, rating: rating._avg.rating ?? null };
   }
@@ -107,6 +107,28 @@ class ProService {
     return { today: sum(iso(0)), week: sum(iso(6)), month: sum(iso(29)), lifetime: lifetime._sum.estimate ?? 0, jobs: lifetime._count, upcoming, daily };
   }
 
+  /* Reviews customers left for this pro: summary (average, count, 1-5 breakdown) plus the latest 50. Customers appear by first name only. */
+  async reviews(userId: string) {
+    const p = await this.mine(userId);
+    // Customers review the service on a completed booking, so a pro's reviews are the ones left on their bookings.
+    const where = { kind: 'service', booking: { providerId: p.id } };
+    const [rows, agg, groups] = await Promise.all([
+      this.prisma.review.findMany({
+        where, orderBy: { createdAt: 'desc' }, take: 50,
+        include: { user: { select: { name: true } }, booking: { select: { service: { select: { name: true } } } } },
+      }),
+      this.prisma.review.aggregate({ where, _avg: { rating: true }, _count: true }),
+      this.prisma.review.groupBy({ by: ['rating'], where, _count: true }),
+    ]);
+    const breakdown = [5, 4, 3, 2, 1].map((stars) => ({ stars, count: groups.find((g) => g.rating === stars)?._count ?? 0 }));
+    return {
+      average: agg._avg.rating ?? null,
+      count: agg._count,
+      breakdown,
+      items: rows.map((r) => ({ id: r.id, rating: r.rating, text: r.text, createdAt: r.createdAt, customer: r.user.name.split(' ')[0], service: r.booking?.service.name ?? null })),
+    };
+  }
+
   /* Give a confirmed job back to the pool (before the trip starts). The customer is told and another pro can pick it up. */
   async release(userId: string, id: string, reason: string) {
     const p = await this.mine(userId);
@@ -140,6 +162,7 @@ class ProController {
   @Patch('online') online(@CurrentUser() u: AuthUser, @Body() dto: OnlineDto) { return this.svc.setOnline(u.id, dto.online); }
   @Patch('location') location(@CurrentUser() u: AuthUser, @Body() dto: LocationDto) { return this.svc.setLocation(u.id, dto); }
   @Get('earnings') earnings(@CurrentUser() u: AuthUser) { return this.svc.earnings(u.id); }
+  @Get('reviews') reviews(@CurrentUser() u: AuthUser) { return this.svc.reviews(u.id); }
   @Patch('profile') profile(@CurrentUser() u: AuthUser, @Body() dto: ProfileDto) { return this.svc.updateProfile(u.id, dto); }
   @Post('bookings/:id/release') release(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: ReleaseDto) { return this.svc.release(u.id, id, dto.reason); }
   @Get('requests') requests(@CurrentUser() u: AuthUser) { return this.svc.requests(u.id); }

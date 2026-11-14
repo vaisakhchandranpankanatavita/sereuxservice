@@ -11,6 +11,7 @@ export default function TabsLayout() {
   }}>
     <Tabs.Screen name="index" options={{ title: 'Requests', tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" color={(color as string) ?? t.ink} size={size} /> }} />
     <Tabs.Screen name="jobs" options={{ title: 'My jobs', tabBarIcon: ({ color, size }) => <Ionicons name="briefcase-outline" color={(color as string) ?? t.ink} size={size} /> }} />
+    <Tabs.Screen name="reviews" options={{ title: 'Reviews', tabBarIcon: ({ color, size }) => <Ionicons name="star-outline" color={(color as string) ?? t.ink} size={size} /> }} />
     <Tabs.Screen name="account" options={{ title: 'Account', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={(color as string) ?? t.ink} size={size} /> }} />
   </Tabs>;
 }
