@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Share, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/api';
 import { useSession } from '../../src/session';
@@ -194,6 +195,7 @@ export default function Account() {
       <Ionicons name="log-out-outline" size={20} color={t.bad} />
       <Txt bold size={15} color={t.bad}>Sign out</Txt>
     </Tap>
+    <Txt muted size={13} style={{ textAlign: 'center' }}>Fixzy {Constants.expoConfig?.version}</Txt>
    </Screen>
   </View>;
 }

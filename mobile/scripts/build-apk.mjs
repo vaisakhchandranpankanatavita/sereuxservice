@@ -37,6 +37,19 @@ console.log(`Variant: ${variant}\nAPI: ${API_URL}\nAssets: ${ASSET_URL}\nSDK: ${
 if (!existsSync(join(root, 'android'))) run('npx', ['expo', 'prebuild', '--platform', 'android', '--no-install']);
 writeFileSync(join(root, 'android', 'local.properties'), `sdk.dir=${sdk.replace(/\\/g, '/')}\n`);
 
+// 1b. Version: take versionName/versionCode from app.json and show it in the app name (rewritten every build).
+{
+  const expoCfg = JSON.parse(readFileSync(join(root, 'app.json'), 'utf8')).expo;
+  const gradlePath = join(root, 'android', 'app', 'build.gradle');
+  const gradleTxt = readFileSync(gradlePath, 'utf8')
+    .replace(/versionCode \d+/, `versionCode ${expoCfg.android?.versionCode ?? 1}`)
+    .replace(/versionName "[^"]*"/, `versionName "${expoCfg.version}"`);
+  writeFileSync(gradlePath, gradleTxt);
+  const stringsPath = join(root, 'android', 'app', 'src', 'main', 'res', 'values', 'strings.xml');
+  writeFileSync(stringsPath, readFileSync(stringsPath, 'utf8').replace(/<string name="app_name">[^<]*<\/string>/, `<string name="app_name">Fixzy ${expoCfg.version}</string>`));
+  console.log(`Version: ${expoCfg.version} (code ${expoCfg.android?.versionCode ?? 1})`);
+}
+
 if (!debug) {
   // 2. Release signing key (created once).
   const ksFile = join(root, 'release.keystore');
