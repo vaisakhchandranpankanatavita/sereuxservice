@@ -17,7 +17,7 @@ export default function PageHeader({ eyebrow, title, right, left, tone = 'home' 
     borderBottomLeftRadius: 44, borderBottomRightRadius: 44, overflow: 'hidden',
     paddingTop: Math.max(top, 14) + 18, paddingHorizontal: 20, paddingBottom: 34, flexDirection: 'row', alignItems: 'center', gap: 10, zIndex: 5,
   }, glassWeb]}>
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0.5 }]}><HeaderBg tone={tone} /></View>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: 0.9 }]}><HeaderBg tone={tone} /></View>
     {/* soft fade into the page, like the floating bottom bar's glassy edge */}
     <LinearGradient pointerEvents="none" colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.45)', 'rgba(255,255,255,0.8)']} locations={[0, 0.65, 1]} start={{ x: 0.5, y: 0.3 }} end={{ x: 0.5, y: 1 }} style={StyleSheet.absoluteFill} />
     {left}

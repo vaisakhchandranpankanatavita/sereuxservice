@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Chip, Chips, Field, R, RoundBtn, Screen, Status, Tap, Txt, Wash, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 import { useSession } from '../../src/session';
 import { ServiceArt } from '../../src/serviceArt';
+import BannerCarousel from '../../src/BannerCarousel';
 import PageHeader, { PageSpace } from '../../src/PageHeader';
 
 export default function Services() {
@@ -89,6 +90,7 @@ export default function Services() {
           </Pressable>)}
         </View>}
       </View>
+      {!q.trim() && !cat && <BannerCarousel />}
       <Chips>
         <Chip title="All" on={!cat} onPress={() => setCat('')} />
         {cats.map((c) => <Chip key={c} title={c} on={cat === c} onPress={() => setCat(c)} />)}

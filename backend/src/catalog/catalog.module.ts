@@ -7,6 +7,17 @@ export const SLOTS = ['09:00', '11:00', '13:00', '15:00', '17:00'];
 class CatalogController {
   constructor(private prisma: PrismaService) {}
 
+  /* Home-screen ads. Only banners whose coupon (if any) is still active are shown, with the discount so the app can label them. */
+  @Get('banners')
+  async banners() {
+    const rows = await this.prisma.banner.findMany({ where: { active: true }, orderBy: [{ sort: 'asc' }, { id: 'desc' }] });
+    const codes = rows.map((b) => b.coupon).filter((c): c is string => !!c);
+    const coupons = codes.length ? await this.prisma.coupon.findMany({ where: { code: { in: codes }, active: true } }) : [];
+    return rows
+      .filter((b) => !b.coupon || coupons.some((c) => c.code === b.coupon))
+      .map((b) => ({ ...b, percent: coupons.find((c) => c.code === b.coupon)?.percent ?? null }));
+  }
+
   @Get('services')
   async services(@Query('category') category?: string) {
     const rows = await this.prisma.service.findMany({ where: category ? { category } : undefined, orderBy: { id: 'asc' } });

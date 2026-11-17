@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { api } from './api';
+import { takePendingCoupon } from './promo';
 import { Banner, Button, Field, Row, Txt } from './ui';
 
 export type AppliedCoupon = { code: string; percent: number };
@@ -18,6 +19,13 @@ export default function CouponBox({ applied, onChange, onCard }: { applied: Appl
     catch (e: any) { setErr(e.message); }
     setBusy(false);
   };
+
+  /* A code picked from a home banner is applied automatically the first time a coupon box appears. */
+  useEffect(() => {
+    if (applied) return;
+    const c = takePendingCoupon();
+    if (c) api(`/orders/coupon/${encodeURIComponent(c)}`).then(onChange).catch((e: any) => setErr(e.message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (applied) return <Row between>
     <View style={{ flex: 1 }}><Txt bold>{applied.code} applied</Txt><Txt muted size={13}>{applied.percent}% off</Txt></View>

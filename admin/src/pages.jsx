@@ -36,35 +36,34 @@ export function Dashboard({ me }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
+  const [feature, ...rest] = kpis;
   return <Page title="Dashboard">
-    <div className="kpis">{kpis.map(([l, n, icon, hue]) => <div className="card kpi" key={l}>
-      <div className="icon-badge" style={{ '--kpi-bg': `var(--${hue}-bg)` }}>
-        <LordIcon icon={icon} size={24} colors={`primary:var(--${hue}),secondary:var(--${hue})`} trigger="hover" />
+    {/* Bento board: every tile declares its own size (feature 2×2 down to 1×1 stat chips,
+        3×2 charts, 2×2 status/spotlight/calendar) instead of one uniform card grid. */}
+    <div className="bento">
+      <div className="card kpi t-feature" style={{ '--kpi-bg': `var(--${feature[3]})` }}>
+        <div className="icon-badge"><LordIcon icon={feature[2]} size={26} colors="primary:#ffffff,secondary:#ffffff" trigger="hover" /></div>
+        <div><div className="n">{feature[1]}</div><div className="l">{feature[0]}</div></div>
       </div>
-      <div><div className="n">{n}</div><div className="l">{l}</div></div>
-    </div>)}</div>
+      {rest.map(([l, n, icon, hue], i) => <div className={`card kpi ${i < 2 ? 't-2x1' : 't-1x1'}`} key={l} style={{ '--kpi-bg': `var(--${hue}-bg)` }}>
+        <div className="icon-badge"><LordIcon icon={icon} size={24} colors={`primary:var(--${hue}),secondary:var(--${hue})`} trigger="hover" /></div>
+        <div><div className="n">{n}</div><div className="l">{l}</div></div>
+      </div>)}
 
-    <div className="dash-grid">
-      <div style={{ display: 'grid', gap: 16 }}>
-        <div className="grid2">
-          <div className="card"><h2>Bookings, last 30 days</h2>
-            <div className="bars" style={{ '--bar-c': 'var(--c1)', '--bar-c2': '#a99bff' }}>{s.series.map((d) => <div key={d.day} style={{ height: `${(d.bookings / max) * 100}%` }} title={`${d.day}: ${d.bookings}`} />)}</div>
-            <div className="axis"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div></div>
-          <div className="card"><h2>Shop revenue, last 30 days</h2>
-            <div className="bars" style={{ '--bar-c': 'var(--c3)', '--bar-c2': '#7fe0bf' }}>{s.series.map((d) => <div key={d.day} style={{ height: `${(d.revenue / rmax) * 100}%` }} title={`${d.day}: ${money(d.revenue)}`} />)}</div>
-            <div className="axis"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div></div>
-        </div>
-        <div className="card"><h2>Bookings by status</h2>
-          {Object.entries(s.bookingsByStatus).map(([k, n]) => <div className="statusrow" key={k}><Badge v={k} /><b>{n}</b></div>)}
-          {!Object.keys(s.bookingsByStatus).length && <div className="empty">No bookings yet.</div>}</div>
-      </div>
+      <div className="card t-3x2"><h2>Bookings, last 30 days</h2>
+        <div className="bars" style={{ '--bar-c': 'var(--c1)', '--bar-c2': '#a99bff' }}>{s.series.map((d) => <div key={d.day} style={{ height: `${(d.bookings / max) * 100}%` }} title={`${d.day}: ${d.bookings}`} />)}</div>
+        <div className="axis"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div></div>
+      <div className="card t-3x2"><h2>Shop revenue, last 30 days</h2>
+        <div className="bars" style={{ '--bar-c': 'var(--c3)', '--bar-c2': '#7fe0bf' }}>{s.series.map((d) => <div key={d.day} style={{ height: `${(d.revenue / rmax) * 100}%` }} title={`${d.day}: ${money(d.revenue)}`} />)}</div>
+        <div className="axis"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div></div>
 
-      <div style={{ display: 'grid', gap: 16 }}>
-        <Spotlight icon={ICONS.trophy} title={`${greeting}, ${(me?.name || 'Admin').split(' ')[0]}.`}
-          text={s.openBookings ? `${s.openBookings} booking${s.openBookings === 1 ? '' : 's'} need attention right now.` : "You're all caught up — nothing open right now."}
-          cta="Review bookings" onPress={() => (location.hash = '#/bookings')} />
-        <div className="card"><MiniCalendar /></div>
-      </div>
+      <div className="card t-2x2"><h2>Bookings by status</h2>
+        {Object.entries(s.bookingsByStatus).map(([k, n]) => <div className="statusrow" key={k}><Badge v={k} /><b>{n}</b></div>)}
+        {!Object.keys(s.bookingsByStatus).length && <div className="empty">No bookings yet.</div>}</div>
+      <Spotlight icon={ICONS.trophy} title={`${greeting}, ${(me?.name || 'Admin').split(' ')[0]}.`}
+        text={s.openBookings ? `${s.openBookings} booking${s.openBookings === 1 ? '' : 's'} need attention right now.` : "You're all caught up — nothing open right now."}
+        cta="Review bookings" onPress={() => (location.hash = '#/bookings')} className="t-2x2" />
+      <div className="card t-2x2"><MiniCalendar /></div>
     </div>
   </Page>;
 }
@@ -240,6 +239,44 @@ export function Coupons() {
       onSubmit={async (v) => {
         if (form.row) await api(`/admin/coupons/${form.row.code}`, { method: 'PATCH', body: { percent: v.percent, active: v.active } });
         else await api('/admin/coupons', { method: 'POST', body: { ...v, code: v.code.trim().toUpperCase() } });
+        await reload();
+      }} />}
+  </Page>;
+}
+
+/* ---------- Home-screen banners ---------- */
+export function Banners() {
+  const { rows, error, reload } = useList('/admin/banners');
+  const [form, setForm] = useState(null);
+  return <Page title="Banners" actions={<button className="btn primary" onClick={() => setForm({})}>Add banner</button>}>
+    <p className="muted">Shown as a carousel on the customer app home screen, lowest order first. Add a coupon code to show an Apply button.</p>
+    <Table error={error} rows={rows} empty="No banners yet." cols={[
+      { h: 'Order', render: (b) => b.sort },
+      { h: 'Banner', render: (b) => <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 4, background: b.color, marginRight: 8 }} /><b>{b.title}</b><br /><small>{b.subtitle}</small></> },
+      { h: 'Offer', render: (b) => b.coupon ? <b>{b.coupon}</b> : '—' },
+      { h: 'Opens service', render: (b) => b.serviceId ?? '—' },
+      { h: 'Status', render: (b) => <Badge v={b.active ? 'DONE' : 'CANCELLED'} /> },
+      { h: '', render: (b) => <div className="row-actions">
+        <button className="btn sm" onClick={() => act(() => api(`/admin/banners/${b.id}`, { method: 'PATCH', body: { active: !b.active } }), b.active ? 'Banner hidden' : 'Banner live', reload)}>{b.active ? 'Hide' : 'Show'}</button>
+        <button className="btn sm" onClick={() => setForm({ row: b })}>Edit</button>
+        <button className="btn sm danger" onClick={() => confirm(`Delete "${b.title}"?`) && act(() => api(`/admin/banners/${b.id}`, { method: 'DELETE' }), 'Banner deleted', reload)}>Delete</button>
+      </div> },
+    ]} />
+    {form && <FormModal title={form.row ? 'Edit banner' : 'New banner'} initial={form.row ? { ...form.row, coupon: form.row.coupon ?? '', img: form.row.img ?? '', serviceId: form.row.serviceId ?? '' } : { active: true, color: '#E6F36B', sort: 0 }} onClose={() => setForm(null)}
+      fields={[
+        { key: 'title', label: 'Title', type: 'text' },
+        { key: 'subtitle', label: 'Subtitle', type: 'text', required: false },
+        { key: 'color', label: 'Background colour (hex, e.g. #E6F36B)', type: 'text' },
+        { key: 'img', label: 'Image URL (optional)', type: 'text', required: false },
+        { key: 'coupon', label: 'Coupon code — adds an Apply button (optional)', type: 'text', required: false },
+        { key: 'serviceId', label: 'Service ID to open (optional)', type: 'text', required: false },
+        { key: 'sort', label: 'Order (0 = first)', type: 'number' },
+        { key: 'active', label: 'Live', type: 'bool' },
+      ]}
+      onSubmit={async (v) => {
+        const body = { ...v, serviceId: v.serviceId === '' || v.serviceId == null ? null : Number(v.serviceId), coupon: v.coupon ?? '', img: v.img ?? '' };
+        if (form.row) await api(`/admin/banners/${form.row.id}`, { method: 'PATCH', body });
+        else await api('/admin/banners', { method: 'POST', body });
         await reload();
       }} />}
   </Page>;

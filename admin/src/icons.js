@@ -9,6 +9,7 @@ export const ICONS = {
   pros: 'zhiiqoue',        // Briefcase
   products: 'rezibkiy',    // Wooden Box
   coupons: 'dkobpcrm',     // Sale Tag
+  banners: 'kezeezyg',     // Gift
   inbox: 'vpbspaec',       // Mail Fast
   auditLog: 'hmpomorl',    // Document
 
@@ -32,6 +33,6 @@ export const iconSrc = (key) => `https://cdn.lordicon.com/${key}.json`;
 /* Mirrors the CSS --c1..--c10 palette in styles.css (lord-icon's `colors` attribute needs literal
    hex, not a CSS var reference). */
 export const HUES = {
-  c1: '#6d5efc', c2: '#ff9f43', c3: '#1ec28b', c4: '#ff6fa0', c5: '#3aa0ff',
-  c6: '#e0ab2e', c7: '#18b3b3', c8: '#ff6b57', c9: '#9b6bff', c10: '#64748b',
+  c1: '#232323', c2: '#b8691a', c3: '#1f8a5b', c4: '#b8468f', c5: '#3a6fd0',
+  c6: '#8f7a0a', c7: '#1b8f84', c8: '#c94a34', c9: '#5a56d6', c10: '#6b6862', c11: '#1a8fa3',
 };

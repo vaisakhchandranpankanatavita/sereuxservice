@@ -71,6 +71,20 @@ class PatchCouponDto {
   @IsOptional() @IsBoolean() active?: boolean;
 }
 
+class BannerDto {
+  @IsString() @MaxLength(80) title: string;
+  @IsOptional() @IsString() @MaxLength(160) subtitle?: string;
+  @IsOptional() @IsString() @MaxLength(300) img?: string;
+  @IsOptional() @Matches(/^#[0-9A-Fa-f]{6}$/) color?: string;
+  @IsOptional() @IsString() @MaxLength(32) coupon?: string;
+  @IsOptional() @IsInt() serviceId?: number | null;
+  @IsOptional() @IsInt() sort?: number;
+  @IsOptional() @IsBoolean() active?: boolean;
+}
+class PatchBannerDto extends BannerDto {
+  @IsOptional() @IsString() @MaxLength(80) declare title: string;
+}
+
 class BookingAssignDto {
   @IsOptional() @IsInt() providerId: number | null;
 }
@@ -282,6 +296,37 @@ class AdminService {
     await this.audit(me, 'product.delete', `product:${id}`);
   }
 
+  /* Banners */
+  listBanners() { return this.prisma.banner.findMany({ orderBy: [{ sort: 'asc' }, { id: 'desc' }] }); }
+  private async cleanBanner(dto: Partial<BannerDto>) {
+    const data: any = Object.fromEntries(Object.entries(dto).filter(([, v]) => v !== undefined));
+    if ('coupon' in data) {
+      const code = (data.coupon ?? '').trim().toUpperCase();
+      if (code && !(await this.prisma.coupon.findUnique({ where: { code } }))) throw new BadRequestException('That coupon code does not exist.');
+      data.coupon = code || null;
+    }
+    if ('img' in data) data.img = data.img?.trim() || null;
+    if ('serviceId' in data && data.serviceId) await this.must(this.prisma.service.findUnique({ where: { id: data.serviceId } }));
+    if ('serviceId' in data && !data.serviceId) data.serviceId = null;
+    return data;
+  }
+  async createBanner(me: AuthUser, dto: BannerDto) {
+    const out = await this.prisma.banner.create({ data: await this.cleanBanner(dto) });
+    await this.audit(me, 'banner.create', `banner:${out.id}`, { title: dto.title });
+    return out;
+  }
+  async updateBanner(me: AuthUser, id: number, dto: PatchBannerDto) {
+    await this.must(this.prisma.banner.findUnique({ where: { id } }));
+    const out = await this.prisma.banner.update({ where: { id }, data: await this.cleanBanner(dto) });
+    await this.audit(me, 'banner.update', `banner:${id}`, dto);
+    return out;
+  }
+  async deleteBanner(me: AuthUser, id: number) {
+    await this.must(this.prisma.banner.findUnique({ where: { id } }));
+    await this.prisma.banner.delete({ where: { id } });
+    await this.audit(me, 'banner.delete', `banner:${id}`);
+  }
+
   /* Coupons, reviews, messages */
   listCoupons() { return this.prisma.coupon.findMany({ orderBy: { code: 'asc' } }); }
   async createCoupon(me: AuthUser, dto: CouponDto) {
@@ -349,6 +394,11 @@ class AdminController {
   @Post('products') createProduct(@CurrentUser() me: AuthUser, @Body() dto: ProductDto) { return this.svc.createProduct(me, dto); }
   @Patch('products/:id') updateProduct(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchProductDto) { return this.svc.updateProduct(me, id, dto); }
   @Delete('products/:id') @HttpCode(204) deleteProduct(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.deleteProduct(me, id); }
+
+  @Get('banners') banners() { return this.svc.listBanners(); }
+  @Post('banners') createBanner(@CurrentUser() me: AuthUser, @Body() dto: BannerDto) { return this.svc.createBanner(me, dto); }
+  @Patch('banners/:id') updateBanner(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchBannerDto) { return this.svc.updateBanner(me, id, dto); }
+  @Delete('banners/:id') @HttpCode(204) deleteBanner(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.deleteBanner(me, id); }
 
   @Get('coupons') coupons() { return this.svc.listCoupons(); }
   @Post('coupons') createCoupon(@CurrentUser() me: AuthUser, @Body() dto: CouponDto) { return this.svc.createCoupon(me, dto); }

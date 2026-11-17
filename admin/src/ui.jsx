@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
+import { LordIcon } from './LordIcon.jsx';
 
 export const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 export const when = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -114,4 +115,36 @@ export function FormModal({ title, fields, initial = {}, onSubmit, onClose }) {
       </div>
     </form>
   </Modal>;
+}
+
+export function Spotlight({ icon, title, text, cta, onPress, className = '' }) {
+  return <div className={`spotlight ${className}`}>
+    <span className="blob b1" /><span className="blob b2" />
+    <div className="icon"><LordIcon icon={icon} size={30} colors="primary:#ffffff,secondary:#ffffff" trigger="loop" /></div>
+    <h3>{title}</h3>
+    <p>{text}</p>
+    {cta && <button className="cta" onClick={onPress}>{cta}</button>}
+  </div>;
+}
+
+export function MiniCalendar() {
+  const [m, setM] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
+  const today = new Date();
+  const first = m.getDay(), days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate(), prev = new Date(m.getFullYear(), m.getMonth(), 0).getDate();
+  const cells = [];
+  for (let i = first - 1; i >= 0; i--) cells.push({ d: prev - i, mute: true });
+  for (let d = 1; d <= days; d++) cells.push({ d, today: d === today.getDate() && m.getMonth() === today.getMonth() && m.getFullYear() === today.getFullYear() });
+  while (cells.length % 7) cells.push({ d: cells.length - first - days + 1, mute: true });
+  const go = (n) => setM(new Date(m.getFullYear(), m.getMonth() + n, 1));
+  return <div className="mini-cal">
+    <div className="mc-head">
+      <button className="btn ghost" onClick={() => go(-1)} aria-label="Previous month">‹</button>
+      <span className="mc-title">{m.toLocaleString('en-IN', { month: 'long', year: 'numeric' })}</span>
+      <button className="btn ghost" onClick={() => go(1)} aria-label="Next month">›</button>
+    </div>
+    <div className="grid7">
+      {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x, i) => <div className="dow" key={i}>{x}</div>)}
+      {cells.map((c, i) => <div key={i} className={`day${c.mute ? ' mute' : ''}${c.today ? ' today' : ''}`}>{c.d}</div>)}
+    </div>
+  </div>;
 }

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f3ef">
+<title>Fixzy Overview</title>
+<style>
+  :root { --bg:#fff; --card:#fff; --ink:#2a2b28; --muted:#8a8d85; --line:#e7e7e1; --accent:#2a2b28; --ok:#2f7d4f; --warn:#a8741a; --chip:#f5f5f1; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:48px 20px 72px; }
+  header { text-align:center; margin-bottom:40px; }
+  h1 { margin:0; font-size:30px; font-weight:700; letter-spacing:-.02em; }
+  .sub { color:var(--muted); margin:6px auto 0; max-width:520px; }
+
+  /* ---------- tree ---------- */
+  .tree, .tree ul { list-style:none; margin:0; padding:0; }
+  .tree ul { display:flex; justify-content:center; position:relative; padding-top:28px; }
+  .tree li { position:relative; padding:28px 10px 0; display:flex; flex-direction:column; align-items:center; text-align:center; }
+  .tree > li { padding-top:0; }
+  /* connectors */
+  .tree li::before, .tree li::after { content:""; position:absolute; top:0; width:50%; height:28px; border-top:1.5px solid var(--line); }
+  .tree li::before { right:50%; } .tree li::after { left:50%; border-left:1.5px solid var(--line); }
+  .tree li:first-child::before, .tree li:last-child::after { border-top-left-radius:0; }
+  .tree li:only-child::before, .tree li:only-child::after { display:none; }
+  .tree li:only-child { padding-top:0; }
+  .tree li:first-child::before, .tree > li::before, .tree > li::after { border:0; }
+  .tree li:last-child::before { border-right:1.5px solid var(--line); border-radius:0 12px 0 0; }
+  .tree li:first-child::after { border-radius:12px 0 0 0; }
+  .tree ul::before { content:""; position:absolute; top:0; left:50%; height:28px; border-left:1.5px solid var(--line); }
+  .tree li:only-child::after { display:none; }
+  .tree li:only-child { padding-top:28px; }
+  .tree > li:only-child { padding-top:0; }
+
+  /* nodes */
+  .node { background:var(--card); border:1px solid var(--line); border-radius:18px; width:208px; overflow:hidden; text-align:left; transition:box-shadow .2s, transform .2s; }
+  .node:hover { box-shadow:0 8px 24px rgba(0,0,0,.05); }
+  .node img { display:block; width:100%; height:112px; object-fit:cover; background:var(--chip); }
+  .node .body { padding:12px 14px 14px; display:flex; flex-direction:column; gap:6px; }
+  .node h3 { margin:0; font-size:15px; letter-spacing:-.01em; }
+  .node p { margin:0; color:var(--muted); font-size:12.5px; }
+  .node .try { font-size:12.5px; color:var(--ink); }
+  .root-node { width:auto; display:inline-flex; align-items:center; gap:14px; padding:10px 22px 10px 10px; border-radius:999px; background:var(--chip); color:var(--ink); border:1px solid var(--line); }
+  .root-node img { width:52px; height:52px; border-radius:50%; flex:none; }
+  .root-node h3 { font-size:17px; }
+  .root-node:hover { transform:none; box-shadow:none; }
+
+  .app-node { width:236px; }
+  .app-node img { height:128px; }
+  .ver { color:var(--muted); font-size:11.5px; text-align:center; }
+  .tag { font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; background:var(--chip); color:var(--muted); width:fit-content; }
+  .tag.ready { background:color-mix(in srgb,var(--ok) 16%,transparent); color:var(--ok); }
+  .btn { display:inline-flex; align-items:center; justify-content:center; padding:9px 14px; border-radius:999px; background:var(--chip); color:var(--ink); border:1px solid var(--line); font-weight:600; font-size:13px; text-decoration:none; }
+  .btn[aria-disabled="true"] { background:transparent; color:var(--muted); border:1.5px dashed var(--line); cursor:not-allowed; }
+  a.link { color:var(--ink); font-weight:600; font-size:13px; }
+
+  code { background:var(--chip); padding:1px 6px; border-radius:6px; font-size:12px; }
+
+  footer { margin-top:28px; text-align:center; color:var(--muted); font-size:12.5px; }
+
+  /* phones: behave like a native app screen (hero card + stacked app rows) */
+  @media (max-width:1020px) {
+    html { background:var(--chip); }
+    body { background:var(--chip); -webkit-tap-highlight-color:transparent; }
+    main { max-width:480px; margin:0 auto; overflow-x:hidden; padding:0 0 calc(28px + env(safe-area-inset-bottom)); }
+    header { position:sticky; top:0; z-index:5; margin:0; padding:calc(14px + env(safe-area-inset-top)) 20px 12px; text-align:left; background:rgba(244,243,239,.86); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); }
+    h1 { font-size:22px; }
+    .sub { margin:2px 0 0; font-size:13px; max-width:none; }
+    .tree, .tree ul { display:block; padding:0; margin:0; border:0; }
+    .tree ul::before, .tree li::before, .tree li::after { display:none; }
+    .tree li, .tree li:only-child { padding:0; display:block; text-align:left; }
+    .tree > li, .tree > li:only-child { padding:6px max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right)); }
+    .tree > li > ul { padding:18px 0 0; display:flex; flex-direction:column; gap:12px; }
+    .root-node { position:relative; display:block; width:100%; height:168px; padding:0; border:0; border-radius:28px; overflow:hidden; background:#232323; }
+    .root-node img { position:absolute; inset:0; width:100%; height:100%; border-radius:0; object-fit:cover; opacity:.82; }
+    .root-node::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(0,0,0,.62)); }
+    .root-node > div { position:absolute; left:20px; right:20px; bottom:16px; z-index:1; color:#fff; }
+    .root-node h3 { font-size:24px; letter-spacing:-.02em; }
+    .root-node p { color:rgba(255,255,255,.82); font-size:13px; }
+    .node.app-node { width:100%; max-width:none; display:grid; grid-template-columns:92px 1fr; align-items:center; border:0; border-radius:26px; box-shadow:0 1px 2px rgba(35,35,35,.05),0 8px 22px rgba(35,35,35,.05); background:#fff; }
+    .node.app-node img { width:92px; height:100%; min-height:92px; border-radius:0; }
+    .node.app-node .body { padding:12px 14px 12px 14px; gap:8px; }
+    .node h3 { font-size:16px; }
+    .btn { width:100%; padding:11px 14px; font-size:14px; background:#232323; color:#fff; border-color:#232323; }
+    .btn:active { transform:scale(.98); }
+    .btn[aria-disabled="true"] { background:transparent; color:var(--muted); border-color:var(--line); }
+    .ver { font-size:11.5px; }
+    footer { padding:0 20px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Fixzy at a glance</h1>
+    <p class="sub">Open or download each part of the platform.</p>
+  </header>
+
+  <ul class="tree"><li id="tree"></li></ul>
+
+</main>
+
+<script src="builds.js" onerror="void 0"></script>
+<script>
+/* Builds are filled in automatically by scripts/publish-build.mjs (docs/builds.js). Nothing to edit here. */
+const B = window.BUILDS || {};
+const WEB = 'https://fixzy-tau.vercel.app', ADMIN = 'https://admin-dun-two-61.vercel.app';
+const IMG = '../assets/img/', SVC = '../assets/services/';
+
+const TREE = {
+  name: 'Fixzy', desc: 'Home services, on demand', img: IMG + 'hero.jpg',
+  children: [
+    { name: 'Customer app', img: IMG + 'overview/customer.webp', build: 'customer' },
+    { name: 'Pro app', img: IMG + 'overview/pro.webp', build: 'pro' },
+    { name: 'Admin panel', img: IMG + 'overview/admin.webp', link: ADMIN },
+    { name: 'Website', img: IMG + 'overview/website.webp', link: WEB },
+  ],
+};
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function node(n, root) {
+  if (root) return `<div class="node root-node"><img src="${n.img}" alt=""><div><h3>${esc(n.name)}</h3><p>${esc(n.desc)}</p></div></div>`;
+  const b = n.build ? B[n.build] : null;
+  const label = n.build === 'admin' ? 'Download build' : 'Download APK';
+  const action = n.build
+    ? (b ? `<a class="btn" href="${esc(b.file)}" download>${label}</a><span class="ver">v${esc(b.version)} · ${esc(b.builtOn)}</span>` : `<a class="btn" aria-disabled="true" role="link" onclick="return false">Not built yet</a>`)
+    : `<a class="btn" href="${esc(n.link)}" target="_blank" rel="noopener">Open ↗</a>`;
+  return `<div class="node app-node"><img src="${n.img}" alt="" loading="lazy"><div class="body"><h3>${esc(n.name)}</h3>${action}</div></div>`;
+}
+const render = (n, root) => node(n, root) + (n.children ? `<ul>${n.children.map((c) => `<li>${render(c)}</li>`).join('')}</ul>` : '');
+document.getElementById('tree').innerHTML = render(TREE, true);
+</script>
+</body>
+</html>

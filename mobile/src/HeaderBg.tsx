@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-/* Soft animated backdrop for a header: a periwinkle gradient with slow drifting colour blobs and a faint sheen.
+/* Soft animated backdrop for a header: a periwinkle gradient with two clearly visible drifting colour blobs.
    Sits behind the header content (absolute fill); everything runs on the native driver. */
 /* One calm palette per page: a two-stop gradient plus two soft accent blobs. */
 export const TONES = {
@@ -14,8 +14,8 @@ export const TONES = {
 export type Tone = keyof typeof TONES;
 
 const SHAPES = [
-  { size: 170, left: -40, top: -60, dx: 140, dy: 30, ms: 5200, o: 0.6 },
-  { size: 140, left: '55%', top: -50, dx: -130, dy: 40, ms: 6200, o: 0.5 },
+  { size: 190, left: -50, top: -70, dx: 120, dy: 26, ms: 5000, o: 0.85 },
+  { size: 160, left: '50%', top: -60, dx: -110, dy: 34, ms: 6000, o: 0.75 },
 ] as const;
 type BlobSpec = (typeof SHAPES)[number] & { color: string };
 
@@ -36,7 +36,7 @@ function Blob({ b, still }: { b: BlobSpec; still: boolean }) {
     transform: [
       { translateX: v.interpolate({ inputRange: [0, 1], outputRange: [0, b.dx] }) },
       { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, b.dy] }) },
-      { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] }) },
+      { scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.2] }) },
     ],
   }, Platform.OS === 'web' ? ({ filter: 'blur(22px)' } as any) : null]} />;
 }
