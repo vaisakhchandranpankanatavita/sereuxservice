@@ -5,6 +5,7 @@ import { ActiveFilters, FilterSelect, SearchBox, useQueryState } from './filters
 import { actions, useStore } from './store.js';
 import { forgotPassword, login, passwordStrength, redirectTarget, register, resetPassword } from './auth.js';
 import { EmptyState, flyToCart, useToast } from './ui.jsx';
+import Banners from './Banners.jsx';
 import { Footer, Header, Headline, Icon, Label, Reveal, useParallax } from './shared.jsx';
 
 export function Page({ current, label, lines, lead, children, narrow = false, titleClass = '', art }) {
@@ -214,6 +215,7 @@ export function ServicesPage() {
   const suggestions = useMemo(() => services.flatMap((s) => [s.name, ...s.terms.split(' ').slice(0, 2)]), []);
   return (
     <Page current="services" label="Services" lines={['Every service,', 'one place.']} lead="Choose a service to see its starting price and book a visit." art="/assets/img/booking-phone.webp">
+      <Banners />
       <div className="toolbar svc-bar">
         <SearchBox id="svc-q" label="Search services" placeholder="Search services" value={f.q} onChange={(v) => set({ q: v })} suggestions={suggestions} />
         <div className="chips" role="group" aria-label="Category">

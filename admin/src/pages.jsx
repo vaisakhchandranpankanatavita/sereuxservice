@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { AuditInsights, BannersInsights, BookingsInsights, CouponsInsights, InboxInsights, OrdersInsights, ProductsInsights, ProsInsights, ServicesInsights, UsersInsights } from './insights.jsx';
 import { LordIcon } from './LordIcon.jsx';
 import { ICONS } from './icons.js';
-import { Badge, FormModal, Page, Table, act, money, useList, when } from './ui.jsx';
+import { Badge, FormModal, Modal, Page, Table, act, money, useList, when } from './ui.jsx';
 
 const FLOW = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
 const ORDER_FLOW = ['PLACED', 'SHIPPED', 'DELIVERED'];
@@ -200,6 +200,7 @@ export function Bookings() {
           {pros.filter((p) => p.services.some((s) => s.id === b.serviceId)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select> },
       { h: 'Est.', num: true, render: (b) => <b>{money(b.estimate)}</b> },
+      { h: 'Payment', filter: true, v: (b) => b.payment ? b.payment.status : 'COD', render: (b) => b.payment ? <Badge v={b.payment.status} text={`${b.payment.status.toLowerCase()} · online`} /> : <Badge v="COD" text="pay on completion" /> },
       { h: 'Status', filter: true, v: (b) => b.status, render: (b) => <Badge v={b.status} /> },
       { h: '', render: (b) => <div className="row-actions">{next(b.status).map((s) =>
           <button key={s} className={`btn sm ${s === 'CANCELLED' ? 'danger' : ''}`}
@@ -222,6 +223,9 @@ export function Orders() {
       { h: 'Ship to', wrap: true, render: (o) => `${o.address}, ${o.city} ${o.pin}` },
       { h: 'Items', wrap: true, render: (o) => o.items.map((i) => `${i.qty}× ${i.product.name}`).join(', ') },
       { h: 'Total', render: (o) => <>{money(o.total)}{o.coupon && <> <small>({o.coupon})</small></>}</> },
+      { h: 'Payment', filter: true, v: (o) => o.paymentMethod === 'ONLINE' ? (o.payment?.status ?? 'CREATED') : 'COD', render: (o) => o.paymentMethod === 'ONLINE'
+        ? <Badge v={o.payment?.status ?? 'CREATED'} text={`${(o.payment?.status ?? 'created').toLowerCase()} · online`} />
+        : <Badge v="COD" text="cash on delivery" /> },
       { h: 'Status', filter: true, v: (o) => o.status, render: (o) => <Badge v={o.status} /> },
       { h: '', render: (o) => {
         if (o.status === 'DELIVERED' || o.status === 'CANCELLED') return null;
@@ -326,8 +330,8 @@ export function Products() {
       { key: 'img', label: 'Image path or URL', type: 'text' }, { key: 'blurb', label: 'Short blurb', type: 'textarea', required: false },
     ]}
     cols={[
-      { h: '', render: (p) => <img src={p.img} alt="" width="36" height="36" style={{ objectFit: 'cover', borderRadius: 6 }} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> },
-      { h: 'Name', render: (p) => <b>{p.name}</b> }, { h: 'Seller', filter: true, v: (p) => p.seller, render: (p) => p.seller }, { h: 'Category', filter: true, v: (p) => p.category, render: (p) => p.category },
+      { h: '', thumb: true, render: (p) => <img src={p.img} alt="" width="36" height="36" style={{ objectFit: 'cover', borderRadius: 6 }} onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> },
+      { h: 'Name', wrap: true, render: (p) => <b>{p.name}</b> }, { h: 'Seller', wrap: true, filter: true, v: (p) => p.seller, render: (p) => p.seller }, { h: 'Category', filter: true, v: (p) => p.category, render: (p) => p.category },
       { h: 'Price', render: (p) => <>{money(p.price)} <small><s>{money(p.oldPrice)}</s></small></> },
     ]} />;
 }
@@ -335,25 +339,86 @@ export function Products() {
 export function Coupons() {
   const { rows, error, reload } = useList('/admin/coupons');
   const [form, setForm] = useState(null);
+  const [view, setView] = useState(null);
   return <Page title="Coupons" actions={<button className="btn primary" onClick={() => setForm({})}>Add coupon</button>}>
     <CouponsInsights rows={rows} />
-    <Table error={error} rows={rows} cols={[
-      { h: 'Code', render: (c) => <b>{c.code}</b> }, { h: 'Discount', render: (c) => `${c.percent}%` },
-      { h: 'Status', filter: true, v: (c) => (c.active ? 'active' : 'inactive'), render: (c) => <Badge v={c.active ? 'DONE' : 'CANCELLED'} text={c.active ? 'active' : 'inactive'} /> },
-      { h: '', render: (c) => <div className="row-actions">
-        <button className="btn sm" onClick={() => act(() => api(`/admin/coupons/${c.code}`, { method: 'PATCH', body: { active: !c.active } }), c.active ? 'Coupon disabled' : 'Coupon enabled', reload)}>{c.active ? 'Disable' : 'Enable'}</button>
-        <button className="btn sm" onClick={() => setForm({ row: c })}>Edit</button>
-        <button className="btn sm danger" onClick={() => confirm(`Delete ${c.code}?`) && act(() => api(`/admin/coupons/${c.code}`, { method: 'DELETE' }), 'Coupon deleted', reload)}>Delete</button>
-      </div> },
-    ]} />
-    {form && <FormModal title={form.row ? 'Edit coupon' : 'New coupon'} initial={form.row ?? { active: true }} onClose={() => setForm(null)}
-      fields={[{ key: 'code', label: 'Code (A–Z, 0–9, - _)', type: 'text', locked: true }, { key: 'percent', label: 'Percent off (1–100)', type: 'number' }, { key: 'active', label: 'Active', type: 'bool' }]}
-      onSubmit={async (v) => {
-        if (form.row) await api(`/admin/coupons/${form.row.code}`, { method: 'PATCH', body: { percent: v.percent, active: v.active } });
-        else await api('/admin/coupons', { method: 'POST', body: { ...v, code: v.code.trim().toUpperCase() } });
-        await reload();
-      }} />}
+    {error && <div className="empty">{error}</div>}
+    {rows && !rows.length && <div className="empty">No coupons yet.</div>}
+    <div className="coupon-list">
+      {(rows || []).map((c) => <button type="button" key={c.code} className={`coupon${c.active ? '' : ' off'}`} onClick={() => setView(c)} aria-label={`View coupon ${c.code}`}>
+        <span className="coupon-main">
+          <small>Discount coupon</small>
+          <b className="coupon-pct">{c.percent}<sup>%</sup> <i>OFF</i></b>
+          <span className="coupon-state">{c.active ? 'Active' : 'Disabled'}</span>
+        </span>
+        <span className="coupon-cut" aria-hidden="true" />
+        <span className="coupon-stub">
+          <small>Code</small>
+          <b className="coupon-code">{c.code}</b>
+        </span>
+      </button>)}
+    </div>
+    {view && <Modal title={`Coupon ${view.code}`} onClose={() => setView(null)}>
+      <div className={`coupon coupon-lg${view.active ? '' : ' off'}`}>
+        <span className="coupon-main">
+          <small>Discount coupon</small>
+          <b className="coupon-pct">{view.percent}<sup>%</sup> <i>OFF</i></b>
+          <span className="coupon-state">{view.active ? 'Active' : 'Disabled'}</span>
+        </span>
+        <span className="coupon-cut" aria-hidden="true" />
+        <span className="coupon-stub"><small>Code</small><b className="coupon-code">{view.code}</b></span>
+      </div>
+      <div className="row-actions" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
+        <button className="btn sm" onClick={() => act(() => api(`/admin/coupons/${view.code}`, { method: 'PATCH', body: { active: !view.active } }), view.active ? 'Coupon disabled' : 'Coupon enabled', reload).then(() => setView(null))}>{view.active ? 'Disable' : 'Enable'}</button>
+        <button className="btn sm" onClick={() => { setForm({ row: view }); setView(null); }}>Edit</button>
+        <button className="btn sm danger" onClick={() => confirm(`Delete ${view.code}?`) && act(() => api(`/admin/coupons/${view.code}`, { method: 'DELETE' }), 'Coupon deleted', reload).then(() => setView(null))}>Delete</button>
+      </div>
+    </Modal>}
+    {form && <CouponEditor row={form.row} onClose={() => setForm(null)} onSave={async (v) => {
+      if (form.row) await api(`/admin/coupons/${form.row.code}`, { method: 'PATCH', body: { percent: v.percent, active: v.active } });
+      else await api('/admin/coupons', { method: 'POST', body: { code: v.code.trim().toUpperCase(), percent: v.percent, active: v.active } });
+      await reload();
+    }} />}
   </Page>;
+}
+
+/* Add/edit popup drawn as a coupon: the discount and code are typed straight onto the ticket. */
+function CouponEditor({ row, onClose, onSave }) {
+  const [v, setV] = useState({ code: row?.code ?? '', percent: row?.percent ?? 10, active: row?.active ?? true });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr('');
+    try { await onSave({ ...v, percent: Number(v.percent) }); onClose(); } catch (e2) { setErr(e2.message); setBusy(false); }
+  };
+  return <Modal title={row ? 'Edit coupon' : 'New coupon'} onClose={onClose}>
+    <form onSubmit={submit}>
+      <div className={`coupon coupon-lg coupon-edit${v.active ? '' : ' off'}`}>
+        <label className="coupon-main">
+          <small>Percent off (1–100)</small>
+          <span className="coupon-pct">
+            <input type="number" min="1" max="100" required value={v.percent} onChange={(e) => setV({ ...v, percent: e.target.value })} aria-label="Percent off" />
+            <sup>%</sup> <i>OFF</i>
+          </span>
+        </label>
+        <span className="coupon-cut" aria-hidden="true" />
+        <label className="coupon-stub">
+          <small>Code</small>
+          <input className="coupon-code" required disabled={!!row} pattern="[A-Za-z0-9_\-]+" placeholder="SAVE10" value={v.code}
+            onChange={(e) => setV({ ...v, code: e.target.value.toUpperCase() })} aria-label="Coupon code" />
+        </label>
+      </div>
+      <label className="check field" style={{ marginTop: 14 }}>
+        <input type="checkbox" checked={v.active} onChange={(e) => setV({ ...v, active: e.target.checked })} /> Active
+      </label>
+      {err && <p className="err">{err}</p>}
+      <div className="actions">
+        <button type="button" className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn primary" disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+      </div>
+    </form>
+  </Modal>;
 }
 
 /* ---------- Home-screen banners ---------- */
@@ -468,6 +533,103 @@ export function Inbox() {
       { h: 'For', render: (r) => `${r.kind} #${r.target}` }, { h: 'Rating', filter: true, v: (r) => `${r.rating} star${r.rating === 1 ? '' : 's'}`, render: (r) => '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) },
       { h: 'Text', wrap: true, render: (r) => r.text || '—' },
       { h: '', render: (r) => <button className="btn sm danger" onClick={() => confirm('Delete this review?') && act(() => api(`/admin/reviews/${r.id}`, { method: 'DELETE' }), 'Review removed', reviews.reload)}>Delete</button> },
+    ]} />
+  </Page>;
+}
+
+/* ---------- Push notifications ---------- */
+const AUDIENCES = [['ALL', 'Everyone'], ['CUSTOMER', 'Customers'], ['PROVIDER', 'Pros']];
+
+export function Notifications() {
+  const { rows: log, reload } = useList('/admin/audit-log', { action: 'notification.broadcast' });
+  const [v, setV] = useState({ audience: 'ALL', title: 'Fixzy', text: '', href: '' });
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const set = (k, x) => setV((p) => ({ ...p, [k]: x }));
+
+  const send = async (e) => {
+    e.preventDefault();
+    setBusy(true); setResult(null);
+    const ok = await act(async () => {
+      const r = await api('/admin/notifications/broadcast', { method: 'POST', body: { ...v, href: v.href || undefined } });
+      setResult(r);
+    }, 'Notification sent', reload);
+    setBusy(false);
+    if (ok) setV((p) => ({ ...p, text: '' }));
+  };
+
+  return <Page title="Notifications">
+    <div className="card">
+      <h2 className="subsection-title">Send a push notification</h2>
+      <form onSubmit={send} className="field-grid">
+        <label className="field"><span>Send to</span>
+          <select value={v.audience} onChange={(e) => set('audience', e.target.value)}>
+            {AUDIENCES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+        </label>
+        <label className="field"><span>Title</span>
+          <input type="text" required maxLength={60} value={v.title} onChange={(e) => set('title', e.target.value)} />
+        </label>
+        <label className="field"><span>Message</span>
+          <textarea rows={3} required maxLength={240} value={v.text} onChange={(e) => set('text', e.target.value)} placeholder="What should they know?" />
+        </label>
+        <label className="field"><span>Opens screen (optional, e.g. /orders)</span>
+          <input type="text" maxLength={200} value={v.href} onChange={(e) => set('href', e.target.value)} placeholder="/orders" />
+        </label>
+        <div className="actions">
+          <button className="btn primary" disabled={busy || !v.text.trim()}>{busy ? 'Sending…' : 'Send notification'}</button>
+        </div>
+      </form>
+      {result && <p className="muted" style={{ marginTop: 10 }}>Sent to {result.sent} device{result.sent === 1 ? '' : 's'} across {result.recipients} recipient{result.recipients === 1 ? '' : 's'}.</p>}
+    </div>
+    <div style={{ height: 24 }} />
+    <h2 className="subsection-title">Recent broadcasts</h2>
+    <Table rows={log} empty="No notifications sent yet." cols={[
+      { h: 'When', render: (a) => when(a.createdAt) },
+      { h: 'Admin', render: (a) => a.actorEmail },
+      { h: 'Audience', filter: true, v: (a) => a.target.replace('audience:', ''), render: (a) => <span className="tag">{a.target.replace('audience:', '')}</span> },
+      { h: 'Title', render: (a) => a.meta?.title ?? '—' },
+      { h: 'Message', wrap: true, render: (a) => a.meta?.text ?? '—' },
+      { h: 'Reach', render: (a) => `${a.meta?.sent ?? 0} / ${a.meta?.recipients ?? 0}` },
+    ]} />
+  </Page>;
+}
+
+/* ---------- Admin accounts ---------- */
+export function Admins({ me }) {
+  const { rows, error, reload } = useList('/admin/admins');
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const add = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    const ok = await act(() => api('/admin/admins', { method: 'POST', body: { email } }), 'Admin added', reload);
+    setBusy(false);
+    if (ok) setEmail('');
+  };
+
+  return <Page title="Admins">
+    <div className="card">
+      <h2 className="subsection-title">Grant admin access</h2>
+      <p className="muted">The person must already have an account from the mobile app — this promotes an existing user to admin.</p>
+      <form onSubmit={add} className="field-grid">
+        <label className="field"><span>Account email</span>
+          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="teammate@company.com" />
+        </label>
+        <div className="actions">
+          <button className="btn primary" disabled={busy || !email.trim()}>{busy ? 'Adding…' : 'Make admin'}</button>
+        </div>
+      </form>
+    </div>
+    <div style={{ height: 24 }} />
+    <Table error={error} rows={rows} empty="No other admins yet." cols={[
+      { h: 'Name', render: (u) => <b>{u.name}</b> },
+      { h: 'Email', render: (u) => u.email },
+      { h: 'Phone', render: (u) => u.phone || '—' },
+      { h: 'Admin since', render: (u) => when(u.createdAt) },
+      { h: '', render: (u) => u.id === me.id ? <span className="muted">You</span> :
+        <button className="btn sm danger" onClick={() => confirm(`Remove admin access for ${u.name}?`) && act(() => api(`/admin/admins/${u.id}`, { method: 'DELETE' }), 'Admin access removed', reload)}>Remove</button> },
     ]} />
   </Page>;
 }

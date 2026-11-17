@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Platform, Pressable, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,13 +32,15 @@ export default function BottomBar() {
   }, [idx, slot, x]);
 
   return <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: Math.max(insets.bottom, 12), zIndex: 900, alignItems: 'center' }}>
-   <View style={{
-    alignSelf: 'center',
-    backgroundColor: 'rgba(35,35,35,0.55)', borderRadius: 40, padding: 7,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)',
-    shadowColor: '#232323', shadowOpacity: 0.16, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 10,
-    ...(Platform.OS === 'web' ? { backdropFilter: 'blur(18px) saturate(180%)', WebkitBackdropFilter: 'blur(18px) saturate(180%)' } : {}),
-  } as any}>
+   <LinearGradient
+    colors={['rgba(130,120,210,0.55)', 'rgba(150,95,170,0.5)', 'rgba(90,100,170,0.6)']}
+    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+    style={[{
+      alignSelf: 'center',
+      borderRadius: 40, padding: 7,
+      borderWidth: 1, borderColor: 'rgba(255,255,255,0.32)',
+      shadowColor: '#232323', shadowOpacity: 0.16, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 10,
+    }, Platform.OS === 'web' ? ({ backdropFilter: 'blur(18px) saturate(180%)', WebkitBackdropFilter: 'blur(18px) saturate(180%)' } as any) : null]}>
     <View style={{ flexDirection: 'row' }} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
       {!!slot && <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: slot, alignItems: 'center', transform: [{ translateX: x }] }}>
         <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: t.accent }} />
@@ -53,6 +56,6 @@ export default function BottomBar() {
         </Pressable>;
       })}
     </View>
-   </View>
+   </LinearGradient>
   </View>;
 }

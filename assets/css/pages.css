@@ -308,3 +308,11 @@ html.lenis { scroll-behavior: auto !important; }
 .job-map { height: 260px; border-radius: var(--r-md); overflow: hidden; position: relative; isolation: isolate; display: grid; grid-template-rows: 1fr; } .job-map .live-map { min-height: 0; } .job-map p { position: absolute; z-index: 500; left: 10px; bottom: 10px; background: #fff; padding: 6px 12px; border-radius: 999px; box-shadow: 0 4px 14px rgb(0 0 0 / 14%); }
 .fp-foot { text-align: center; }
 @media (prefers-reduced-motion: reduce) { .map-pin-pro, .track-live i { animation: none; } .switch span, .switch span::after { transition: none; } }
+
+/* Admin-managed offer banners */
+.banners { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; margin-bottom: 28px; padding-bottom: 4px; }
+.banner { flex: 0 0 min(100%, 460px); scroll-snap-align: start; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 120px; padding: 18px 20px; border-radius: var(--r-lg); color: var(--ink); text-decoration: none; overflow: hidden; }
+.banner-text { display: grid; gap: 4px; min-width: 0; }
+.banner-text b { font-size: clamp(18px, 2.4vw, 22px); letter-spacing: -.02em; }
+.banner-code { font-style: normal; font-weight: 700; font-size: 13px; margin-top: 4px; }
+.banner img { width: 88px; height: 88px; border-radius: 18px; object-fit: cover; flex: none; }

@@ -40,6 +40,8 @@
   --c9: #5a56d6; --c9-bg: #e5e4ff; /* inbox · violet */
   --c10: #6b6862; --c10-bg: #ece9e3; /* audit log · slate */
   --c11: #1a8fa3; --c11-bg: #d2f0f5; /* banners · cyan */
+  --c12: #b8469e; --c12-bg: #fbdcf0; /* notifications · magenta */
+  --c13: #4a6b8f; --c13-bg: #dbe7f2; /* admins · steel */
 }
 
 * { box-sizing: border-box; }
@@ -121,10 +123,14 @@ h2 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 14p
 
 .side {
   position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 40;
-  /* Fixed geometry: 11 equal cells, so selecting an item can never resize the bar. */
-  display: grid; grid-template-columns: repeat(11, 1fr); align-items: center; gap: 4px;
-  width: min(586px, calc(100vw - 20px)); height: 62px; padding: 7px; border-radius: 999px;
-  box-sizing: border-box; contain: layout;
+  /* One equal cell per visible route plus the More trigger (when anything overflows). --cols is
+     set in App.jsx from the current viewport, so the bar widens/narrows in fixed steps instead
+     of ever squeezing or wrapping its cells. */
+  --cols: 6;
+  display: grid; grid-template-columns: repeat(var(--cols), 1fr); align-items: stretch; gap: 10px;
+  width: min(calc(var(--cols) * 86px), calc(100vw - 20px)); height: 64px; padding: 6px 10px; border-radius: 28px;
+  box-sizing: border-box; contain: layout; container-type: inline-size; container-name: sidenav;
+  transition: width .3s cubic-bezier(.2, .8, .2, 1);
   /* Dark glass: frost + dark translucency + a soft rim + layered shadow for float. */
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(18px) saturate(170%); -webkit-backdrop-filter: blur(18px) saturate(170%);
@@ -138,35 +144,32 @@ h2 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 14p
 @keyframes side-in { from { opacity: 0; transform: translateX(-50%) translateY(24px); } to { opacity: 1; transform: translateX(-50%); } }
 /* The water blob: edges are set by left/right in App.jsx and transition at different speeds. */
 .side-indicator {
-  position: absolute; top: 7px; bottom: 7px; border-radius: 999px; pointer-events: none;
+  position: absolute; top: 6px; bottom: 6px; border-radius: 20px; pointer-events: none;
   box-shadow: 0 8px 20px -6px var(--item-glow, rgba(35, 35, 35, 0.3)), inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -6px 12px -8px rgba(0, 0, 0, 0.18);
 }
-.side a {
-  height: 100%; min-width: 0; border-radius: 999px; display: flex; align-items: center; justify-content: center;
-  color: #4a4a52; text-decoration: none; position: relative;
+/* Icon on top, label below — a compact tab-bar cell, not an icon rail with a hover tooltip. */
+.side a, .side .more-trigger {
+  height: 100%; min-width: 0; border-radius: 20px; border: 0; background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: #4a4a52; text-decoration: none; position: relative; font: inherit; padding-inline: 2px;
   transition: background .35s ease, color .5s ease;
 }
-.side a > * { transition: transform .5s cubic-bezier(.34, 1.56, .64, 1); }
-.side a:hover { background: rgba(35, 35, 35, 0.06); }
-.side a.on:hover { background: transparent; }
-.side a:hover > *:first-child { transform: translateY(-2px) scale(1.08); }
-.side a.on { color: var(--on-ink, #fff); }
-.side a.on > *:first-child { transform: scale(1.1); }
-.side a .tip {
-  position: absolute; bottom: calc(100% + 14px); left: 50%; transform: translateX(-50%) translateY(6px) scale(.92);
-  background: var(--ink); color: #fff; font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 999px;
-  white-space: nowrap; opacity: 0; pointer-events: none; z-index: 40;
-  transition: opacity .25s ease, transform .4s cubic-bezier(.34, 1.56, .64, 1);
+.side a > *, .side .more-trigger > * { transition: transform .5s cubic-bezier(.34, 1.56, .64, 1); }
+/* Icon and label scale with the bar's own width (not the viewport), so a cell never has to crop
+   its label — it shrinks the glyph and type together as more routes or a narrower screen squeeze it. */
+.side a lord-icon { width: clamp(15px, 7.5cqi, 21px) !important; height: clamp(15px, 7.5cqi, 21px) !important; }
+.side .more-trigger svg { width: clamp(15px, 7.5cqi, 21px); height: clamp(15px, 7.5cqi, 21px); }
+.side a:hover, .side .more-trigger:hover { background: rgba(35, 35, 35, 0.06); }
+.side a.on:hover, .side .more-trigger.on:hover { background: transparent; }
+.side a:hover > *:first-child, .side .more-trigger:hover > *:first-child { transform: translateY(-1px) scale(1.06); }
+.side a.on, .side .more-trigger.on { color: var(--on-ink, #fff); }
+.side a.on > *:first-child, .side .more-trigger.on > *:first-child { transform: scale(1.08); }
+.side-label {
+  font-size: clamp(7px, 3.6cqi, 10px); font-weight: 800; letter-spacing: .03em; line-height: 1; max-width: 100%;
+  text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility;
 }
-.side a:hover .tip { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-/* Edge items: anchor the tooltip inward so it can never poke past the screen edge (that
-   caused horizontal overflow and the bar visibly shaking on the last items). */
-.side a:nth-last-child(-n+2) .tip { left: auto; right: 0; transform: translateY(6px) scale(.92); transform-origin: right bottom; }
-.side a:nth-last-child(-n+2):hover .tip { transform: translateY(0) scale(1); }
-.side a:nth-child(-n+3) .tip { left: 0; transform: translateY(6px) scale(.92); transform-origin: left bottom; }
-.side a:nth-child(-n+3):hover .tip { transform: translateY(0) scale(1); }
-.side .spacer { display: none; }
-@media (prefers-reduced-motion: reduce) { .side { animation: none; } .side a > * { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .side { animation: none; transition: none; } .side a > *, .side .more-trigger > * { transition: none; } }
 @media (prefers-reduced-transparency: reduce) {
   .side { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; border-color: var(--line); }
 }
@@ -174,9 +177,29 @@ h2 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 14p
   .side { background: rgba(255, 255, 255, 0.96); }
 }
 @media (max-width: 700px) {
-  .side { gap: 0; padding: 5px; height: 54px; }
+  .side { gap: 4px; padding: 5px 8px; height: 58px; }
   .side-indicator { top: 5px; bottom: 5px; }
 }
+
+/* The "More" submenu: a categorised list floating above the bar for every route that doesn't
+   fit on it. Icon + name per row, grouped under its section label. */
+.side-more {
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 41;
+  width: min(280px, calc(100vw - 24px)); max-height: calc(100vh - 160px); overflow: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 10px;
+  box-shadow: 0 20px 48px -16px rgba(21, 23, 28, 0.3), 0 2px 10px rgba(21, 23, 28, 0.08);
+  animation: more-in .22s cubic-bezier(.2, .9, .2, 1) both;
+}
+@keyframes more-in { from { opacity: 0; transform: translateX(-50%) translateY(10px) scale(.97); } to { opacity: 1; transform: translateX(-50%); } }
+.side-more-group + .side-more-group { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.side-more-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 2px 10px 6px; }
+.side-more-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px;
+  color: var(--ink); text-decoration: none; font-size: 13.5px; font-weight: 500; transition: background .2s ease;
+}
+.side-more-item:hover { background: var(--idle-bg); }
+.side-more-item.on { background: color-mix(in srgb, var(--c) 16%, transparent); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .side-more { animation: none; } }
 
 .main { grid-area: main; padding: calc(var(--topbar-h) + 40px) 32px calc(40px + var(--side-w)); min-width: 0; }
 .head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -419,6 +442,8 @@ td select { padding: 5px 8px; width: auto; }
 .modal { background: var(--panel); border-radius: 20px; width: min(520px, 100%); max-height: 90vh; overflow: auto; padding: 24px; box-shadow: 0 20px 48px rgba(21, 23, 28, 0.18); }
 .field { display: grid; gap: 5px; margin-bottom: 14px; }
 .field > span { color: var(--muted); font-size: 12.5px; font-weight: 500; }
+.field-grid { display: grid; gap: 4px; max-width: 460px; }
+.field-grid .actions { display: flex; justify-content: flex-start; gap: 8px; margin-top: 4px; }
 .check { display: flex; gap: 8px; align-items: center; }
 .check input { width: auto; }
 .modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
@@ -1481,11 +1506,11 @@ h1, h2, h3, .page-title, .topbar .brand .word, .dh-title, .dh-top {
 .topbar, .side {
   border: 1px solid rgba(255, 255, 255, 0.24);
   background:
-    radial-gradient(80% 180% at 6% 120%, rgba(201, 209, 58, 0.18), transparent 56%),
-    radial-gradient(60% 170% at 100% 120%, rgba(138, 159, 204, 0.18), transparent 60%),
-    linear-gradient(180deg, rgba(43, 49, 63, 0.9), rgba(22, 27, 39, 0.86));
-  backdrop-filter: blur(26px) saturate(165%);
-  -webkit-backdrop-filter: blur(26px) saturate(165%);
+    radial-gradient(80% 180% at 6% 120%, rgba(201, 209, 58, 0.30), transparent 56%),
+    radial-gradient(60% 170% at 100% 120%, rgba(244, 143, 210, 0.34), transparent 60%),
+    linear-gradient(135deg, rgba(104, 112, 214, 0.62), rgba(120, 88, 178, 0.54) 52%, rgba(58, 128, 168, 0.6));
+  backdrop-filter: blur(26px) saturate(190%);
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
   box-shadow: 0 18px 38px -19px rgba(14, 18, 29, 0.55), 0 3px 9px -5px rgba(14, 18, 29, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
 }
 
@@ -1883,8 +1908,7 @@ img, canvas, svg { max-width: 100%; }
   .lg-foot { display: none; }
 }
 @media (max-width: 360px) {
-  .side { width: calc(100vw - 12px); bottom: 8px; padding: 4px; }
-  .side a lord-icon { width: 19px !important; height: 19px !important; }
+  .side { width: calc(100vw - 12px); bottom: 8px; padding: 4px 8px; }
   .main { padding-inline: 9px; }
   .tbar { padding: 9px; gap: 8px; }
   .tchips { gap: 4px; }
@@ -1900,3 +1924,74 @@ img, canvas, svg { max-width: 100%; }
   .app-loader { background: #f4f3ef; }
   .table-section, .topbar, .side { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+
+/* ---------- Coupons: ticket-style cards ---------- */
+.coupon-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; margin-top: 18px; }
+.coupon {
+  --notch: 12px; position: relative; display: grid; grid-template-columns: 1fr 0 auto; align-items: stretch; text-align: left;
+  min-height: 112px; padding: 0; border: 0; cursor: pointer; color: #20233a; font: inherit;
+  background: linear-gradient(135deg, #e3ea7c 0%, #f3c6e6 60%, #c9c6ff 100%); border-radius: 16px;
+  box-shadow: 0 14px 28px -16px rgba(40, 60, 100, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  -webkit-mask: radial-gradient(circle var(--notch) at calc(100% - var(--stub, 120px)) 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle var(--notch) at calc(100% - var(--stub, 120px)) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+  mask: radial-gradient(circle var(--notch) at calc(100% - var(--stub, 120px)) 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle var(--notch) at calc(100% - var(--stub, 120px)) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+  transition: transform .3s cubic-bezier(.2, .9, .2, 1), filter .3s ease;
+}
+.coupon:hover { transform: translateY(-3px) rotate(-.4deg); }
+.coupon.off { filter: grayscale(.85) opacity(.7); }
+.coupon-main { display: grid; align-content: center; gap: 4px; padding: 16px 18px; }
+.coupon-main small, .coupon-stub small { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; opacity: .6; }
+.coupon-pct { font-size: clamp(34px, 6cqi, 46px); line-height: 1; font-weight: 800; letter-spacing: -.04em; }
+.coupon-pct sup { font-size: .5em; vertical-align: top; }
+.coupon-pct i { font-size: .36em; font-style: normal; letter-spacing: .1em; }
+.coupon-state { font-size: 11px; font-weight: 700; }
+.coupon-cut { width: 0; border-left: 2px dashed rgba(32, 35, 58, 0.4); margin: 14px 0; }
+.coupon-stub { display: grid; align-content: center; justify-items: center; gap: 6px; width: var(--stub, 120px); padding: 12px; box-sizing: border-box; }
+.coupon-code { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 15px; letter-spacing: .08em; padding: 5px 9px; border: 1.5px dashed rgba(32, 35, 58, 0.55); border-radius: 8px; word-break: break-all; text-align: center; }
+.coupon-lg { cursor: default; min-height: 150px; }
+.coupon-lg:hover { transform: none; }
+.coupon-lg .coupon-pct { font-size: 56px; }
+
+/* ---------- Per-page subtle tint (every page except the dashboard) ---------- */
+.main:not(.is-dash) { position: relative; }
+.main:not(.is-dash)::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 92% 0%, color-mix(in srgb, var(--page) 16%, transparent), transparent 70%),
+    radial-gradient(55% 45% at 0% 100%, color-mix(in srgb, var(--page) 11%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--page-bg) 38%, transparent), transparent 45%);
+}
+.main:not(.is-dash) .page-title { color: color-mix(in srgb, var(--page) 55%, var(--ink)); }
+.main:not(.is-dash) .btn.primary { background: color-mix(in srgb, var(--page) 80%, #000); border-color: transparent; color: #fff; }
+.main:not(.is-dash) .table-section, .main:not(.is-dash) .tablewrap {
+  background: color-mix(in srgb, var(--page-bg) 22%, rgba(255, 255, 255, 0.82));
+  border-color: color-mix(in srgb, var(--page) 20%, rgba(255, 255, 255, 0.7));
+}
+.main:not(.is-dash) .tablewrap th { background: color-mix(in srgb, var(--page-bg) 55%, #fff); color: color-mix(in srgb, var(--page) 60%, var(--ink)); }
+.main:not(.is-dash) .tablewrap tbody tr:hover td { background: color-mix(in srgb, var(--page-bg) 45%, transparent); }
+
+/* Coupon editor: inputs sit directly on the ticket */
+.coupon-edit { cursor: default; }
+.coupon-edit:hover { transform: none; }
+.coupon-edit .coupon-main, .coupon-edit .coupon-stub { cursor: text; }
+.coupon-edit .coupon-pct { display: flex; align-items: baseline; gap: 2px; }
+.coupon-edit .coupon-pct input { width: 2.2ch; min-width: 0; box-sizing: content-box; font: inherit; color: inherit; background: transparent; border: 0; border-bottom: 2px dashed rgba(32, 35, 58, 0.45); padding: 0; outline: none; -moz-appearance: textfield; appearance: textfield; }
+.coupon-edit .coupon-pct input::-webkit-outer-spin-button, .coupon-edit .coupon-pct input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.coupon-edit .coupon-pct input:focus, .coupon-edit .coupon-code:focus { border-bottom-color: #20233a; box-shadow: none; }
+.coupon-edit input.coupon-code { width: 100%; background: rgba(255, 255, 255, 0.4); color: inherit; text-transform: uppercase; outline: none; }
+.coupon-edit input.coupon-code:disabled { opacity: .7; }
+.coupon-edit .coupon-stub { --stub: 150px; }
+.coupon-edit { --stub: 150px; }
+
+/* ---------- Popups: light, blurred, softly coloured backdrop ---------- */
+.overlay {
+  background:
+    radial-gradient(55% 50% at 12% 10%, rgba(227, 234, 124, 0.45), transparent 70%),
+    radial-gradient(50% 50% at 90% 15%, rgba(170, 167, 255, 0.40), transparent 70%),
+    radial-gradient(60% 55% at 70% 100%, rgba(244, 169, 222, 0.38), transparent 70%),
+    rgba(248, 249, 253, 0.55);
+  backdrop-filter: blur(16px) saturate(150%); -webkit-backdrop-filter: blur(16px) saturate(150%);
+  animation: overlay-in .25s ease both;
+}
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+.overlay .modal { border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 30px 70px -24px rgba(60, 70, 130, 0.35), 0 4px 14px rgba(60, 70, 130, 0.08); }
+@media (prefers-reduced-transparency: reduce) { .overlay { background: rgba(244, 245, 250, 0.96); backdrop-filter: none; -webkit-backdrop-filter: none; } }

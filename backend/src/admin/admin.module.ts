@@ -88,6 +88,15 @@ class PatchBannerDto extends BannerDto {
 class BookingAssignDto {
   @IsOptional() @IsInt() providerId: number | null;
 }
+class BroadcastDto {
+  @IsIn(['ALL', 'CUSTOMER', 'PROVIDER']) audience: 'ALL' | 'CUSTOMER' | 'PROVIDER';
+  @IsString() @MaxLength(60) title: string;
+  @IsString() @MaxLength(240) text: string;
+  @IsOptional() @IsString() @MaxLength(200) href?: string;
+}
+class PromoteAdminDto {
+  @IsString() @MaxLength(254) email: string;
+}
 class LinkProviderDto {
   @IsOptional() @IsString() @MaxLength(254) email?: string | null;
 }
@@ -150,7 +159,7 @@ class AdminService {
     const where: Prisma.BookingWhereInput = {};
     if (q.status && BOOKING_STATUSES.includes(q.status as BookingStatus)) where.status = q.status as BookingStatus;
     if (q.q) where.OR = [{ id: { contains: q.q, mode: 'insensitive' } }, { name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }];
-    return this.prisma.booking.findMany({ where, orderBy: { createdAt: 'desc' }, ...page(q.skip), include: { service: true, provider: true } });
+    return this.prisma.booking.findMany({ where, orderBy: { createdAt: 'desc' }, ...page(q.skip), include: { service: true, provider: true, payment: true } });
   }
 
   async assign(me: AuthUser, id: string, providerId: number | null) {
@@ -172,7 +181,7 @@ class AdminService {
     const where: Prisma.OrderWhereInput = {};
     if (q.status && ORDER_STATUSES.includes(q.status as OrderStatus)) where.status = q.status as OrderStatus;
     if (q.q) where.OR = [{ id: { contains: q.q, mode: 'insensitive' } }, { name: { contains: q.q, mode: 'insensitive' } }, { phone: { contains: q.q } }];
-    return this.prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, ...page(q.skip), include: { items: { include: { product: { select: { name: true } } } } } });
+    return this.prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, ...page(q.skip), include: { items: { include: { product: { select: { name: true } } } }, payment: true } });
   }
 
   async setOrderStatus(me: AuthUser, id: string, status: OrderStatus) {
@@ -365,6 +374,36 @@ class AdminService {
   }
 
   private async must<T>(p: Promise<T | null>) { const r = await p; if (!r) throw new NotFoundException(); return r; }
+
+  /* Notifications */
+  async broadcastNotification(me: AuthUser, dto: BroadcastDto) {
+    const userIds = dto.audience === 'ALL' ? null : (await this.prisma.user.findMany({ where: { role: dto.audience }, select: { id: true } })).map((u) => u.id);
+    if (userIds && !userIds.length) throw new BadRequestException('No users match that audience.');
+    const { sent } = await this.push.broadcast(userIds, dto.text, dto.title, dto.href || '/');
+    const recipients = userIds ? userIds.length : await this.prisma.user.count();
+    await this.audit(me, 'notification.broadcast', `audience:${dto.audience}`, { title: dto.title, text: dto.text, recipients, sent });
+    return { recipients, sent };
+  }
+
+  /* Admin accounts: promote an existing user to ADMIN by email, or demote one back to CUSTOMER. */
+  listAdmins() {
+    return this.prisma.user.findMany({ where: { role: Role.ADMIN }, orderBy: { createdAt: 'asc' }, select: { id: true, name: true, email: true, phone: true, createdAt: true } });
+  }
+  async promoteAdmin(me: AuthUser, email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+    if (!user) throw new NotFoundException('No account with that email. Ask them to register in the app first.');
+    if (user.role === Role.ADMIN) throw new ConflictException('That user is already an admin.');
+    const out = await this.prisma.user.update({ where: { id: user.id }, data: { role: Role.ADMIN }, select: { id: true, name: true, email: true, phone: true, createdAt: true } });
+    await this.audit(me, 'admin.promote', `user:${user.id}`, { email: user.email });
+    return out;
+  }
+  async demoteAdmin(me: AuthUser, id: string) {
+    if (me.id === id) throw new BadRequestException('You cannot remove your own admin access.');
+    const user = await this.must(this.prisma.user.findUnique({ where: { id } }));
+    if (user.role !== Role.ADMIN) throw new BadRequestException('That user is not an admin.');
+    await this.prisma.user.update({ where: { id }, data: { role: Role.CUSTOMER } });
+    await this.audit(me, 'admin.demote', `user:${id}`, { email: user.email });
+  }
 }
 
 @Controller('admin')
@@ -415,6 +454,12 @@ class AdminController {
   @Delete('messages/:id') @HttpCode(204) deleteMessage(@CurrentUser() me: AuthUser, @Param('id') id: string) { return this.svc.deleteMessage(me, id); }
 
   @Get('audit-log') auditLog(@Query() q: any) { return this.svc.listAuditLog(q); }
+
+  @Post('notifications/broadcast') broadcast(@CurrentUser() me: AuthUser, @Body() dto: BroadcastDto) { return this.svc.broadcastNotification(me, dto); }
+
+  @Get('admins') admins() { return this.svc.listAdmins(); }
+  @Post('admins') promoteAdmin(@CurrentUser() me: AuthUser, @Body() dto: PromoteAdminDto) { return this.svc.promoteAdmin(me, dto.email); }
+  @Delete('admins/:id') @HttpCode(204) demoteAdmin(@CurrentUser() me: AuthUser, @Param('id') id: string) { return this.svc.demoteAdmin(me, id); }
 }
 
 @Module({ imports: [PaymentsModule], controllers: [AdminController], providers: [AdminService] })

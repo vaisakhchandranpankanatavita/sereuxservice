@@ -17,6 +17,7 @@ const CHIP = {
   DONE: ['#16a34a', 'check'], DELIVERED: ['#16a34a', 'check'], CONFIRMED: ['#4f46e5', 'shield'], SHIPPED: ['#0284c7', 'arrow'], ON_THE_WAY: ['#0284c7', 'arrow'],
   IN_PROGRESS: ['#ea580c', 'spin'], REQUESTED: ['#b7791f', 'clock'], PLACED: ['#b7791f', 'clock'], CANCELLED: ['#dc2626', 'x'],
   ADMIN: ['#7c3aed', 'star'], PROVIDER: ['#0d9488', 'bolt'], CUSTOMER: ['#64748b', 'user'],
+  PAID: ['#16a34a', 'check'], FAILED: ['#dc2626', 'x'], REFUNDED: ['#64748b', 'arrow'], CREATED: ['#b7791f', 'clock'], COD: ['#64748b', 'user'],
 };
 export const Badge = ({ v, text }) => {
   const [c, ic] = CHIP[v] ?? ['#64748b', 'clock'];
@@ -91,6 +92,7 @@ function textOf(n) {
 const nice = (x) => String(x).replace(/_/g, ' ').toLowerCase();
 const tableColumnTone = (col) => {
   const h = String(col.h ?? '').trim().toLowerCase();
+  if (col.thumb) return 'col-thumb';
   if (!h) return 'col-actions';
   if (col.num || /^(total|est\.?|from|price|discount|rating|jobs|bookings|orders)$/.test(h)) return 'col-metric';
   if (/^(status|role|verified)$/.test(h)) return 'col-status';

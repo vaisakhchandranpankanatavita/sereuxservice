@@ -6,7 +6,9 @@ export default function TabsLayout() {
   const t = useTheme();
   return <Tabs screenOptions={{
     tabBarActiveTintColor: t.ink, tabBarInactiveTintColor: t.muted,
-    tabBarStyle: { backgroundColor: t.bg, borderTopColor: t.line },
+    tabBarStyle: { backgroundColor: t.bg, borderTopColor: t.line, height: 60, paddingTop: 6 },
+    tabBarIconStyle: { marginBottom: 2 },
+    tabBarLabelStyle: { fontFamily: font.medium, fontSize: 11, letterSpacing: 0.2, marginTop: 2 },
     headerStyle: { backgroundColor: t.bg }, headerShadowVisible: false, headerTintColor: t.ink, headerTitleStyle: { fontFamily: font.bold, fontSize: 16 },
   }}>
     <Tabs.Screen name="index" options={{ title: 'Requests', tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" color={(color as string) ?? t.ink} size={size} /> }} />

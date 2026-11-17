@@ -43,6 +43,36 @@ export class PushService {
     try { await this.prisma.notification.create({ data: { userId, text, href } }); } catch (e) { this.log.warn(`notify failed: ${e}`); }
     await this.send(userId, text, title, { href });
   }
+
+  /* In-app notification plus push for many users at once (an admin broadcast). `userIds` null means
+     every user with a registered token. Expo caps a single request at 100 messages, so this chunks. */
+  async broadcast(userIds: string[] | null, text: string, title = 'Fixzy', href = '/') {
+    try {
+      if (userIds) await this.prisma.notification.createMany({ data: userIds.map((userId) => ({ userId, text, href })) });
+      else {
+        const all = await this.prisma.user.findMany({ select: { id: true } });
+        await this.prisma.notification.createMany({ data: all.map((u) => ({ userId: u.id, text, href })) });
+      }
+    } catch (e) { this.log.warn(`broadcast notify failed: ${e}`); }
+
+    const rows = await this.prisma.pushToken.findMany({ where: userIds ? { userId: { in: userIds } } : {}, select: { token: true } });
+    if (!rows.length) return { sent: 0 };
+    const dead: string[] = [];
+    for (let i = 0; i < rows.length; i += 100) {
+      const chunk = rows.slice(i, i + 100);
+      try {
+        const res = await fetch(EXPO_PUSH, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', accept: 'application/json' },
+          body: JSON.stringify(chunk.map((r) => ({ to: r.token, title, body: text, sound: 'default', data: { href } }))),
+        });
+        const json: any = await res.json().catch(() => null);
+        (json?.data ?? []).forEach((t: any, k: number) => { if (t?.details?.error === 'DeviceNotRegistered') dead.push(chunk[k].token); });
+      } catch (e) { this.log.warn(`broadcast push chunk failed: ${e}`); }
+    }
+    if (dead.length) await this.prisma.pushToken.deleteMany({ where: { token: { in: dead } } });
+    return { sent: rows.length - dead.length };
+  }
 }
 
 @Global()

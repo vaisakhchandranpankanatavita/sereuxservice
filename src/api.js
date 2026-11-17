@@ -1,6 +1,8 @@
 /* Thin fetch wrapper for the Fixzy API. The access token lives in memory only; the refresh token is an httpOnly cookie. */
 const BASE = import.meta.env.VITE_API_URL || '/api';
 
+export const img = (p) => (!p ? null : /^https?:/.test(p) ? p : p);
+
 export class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }

@@ -679,3 +679,195 @@
   .ins-mini { gap: 10px; }
   .ins-mini span:nth-child(n+3) { display: none; }
 }
+
+/* ---------- Glass chrome (replaces the dark bars) + subtle per-page colour ---------- */
+.topbar, .side {
+  background:
+    radial-gradient(80% 180% at 6% 120%, rgba(201, 209, 58, 0.30), transparent 56%),
+    radial-gradient(60% 170% at 100% 120%, rgba(244, 143, 210, 0.34), transparent 60%),
+    linear-gradient(135deg, rgba(30, 34, 96, 0.8), rgba(48, 28, 86, 0.76) 52%, rgba(14, 52, 82, 0.8));
+  backdrop-filter: blur(26px) saturate(190%); -webkit-backdrop-filter: blur(26px) saturate(190%);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 18px 38px -19px rgba(50, 60, 130, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.page-view:not(:has(.dash)) .page-title { color: color-mix(in srgb, var(--page) 55%, #1d2030); }
+.page-view:not(:has(.dash)) .btn.primary { background: color-mix(in srgb, var(--page) 80%, #000); border-color: transparent; }
+.page-view:not(:has(.dash)) .btn.primary:hover { background: color-mix(in srgb, var(--page) 65%, #000); border-color: transparent; }
+.page-view:not(:has(.dash)) .tablewrap { background: color-mix(in srgb, var(--page-bg) 18%, #fff); border-color: color-mix(in srgb, var(--page) 22%, #fff); }
+.page-view:not(:has(.dash)) .tablewrap thead th { background: color-mix(in srgb, var(--page-bg) 70%, #fff) !important; color: color-mix(in srgb, var(--page) 65%, #333); box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--page) 20%, #fff) !important; }
+.page-view:not(:has(.dash)) .tablewrap tbody td { background: transparent !important; }
+.page-view:not(:has(.dash)) .tablewrap tbody tr:hover td { background: color-mix(in srgb, var(--page-bg) 55%, transparent) !important; }
+.page-view:not(:has(.dash)) .tchip.on { background: color-mix(in srgb, var(--page) 80%, #000); border-color: transparent; }
+.page-view:not(:has(.dash)) .card, .page-view:not(:has(.dash)) .grid2 > * { background: color-mix(in srgb, var(--page-bg) 16%, #fff); border-color: color-mix(in srgb, var(--page) 20%, #fff); }
+.page-view:not(:has(.dash)) .modal { background: rgba(255, 255, 255, 0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+/* Active tab grows to fit its whole label; the others share what is left. */
+.side { display: flex; width: min(calc(var(--cols) * 86px + 56px), calc(100vw - 20px)); }
+.side a, .side .more-trigger { flex: 1 1 0; }
+.side a.on, .side .more-trigger.on { flex: 0 0 auto; min-width: max-content; padding-inline: 14px; }
+.side a.on .side-label, .side .more-trigger.on .side-label { overflow: visible; text-overflow: clip; max-width: none; }
+
+/* One shared accent for every non-dashboard page, matching the glass bars. */
+.main { --page: #5a56d6; --page-bg: #e5e4ff; }
+
+/* Glossy finish: curved top sheen, specular streak, bright rim, soft inner glow — still see-through. */
+.topbar, .side {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.08) 48%, rgba(255, 255, 255, 0) 50%),
+    radial-gradient(80% 180% at 6% 130%, rgba(201, 209, 58, 0.26), transparent 56%),
+    radial-gradient(60% 170% at 100% 130%, rgba(244, 143, 210, 0.3), transparent 60%),
+    linear-gradient(135deg, rgba(30, 34, 96, 0.72), rgba(48, 28, 86, 0.66) 52%, rgba(14, 52, 82, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 18px 38px -16px rgba(30, 34, 96, 0.55),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -14px 20px -14px rgba(255, 255, 255, 0.25);
+}
+.topbar::before, .side::before {
+  opacity: 1;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.22) 32%, rgba(255, 255, 255, 0.04) 40%, transparent 48%),
+              linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.04) 46%, transparent 52%);
+}
+
+/* Readable bar items: bright white, with a soft dark halo so they hold up over the glass. */
+.side a:not(.on), .side .more-trigger:not(.on) { color: #fff; opacity: 1; }
+.side a:not(.on) .side-label, .side .more-trigger:not(.on) .side-label { color: #fff; text-shadow: 0 1px 2px rgba(10, 14, 40, 0.65); }
+.side a:not(.on) lord-icon, .side .more-trigger:not(.on) svg { opacity: 1; filter: drop-shadow(0 1px 2px rgba(10, 14, 40, 0.6)) brightness(1.25); }
+.side a.on .side-label, .side .more-trigger.on .side-label { color: #1f2a12; }
+.topbar .iconbtn, .topbar .signout { color: #fff; }
+
+/* Darker gloss: deeper tint (still translucent) with a sharper reflection band. */
+.topbar, .side {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.06) 47%, rgba(255, 255, 255, 0) 50%),
+    radial-gradient(80% 180% at 6% 130%, rgba(201, 209, 58, 0.18), transparent 56%),
+    radial-gradient(60% 170% at 100% 130%, rgba(244, 143, 210, 0.2), transparent 60%),
+    linear-gradient(135deg, rgba(14, 16, 54, 0.9), rgba(26, 12, 52, 0.88) 52%, rgba(6, 28, 48, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow:
+    0 20px 40px -14px rgba(8, 10, 36, 0.7),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -14px 20px -14px rgba(255, 255, 255, 0.16);
+}
+
+/* Purple glass, darker: the original indigo/violet hues at deeper strength, still translucent and glossy. */
+.topbar, .side {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.07) 47%, rgba(255, 255, 255, 0) 50%),
+    radial-gradient(80% 180% at 6% 130%, rgba(201, 209, 58, 0.22), transparent 56%),
+    radial-gradient(60% 170% at 100% 130%, rgba(244, 143, 210, 0.28), transparent 60%),
+    linear-gradient(135deg, rgba(66, 60, 168, 0.8), rgba(94, 54, 150, 0.76) 52%, rgba(40, 84, 148, 0.8));
+  box-shadow:
+    0 20px 40px -14px rgba(40, 30, 110, 0.62),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -14px 20px -14px rgba(255, 255, 255, 0.2);
+}
+
+/* Bottom bar labels: Inter. */
+.side .side-label { font-family: 'Inter Variable', 'Inter', sans-serif; font-weight: 700; letter-spacing: .04em; font-feature-settings: 'tnum' 0, 'cv11' 1; }
+
+/* Darkest pass: deep purple glass, strong gloss, still translucent. */
+.topbar, .side {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0.05) 47%, rgba(255, 255, 255, 0) 50%),
+    radial-gradient(80% 180% at 6% 130%, rgba(201, 209, 58, 0.14), transparent 56%),
+    radial-gradient(60% 170% at 100% 130%, rgba(244, 143, 210, 0.18), transparent 60%),
+    linear-gradient(135deg, rgba(36, 30, 104, 0.88), rgba(58, 26, 98, 0.86) 52%, rgba(20, 44, 96, 0.88));
+  box-shadow:
+    0 22px 44px -14px rgba(20, 14, 70, 0.7),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -14px 20px -14px rgba(255, 255, 255, 0.14);
+}
+
+/* Brand bar colour #3E244F: glossy, semi-transparent. */
+.topbar, .side {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.05) 47%, rgba(255, 255, 255, 0) 50%),
+    linear-gradient(135deg, rgba(74, 44, 94, 0.9), rgba(62, 36, 79, 0.88) 50%, rgba(50, 28, 66, 0.9));
+  box-shadow:
+    0 22px 44px -14px rgba(62, 36, 79, 0.7),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -14px 20px -14px rgba(255, 255, 255, 0.14);
+}
+
+/* Bar colour #220F30: glossy, semi-transparent. */
+.topbar, .side {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.04) 47%, rgba(255, 255, 255, 0) 50%),
+    linear-gradient(135deg, rgba(46, 24, 62, 0.9), rgba(34, 15, 48, 0.88) 50%, rgba(26, 10, 38, 0.9));
+  box-shadow:
+    0 22px 44px -14px rgba(34, 15, 48, 0.75),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -14px 20px -14px rgba(255, 255, 255, 0.12);
+}
+
+/* Matte single colour #220F30: no gloss, no gradient. */
+.topbar, .side {
+  background: #220F30;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 30px -14px rgba(34, 15, 48, 0.6);
+}
+.topbar::before, .topbar::after, .side::before, .side::after { display: none; }
+
+/* Matte #220F30 with a fine diagonal weave — texture only, no shine. */
+.topbar, .side {
+  background-color: #220F30;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 6px);
+}
+
+/* Matte paint: a soft, flat gradient around #220F30 — no pattern, no shine, no edge highlights. */
+.topbar, .side {
+  background-color: #220F30;
+  background-image:
+    radial-gradient(120% 160% at 0% 0%, rgba(92, 52, 120, 0.42), transparent 62%),
+    radial-gradient(110% 160% at 100% 100%, rgba(14, 4, 24, 0.55), transparent 64%),
+    linear-gradient(135deg, #2c1540 0%, #220F30 50%, #1a0b26 100%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 14px 30px -16px rgba(26, 11, 38, 0.65);
+}
+
+/* Matte felt: same #220F30, soft centre glow fading to darker edges, with a fine grain. */
+.topbar, .side {
+  background-color: #220F30;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.16 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    radial-gradient(75% 150% at 50% 45%, rgba(104, 62, 138, 0.5), rgba(60, 30, 84, 0.18) 55%, transparent 80%),
+    radial-gradient(110% 200% at 50% 50%, transparent 55%, rgba(10, 2, 18, 0.6) 100%);
+  background-size: 160px 160px, auto, auto;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  box-shadow: 0 14px 30px -16px rgba(26, 11, 38, 0.65), inset 0 0 18px rgba(10, 2, 18, 0.45);
+}
+
+/* Inner pages: warm cream surfaces with plum accents that echo the #220F30 bars; lime kept as the highlight. */
+.main { --page: #5b2d73; --page-bg: #f0e4f4; }
+.main:not(.is-dash)::before {
+  background:
+    radial-gradient(60% 45% at 92% 0%, rgba(201, 209, 58, 0.16), transparent 70%),
+    radial-gradient(55% 45% at 0% 100%, rgba(120, 70, 150, 0.12), transparent 70%),
+    linear-gradient(180deg, #f8f3ec, #f3ece4 60%, #efe6dd);
+}
+.page-view:not(:has(.dash)) .page-title { color: #2a1238; }
+.page-view:not(:has(.dash)) .btn.primary { background: #3E244F; color: #fff; }
+.page-view:not(:has(.dash)) .btn.primary:hover { background: #220F30; }
+.page-view:not(:has(.dash)) .tablewrap { background: #fffdfa; border-color: #e4d6e8; }
+.page-view:not(:has(.dash)) .tablewrap thead th { background: #efe3f2 !important; color: #4a2660; box-shadow: inset 0 -1px 0 #dcc8e2 !important; }
+.page-view:not(:has(.dash)) .tablewrap tbody td { color: #2a2130; border-bottom-color: #f0e8ee; }
+.page-view:not(:has(.dash)) .tablewrap tbody tr:hover td { background: #f7eef9 !important; }
+.page-view:not(:has(.dash)) .tchip.on { background: #3E244F; border-color: #3E244F; color: #fff; }
+.page-view:not(:has(.dash)) .tchip:hover { background: #f5ecf7; border-color: #d9c3e0; }
+.page-view:not(:has(.dash)) .card, .page-view:not(:has(.dash)) .grid2 > * { background: #fffdfa; border-color: #e4d6e8; }
+.page-view:not(:has(.dash)) .tsearch input:focus, .page-view:not(:has(.dash)) .tsel select:focus,
+.page-view:not(:has(.dash)) .field input:focus, .page-view:not(:has(.dash)) .field select:focus, .page-view:not(:has(.dash)) .field textarea:focus { border-color: #7a3d8f; box-shadow: 0 0 0 3px rgba(122, 61, 143, 0.16); }
+
+/* Dynamic table columns: thumbnails hug the image, long text columns wrap instead of stretching the table. */
+.page-view:not(:has(.dash)) .tablewrap th.col-thumb, .page-view:not(:has(.dash)) .tablewrap td.col-thumb { width: 1%; min-width: 0; padding-inline: 12px 4px; }
+.page-view:not(:has(.dash)) .tablewrap td.wrap { white-space: normal; min-width: 130px; max-width: 300px; overflow-wrap: anywhere; }

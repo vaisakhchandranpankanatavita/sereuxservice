@@ -5,28 +5,75 @@ import { login, logout, refresh } from './api.js';
 import { AppLoader, Toaster } from './ui.jsx';
 import { LordIcon } from './LordIcon.jsx';
 import { ICONS } from './icons.js';
-import { AuditLog, Banners, Bookings, Coupons, Dashboard, Inbox, Orders, Products, Providers, Services, Users } from './pages.jsx';
+import { Admins, AuditLog, Banners, Bookings, Coupons, Dashboard, Inbox, Notifications, Orders, Products, Providers, Services, Users } from './pages.jsx';
 
 /* Vivid active-state colour per section (bg) and the icon colour that reads best on it. */
 const BRIGHT = {
   c1: ['#d5e2a1', '#263023'], c2: ['#d5e2a1', '#263023'], c3: ['#d5e2a1', '#263023'], c4: ['#d5e2a1', '#263023'],
   c5: ['#d5e2a1', '#263023'], c6: ['#d5e2a1', '#263023'], c7: ['#d5e2a1', '#263023'], c8: ['#d5e2a1', '#263023'],
-  c9: ['#d5e2a1', '#263023'], c10: ['#d5e2a1', '#263023'], c11: ['#d5e2a1', '#263023'],
+  c9: ['#d5e2a1', '#263023'], c10: ['#d5e2a1', '#263023'], c11: ['#d5e2a1', '#263023'], c12: ['#d5e2a1', '#263023'],
+  c13: ['#d5e2a1', '#263023'],
 };
 
+/* [id, name, Page, icon, hue, group]. `group` is only used when a route overflows into the
+   "More" submenu, to pick its category heading there. Ordered by priority: how many sit
+   directly on the bar depends on the viewport (see useBarSlots below). */
 const ROUTES = [
-  ['dashboard', 'Dashboard', Dashboard, ICONS.dashboard, 'c1'],
-  ['bookings', 'Bookings', Bookings, ICONS.bookings, 'c2'],
-  ['orders', 'Orders', Orders, ICONS.orders, 'c3'],
-  ['users', 'Users', Users, ICONS.users, 'c4'],
-  ['services', 'Services', Services, ICONS.services, 'c5'],
-  ['pros', 'Pros', Providers, ICONS.pros, 'c6'],
-  ['products', 'Products', Products, ICONS.products, 'c7'],
-  ['coupons', 'Coupons', Coupons, ICONS.coupons, 'c8'],
-  ['banners', 'Banners', Banners, ICONS.banners, 'c11'],
-  ['inbox', 'Inbox', Inbox, ICONS.inbox, 'c9'],
-  ['audit-log', 'Audit log', AuditLog, ICONS.auditLog, 'c10'],
+  ['dashboard', 'Dashboard', Dashboard, ICONS.dashboard, 'c1', 'main'],
+  ['bookings', 'Bookings', Bookings, ICONS.bookings, 'c2', 'main'],
+  ['orders', 'Orders', Orders, ICONS.orders, 'c3', 'main'],
+  ['users', 'Users', Users, ICONS.users, 'c4', 'main'],
+  ['inbox', 'Inbox', Inbox, ICONS.inbox, 'c9', 'main'],
+  ['services', 'Services', Services, ICONS.services, 'c5', 'catalog'],
+  ['pros', 'Pros', Providers, ICONS.pros, 'c6', 'catalog'],
+  ['products', 'Products', Products, ICONS.products, 'c7', 'catalog'],
+  ['coupons', 'Coupons', Coupons, ICONS.coupons, 'c8', 'marketing'],
+  ['banners', 'Banners', Banners, ICONS.banners, 'c11', 'marketing'],
+  ['notifications', 'Notifications', Notifications, ICONS.bell, 'c12', 'admin'],
+  ['admins', 'Admins', Admins, ICONS.avatar, 'c13', 'admin'],
+  ['audit-log', 'Audit log', AuditLog, ICONS.auditLog, 'c10', 'admin'],
 ];
+const GROUP_LABELS = { main: 'Main', catalog: 'Catalog', marketing: 'Marketing', admin: 'Admin' };
+
+/* How many bar slots (primary routes + the More trigger, if any) fit at a given width — wider
+   screens show more of the bar directly, narrower ones push more into the categorised submenu. */
+const BAR_TIERS = [[1200, 13], [1000, 10], [820, 8], [680, 7], [560, 6], [440, 5], [0, 4]];
+const slotsFor = (w) => (BAR_TIERS.find(([min]) => w >= min) ?? BAR_TIERS[BAR_TIERS.length - 1])[1];
+function useBarSlots() {
+  const [slots, setSlots] = useState(() => slotsFor(window.innerWidth));
+  useEffect(() => {
+    let raf = 0;
+    const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setSlots(slotsFor(window.innerWidth))); };
+    addEventListener('resize', onResize);
+    return () => { removeEventListener('resize', onResize); cancelAnimationFrame(raf); };
+  }, []);
+  return Math.min(slots, ROUTES.length);
+}
+
+/* The categorised submenu for every route that doesn't fit on the bar itself. Closes on an
+   outside click, Escape, or picking an item (the hash change then drives the real navigation). */
+function MoreMenu({ open, onClose, route, groups }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    addEventListener('pointerdown', onDoc);
+    addEventListener('keydown', onKey);
+    return () => { removeEventListener('pointerdown', onDoc); removeEventListener('keydown', onKey); };
+  }, [open, onClose]);
+  if (!open) return null;
+  return <div className="side-more" role="menu" aria-label="More sections" ref={ref}>
+    {groups.map(([key, label, items]) => <div className="side-more-group" key={key}>
+      <span className="side-more-label">{label}</span>
+      {items.map(([id, name, , icon, hue]) => <a key={id} href={`#/${id}`} role="menuitem" onClick={onClose}
+        className={`side-more-item${route === id ? ' on' : ''}`} style={{ '--c': BRIGHT[hue][0] }}>
+        <LordIcon icon={icon} size={18} colors={route === id ? `primary:${BRIGHT[hue][1]},secondary:${BRIGHT[hue][1]}` : 'primary:#6a665f,secondary:#6a665f'} trigger="hover" />
+        <span>{name}</span>
+      </a>)}
+    </div>)}
+  </div>;
+}
 
 const useHash = () => {
   const get = () => location.hash.slice(2) || 'dashboard';
@@ -45,7 +92,7 @@ function useLiquidIndicator(navRef, indicatorRef, route, ready) {
   useLayoutEffect(() => {
     const parent = navRef.current;
     const indicator = indicatorRef.current;
-    const el = parent?.querySelector('a.on');
+    const el = parent?.querySelector('.on');
     if (!parent || !indicator || !el) return;
     const left = el.offsetLeft;
     const width = el.offsetWidth;
@@ -594,7 +641,10 @@ export default function App() {
   const route = useHash();
   const navRef = useRef(null);
   const indicatorRef = useRef(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const barSlots = useBarSlots();
   useLiquidIndicator(navRef, indicatorRef, route, !!user && !afterLogin); // re-runs once the nav actually mounts after the post-login loader
+  useEffect(() => { setMoreOpen(false); }, [route]);
 
   useEffect(() => { refresh().then((u) => setUser(u.role === 'ADMIN' ? u : null), () => setUser(null)); }, []);
   useEffect(() => {
@@ -632,6 +682,16 @@ export default function App() {
   const found = ROUTES.find((r) => r[0] === shown) ?? ROUTES[0];
   const [, , Page] = found;
 
+  /* Fewer slots fit at a given width -> more routes drop into the categorised More submenu.
+     One slot is reserved for the More trigger itself whenever anything overflows. */
+  const overflowing = barSlots < ROUTES.length;
+  const primaryRoutes = overflowing ? ROUTES.slice(0, barSlots - 1) : ROUTES;
+  const overflowRoutes = overflowing ? ROUTES.slice(barSlots - 1) : [];
+  const overflowGroups = Object.keys(GROUP_LABELS)
+    .map((key) => [key, GROUP_LABELS[key], overflowRoutes.filter((r) => r[5] === key)])
+    .filter(([, , items]) => items.length);
+  const activeOverflow = overflowRoutes.find((r) => r[0] === route);
+
   return <div className="shell">
     {/* Bottom-pinned bar: oversized brand typography fills the bar, stays put on every page. */}
     <header className="topbar">
@@ -653,16 +713,28 @@ export default function App() {
       </div>
     </header>
 
-    <nav className="side" aria-label="Admin" ref={navRef}>
+    <nav className="side" aria-label="Admin" ref={navRef} style={{ '--cols': primaryRoutes.length + (overflowing ? 1 : 0) }}>
       <span className="side-indicator" ref={indicatorRef} aria-hidden="true" />
-      {ROUTES.map(([id, name, , icon, hue]) => <a key={id} href={`#/${id}`} data-hue={hue} className={route === id ? 'on' : ''} aria-current={route === id ? 'page' : undefined}
+      {primaryRoutes.map(([id, name, , icon, hue]) => <a key={id} href={`#/${id}`} data-hue={hue} className={route === id ? 'on' : ''} aria-current={route === id ? 'page' : undefined}
         style={{ '--on-ink': BRIGHT[hue][1] }}>
-        <LordIcon icon={icon} size={22} colors={route === id ? `primary:${BRIGHT[hue][1]},secondary:${BRIGHT[hue][1]}` : 'primary:#e9ecf5,secondary:#e9ecf5'} trigger={route === id ? 'loop' : 'hover'} />
-        <span className="tip">{name}</span>
+        <LordIcon icon={icon} size={21} colors={route === id ? `primary:${BRIGHT[hue][1]},secondary:${BRIGHT[hue][1]}` : 'primary:#e9ecf5,secondary:#e9ecf5'} trigger={route === id ? 'loop' : 'hover'} />
+        <span className="side-label">{name}</span>
       </a>)}
+      {overflowing && (() => {
+        const hue = activeOverflow ? activeOverflow[4] : primaryRoutes[0][4];
+        return <button type="button" className={`more-trigger${activeOverflow ? ' on' : ''}`} data-hue={hue}
+          aria-haspopup="menu" aria-expanded={moreOpen} onClick={() => setMoreOpen((o) => !o)}
+          style={activeOverflow ? { '--on-ink': BRIGHT[hue][1] } : undefined}>
+          <svg viewBox="0 0 20 20" width="21" height="21" fill="currentColor" aria-hidden="true">
+            <circle cx="4.5" cy="10" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="15.5" cy="10" r="1.5" />
+          </svg>
+          <span className="side-label">More</span>
+        </button>;
+      })()}
     </nav>
+    {overflowing && <MoreMenu open={moreOpen} onClose={() => setMoreOpen(false)} route={route} groups={overflowGroups} />}
 
-    <main className={`main${leaving ? ' leaving' : ''}`}><div className="page-view" key={shown}><Page me={user} /></div></main>
+    <main className={`main${leaving ? ' leaving' : ''}${found[0] === 'dashboard' ? ' is-dash' : ''}`}><div className="page-view" key={shown}><Page me={user} /></div></main>
     {routeLoading && <div className="route-loader" role="status" aria-live="polite" aria-label="Loading page">
       <div className="transition-skeleton" aria-hidden="true">
         <div className="transition-skeleton-head"><i /><i /></div>
