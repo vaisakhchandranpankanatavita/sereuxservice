@@ -859,7 +859,7 @@
 .page-view:not(:has(.dash)) .btn.primary { background: #3E244F; color: #fff; }
 .page-view:not(:has(.dash)) .btn.primary:hover { background: #220F30; }
 .page-view:not(:has(.dash)) .tablewrap { background: #fffdfa; border-color: #e4d6e8; }
-.page-view:not(:has(.dash)) .tablewrap thead th { background: #efe3f2 !important; color: #4a2660; box-shadow: inset 0 -1px 0 #dcc8e2 !important; }
+.page-view:not(:has(.dash)) .tablewrap thead th { background: #efe3f2 !important; background-image: none !important; color: #4a2660; text-shadow: none; box-shadow: inset 0 -1px 0 #dcc8e2 !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
 .page-view:not(:has(.dash)) .tablewrap tbody td { color: #2a2130; border-bottom-color: #f0e8ee; }
 .page-view:not(:has(.dash)) .tablewrap tbody tr:hover td { background: #f7eef9 !important; }
 .page-view:not(:has(.dash)) .tchip.on { background: #3E244F; border-color: #3E244F; color: #fff; }
