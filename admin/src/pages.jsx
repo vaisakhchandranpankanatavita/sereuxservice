@@ -68,14 +68,20 @@ export function Dashboard({ me }) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const doneShare = Math.round(((s.bookingsByStatus?.DONE ?? 0) / Math.max(1, s.bookings)) * 100);
-  const week = s.series.slice(-7);
+  const series = Array.isArray(s.series) ? s.series : [];
+  const week = series.slice(-7);
   const STATUS_HUE = { DONE: '#2f9e6b', REQUESTED: '#e8a33a', CONFIRMED: '#7a6cf0', ON_THE_WAY: '#3a7bd5', IN_PROGRESS: '#f07a3a', CANCELLED: '#d9534f' };
-  const statuses = Object.entries(s.bookingsByStatus).sort((x, y) => y[1] - x[1]);
+  const statuses = Object.entries(s.bookingsByStatus ?? {}).sort((x, y) => y[1] - x[1]);
+  const bookings30d = series.reduce((total, day) => total + (day.bookings || 0), 0);
+  const orders30d = series.reduce((total, day) => total + (day.orders || 0), 0);
+  const revenue30d = series.reduce((total, day) => total + (day.revenue || 0), 0);
+  const activityMax = Math.max(1, ...series.flatMap((day) => [day.bookings || 0, day.orders || 0]));
+  const revenueMax = Math.max(1, ...series.map((day) => day.revenue || 0));
 
   /* A simple SVG sine-ish path through a value series, normalized into a w×h viewBox —
      the "glowing line" read of a chart, not a bar grid. */
-  const wave = (vals, w, h) => {
-    const m = Math.max(1, ...vals);
+  const wave = (vals, w, h, ceiling) => {
+    const m = ceiling || Math.max(1, ...vals);
     const step = w / Math.max(1, vals.length - 1);
     return vals.map((v, i) => `${i ? 'L' : 'M'} ${(i * step).toFixed(1)},${(h - (v / m) * h * 0.82 - h * 0.09).toFixed(1)}`).join(' ');
   };
@@ -120,14 +126,14 @@ export function Dashboard({ me }) {
       <div className="glow glow-lg" style={{ '--hue': 'var(--c3)', '--hue2': '#d9e84a' }}>
         <div className="glow-head"><h2>Total bookings</h2><span className="glow-chip">last 30 days</span></div>
         <div className="glow-n big">{s.bookings}<small>{s.orders} orders</small></div>
-        <svg className="glow-wave" viewBox="0 0 200 60" preserveAspectRatio="none"><path d={wave(s.series.map((d) => d.bookings), 200, 60)} /></svg>
-        <div className="axis light"><span>{s.series[0].day.slice(5)}</span><span>{s.series.at(-1).day.slice(5)}</span></div>
+        <svg className="glow-wave" viewBox="0 0 200 60" preserveAspectRatio="none"><path d={wave(series.map((d) => d.bookings || 0), 200, 60)} /></svg>
+        <div className="axis light"><span>{series[0]?.day?.slice(5) ?? '—'}</span><span>{series.at(-1)?.day?.slice(5) ?? '—'} · daily trend</span></div>
       </div>
 
       <div className="glow glow-sm" style={{ '--hue': 'var(--c6)', '--hue2': '#f08a4b' }}>
-        <h2>Shop revenue</h2>
+        <h2>Total shop revenue</h2>
         <div className="glow-n">{money(s.productRevenue)}</div>
-        <svg className="glow-wave sm" viewBox="0 0 120 36" preserveAspectRatio="none"><path d={wave(s.series.map((d) => d.revenue), 120, 36)} /></svg>
+        <svg className="glow-wave sm" viewBox="0 0 120 36" preserveAspectRatio="none"><path d={wave(series.map((d) => d.revenue || 0), 120, 36)} /></svg>
       </div>
       <div className="glow glow-sm" style={{ '--hue': 'var(--c5)', '--hue2': '#e9d44c' }}>
         <h2>Done rate</h2>
@@ -144,6 +150,34 @@ export function Dashboard({ me }) {
         <h2>Messages</h2><div className="glow-n">{s.messages}</div><div className="glow-l">in the inbox</div>
       </div>
     </div>
+    <section className="dash-analytics" aria-label="Last 30 days analytics">
+      <article className="analytics-card analytics-volume">
+        <div className="analytics-head"><div><span className="analytics-kicker">Activity</span><h2>Bookings &amp; orders</h2></div><span className="analytics-range">Last 30 days</span></div>
+        <div className="analytics-legend"><span><i className="legend-bookings" />Bookings</span><span><i className="legend-orders" />Orders</span></div>
+        <svg className="analytics-chart" viewBox="0 0 640 168" preserveAspectRatio="none" role="img" aria-label="Daily booking and order counts over the last 30 days">
+          {[28, 76, 124].map((y) => <path key={y} className="chart-gridline" d={`M0 ${y}H640`} />)}
+          {series.length > 1 && <>
+            <path className="chart-line chart-line-bookings" d={wave(series.map((day) => day.bookings || 0), 640, 168, activityMax)} />
+            <path className="chart-line chart-line-orders" d={wave(series.map((day) => day.orders || 0), 640, 168, activityMax)} />
+          </>}
+        </svg>
+        <div className="analytics-axis"><span>{series[0]?.day?.slice(5) ?? '—'}</span><span>{series[Math.floor(series.length / 2)]?.day?.slice(5) ?? '—'}</span><span>{series.at(-1)?.day?.slice(5) ?? '—'}</span></div>
+      </article>
+      <article className="analytics-card analytics-revenue">
+        <div className="analytics-head"><div><span className="analytics-kicker">Sales</span><h2>Daily shop revenue</h2></div><span className="analytics-range">Last 30 days</span></div>
+        <div className="analytics-revenue-total">{money(revenue30d)}</div>
+        <svg className="analytics-chart" viewBox="0 0 420 168" preserveAspectRatio="none" role="img" aria-label="Daily shop revenue over the last 30 days">
+          {[28, 76, 124].map((y) => <path key={y} className="chart-gridline" d={`M0 ${y}H420`} />)}
+          {series.length > 1 && <path className="chart-line chart-line-revenue" d={wave(series.map((day) => day.revenue || 0), 420, 168, revenueMax)} />}
+        </svg>
+        <div className="analytics-axis"><span>{series[0]?.day?.slice(5) ?? '—'}</span><span>{series.at(-1)?.day?.slice(5) ?? '—'}</span></div>
+      </article>
+    </section>
+    <section className="dash-period-cards" aria-label="30 day totals">
+      <article className="period-card"><span>Bookings · 30 days</span><strong>{bookings30d}</strong><small>of {s.bookings} total bookings</small></article>
+      <article className="period-card"><span>Orders · 30 days</span><strong>{orders30d}</strong><small>{s.orders} total orders</small></article>
+      <article className="period-card"><span>Sales · 30 days</span><strong>{money(revenue30d)}</strong><small>{money(s.productRevenue)} all time</small></article>
+    </section>
   </Page>;
 }
 
@@ -321,7 +355,6 @@ export function Banners() {
   const { rows, error, reload } = useList('/admin/banners');
   const [form, setForm] = useState(null);
   return <Page title="Banners" actions={<button className="btn primary" onClick={() => setForm({})}>Add banner</button>}>
-    <p className="muted">Shown as a carousel on the customer app home screen, lowest order first. Add a coupon code to show an Apply button.</p>
     <Table error={error} rows={rows} empty="No banners yet." cols={[
       { h: 'Order', render: (b) => b.sort },
       { h: 'Banner', render: (b) => <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 4, background: b.color, marginRight: 8 }} /><b>{b.title}</b><br /><small>{b.subtitle}</small></> },
@@ -366,13 +399,40 @@ function AuditMeta({ meta }) {
   </span>;
 }
 
+const AUDIT_ACTION_LABELS = {
+  'booking.assign': 'Booking assigned',
+  'order.status': 'Order status updated',
+  'user.role': 'User role changed',
+  'service.create': 'Service created',
+  'service.update': 'Service updated',
+  'service.delete': 'Service deleted',
+  'provider.create': 'Provider created',
+  'provider.update': 'Provider updated',
+  'provider.link': 'Provider account linked',
+  'provider.unlink': 'Provider account unlinked',
+  'provider.delete': 'Provider deleted',
+  'product.create': 'Product created',
+  'product.update': 'Product updated',
+  'product.delete': 'Product deleted',
+  'banner.create': 'Banner created',
+  'banner.update': 'Banner updated',
+  'banner.delete': 'Banner deleted',
+  'coupon.create': 'Coupon created',
+  'coupon.update': 'Coupon updated',
+  'coupon.delete': 'Coupon deleted',
+  'review.delete': 'Review deleted',
+  'message.delete': 'Message deleted',
+};
+const auditActionLabel = (action) => AUDIT_ACTION_LABELS[action]
+  ?? String(action ?? '').split(/[._]/).filter(Boolean).map((part) => part[0].toUpperCase() + part.slice(1)).join(' ');
+
 export function AuditLog() {
   const { rows, error } = useList('/admin/audit-log');
   return <Page title="Audit log">
     <Table error={error} rows={rows} empty="No admin activity yet." cols={[
       { h: 'When', render: (a) => when(a.createdAt) },
       { h: 'Admin', render: (a) => a.actorEmail },
-      { h: 'Action', filter: true, v: (a) => a.action, render: (a) => <span className="tag">{a.action}</span> },
+      { h: 'Action', filter: true, v: (a) => auditActionLabel(a.action), render: (a) => <span className="tag">{auditActionLabel(a.action)}</span> },
       { h: 'Target', render: (a) => <span className="muted">{a.target}</span> },
       { h: 'Details', wrap: true, v: (a) => (a.meta ? JSON.stringify(a.meta) : ''), render: (a) => <AuditMeta meta={a.meta} /> },
     ]} />
@@ -383,7 +443,7 @@ export function Inbox() {
   const msgs = useList('/admin/messages');
   const reviews = useList('/admin/reviews');
   return <Page title="Inbox">
-    <h2>Contact messages</h2>
+    <h2 className="subsection-title">Contact messages</h2>
     <Table error={msgs.error} rows={msgs.rows} empty="No messages." cols={[
       { h: 'Received', render: (m) => when(m.createdAt) }, { h: 'From', render: (m) => <>{m.name}<br /><small>{m.email}</small></> },
       { h: 'Message', wrap: true, render: (m) => m.message },
@@ -393,7 +453,7 @@ export function Inbox() {
       </div> },
     ]} />
     <div style={{ height: 24 }} />
-    <h2>Reviews</h2>
+    <h2 className="subsection-title">Reviews</h2>
     <Table error={reviews.error} rows={reviews.rows} empty="No reviews." cols={[
       { h: 'Date', render: (r) => when(r.createdAt) }, { h: 'By', render: (r) => r.user.name },
       { h: 'For', render: (r) => `${r.kind} #${r.target}` }, { h: 'Rating', filter: true, v: (r) => `${r.rating} star${r.rating === 1 ? '' : 's'}`, render: (r) => '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) },

@@ -24,6 +24,20 @@ export const Badge = ({ v, text }) => {
 };
 
 const toaster = { set: null };
+export function AppLoader() {
+  return <main className="app-loader" role="status" aria-label="Loading admin workspace">
+    <span className="loader-mark" aria-hidden="true">fixzy<i /></span>
+    <span className="loader-orbit" aria-hidden="true"><i /></span>
+  </main>;
+}
+
+export function LoadingState({ compact = false }) {
+  return <div className={`loading-state${compact ? ' compact' : ''}`} role="status" aria-label="Loading">
+    <span className="loader-orbit" aria-hidden="true"><i /></span>
+    <span className="loading-line" aria-hidden="true" />
+  </div>;
+}
+
 export function Toaster() {
   const [msg, setMsg] = useState('');
   useEffect(() => { toaster.set = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000); }; }, []);
@@ -75,6 +89,15 @@ function textOf(n) {
   return textOf(n.props?.children);
 }
 const nice = (x) => String(x).replace(/_/g, ' ').toLowerCase();
+const tableColumnTone = (col) => {
+  const h = String(col.h ?? '').trim().toLowerCase();
+  if (!h) return 'col-actions';
+  if (col.num || /^(total|est\.?|from|price|discount|rating|jobs|bookings|orders)$/.test(h)) return 'col-metric';
+  if (/^(status|role|verified)$/.test(h)) return 'col-status';
+  if (/^(when|date|joined|placed|received|schedule)$/.test(h)) return 'col-date';
+  if (/^(id|code)$/.test(h)) return 'col-reference';
+  return '';
+};
 
 /* Every table gets a filter bar: instant search across all columns, plus one-click chips (or a
    dropdown when there are many options) for any column declared with `filter: true`.
@@ -99,8 +122,8 @@ export function Table({ cols, rows, error, empty = 'Nothing here yet.' }) {
   const index = useMemo(() => (rows ?? []).map((r) => ({ r, hay: cols.map((c) => val(c, r)).join(' | ').toLowerCase(), f: cols.map((c) => (c.filter ? val(c, r) : null)) })), [rows, cols]);
   const filterCols = cols.map((c, i) => (c.filter ? { i, h: c.h, opts: [...new Set(index.map((x) => x.f[i]).filter((x) => x !== '' && x != null))].sort() } : null)).filter(Boolean);
 
-  if (error) return <div className="card err">{error}</div>;
-  if (!rows) return <div className="empty">Loading…</div>;
+  if (error) return <section className="table-section"><div className="table-state err">{error}</div></section>;
+  if (!rows) return <section className="table-section"><div className="empty table-state"><LoadingState compact /></div></section>;
 
   /* One row only: the first small filter becomes one-click chips, any others are compact dropdowns. */
   const chipCol = filterCols.find((fc) => fc.h === 'Status' && fc.opts.length > 1 && fc.opts.length <= 6) ?? filterCols.find((fc) => fc.opts.length > 1 && fc.opts.length <= 5);
@@ -110,7 +133,7 @@ export function Table({ cols, rows, error, empty = 'Nothing here yet.' }) {
   const clear = () => { setQ(''); setSel({}); };
   const pick = (i, v) => setSel((p) => ({ ...p, [i]: p[i] === v ? '' : v }));
 
-  return <>
+  return <section className="table-section">
     {(rows.length > 0 || active) && <div className="tbar">
       <label className="tsearch">
         <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="9" cy="9" r="5.5" /><path d="M13.5 13.5L17 17" /></svg>
@@ -131,13 +154,13 @@ export function Table({ cols, rows, error, empty = 'Nothing here yet.' }) {
     </div>}
     <div className="tablewrap" ref={wrapRef} onPointerDown={panStart}>
       <table>
-        <thead><tr>{cols.map((c, j) => <th key={j} className={c.num ? 'num' : undefined}>{c.h}</th>)}</tr></thead>
-        <tbody>{shown.map((r, i) => <tr key={r.id ?? r.code ?? i}>{cols.map((c, j) => <td key={j} className={[c.wrap && 'wrap', c.num && 'num'].filter(Boolean).join(' ') || undefined}>{c.render(r)}</td>)}</tr>)}</tbody>
+        <thead><tr>{cols.map((c, j) => <th key={j} className={[c.num && 'num', tableColumnTone(c)].filter(Boolean).join(' ') || undefined}>{c.h}</th>)}</tr></thead>
+        <tbody>{shown.map((r, i) => <tr key={r.id ?? r.code ?? i}>{cols.map((c, j) => <td key={j} className={[c.wrap && 'wrap', c.num && 'num', tableColumnTone(c)].filter(Boolean).join(' ') || undefined}>{c.render(r)}</td>)}</tr>)}</tbody>
       </table>
       {!rows.length && <div className="empty">{empty}</div>}
       {!!rows.length && !shown.length && <div className="empty">No results match your filters. <button type="button" className="tclear" onClick={clear}>Clear filters</button></div>}
     </div>
-  </>;
+  </section>;
 }
 
 export function Modal({ title, onClose, children }) {

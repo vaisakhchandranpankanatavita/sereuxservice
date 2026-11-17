@@ -127,13 +127,16 @@ class AdminService {
       this.prisma.order.findMany({ where: { createdAt: { gte: since }, status: { not: 'CANCELLED' } }, select: { createdAt: true, total: true } }),
       this.prisma.contactMessage.count(),
     ]);
-    const days: Record<string, { day: string; bookings: number; revenue: number }> = {};
+    const days: Record<string, { day: string; bookings: number; orders: number; revenue: number }> = {};
     for (let i = 29; i >= 0; i--) {
       const d = new Date(Date.now() - i * 864e5).toISOString().slice(0, 10);
-      days[d] = { day: d, bookings: 0, revenue: 0 };
+      days[d] = { day: d, bookings: 0, orders: 0, revenue: 0 };
     }
     for (const b of recentBookings) { const d = days[b.createdAt.toISOString().slice(0, 10)]; if (d) d.bookings++; }
-    for (const o of recentOrders) { const d = days[o.createdAt.toISOString().slice(0, 10)]; if (d) d.revenue += o.total; }
+    for (const o of recentOrders) {
+      const d = days[o.createdAt.toISOString().slice(0, 10)];
+      if (d) { d.orders++; d.revenue += o.total; }
+    }
     return {
       users, bookings, orders, openBookings, todayBookings, messages,
       productRevenue: revenue._sum.total ?? 0,

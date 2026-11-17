@@ -1,0 +1,101 @@
+/* A quiet finish for the customer and provider surfaces. Keep the original
+   content hierarchy; use small shifts, soft edges, and clear states for polish. */
+:root {
+  --tan: #a98358;
+  --ease-soft: cubic-bezier(.22, 1, .36, 1);
+  --surface-shadow: 0 14px 36px rgb(35 31 25 / 6%);
+}
+
+html { scroll-padding-top: 84px; }
+body { text-rendering: optimizeLegibility; }
+
+/* Cross-document route change: a deliberate, low-motion dissolve in both directions. */
+@view-transition { navigation: auto; }
+.site-header { view-transition-name: none; }
+::view-transition-old(root) {
+  animation: route-fade-out .48s cubic-bezier(.4, 0, 1, 1) both;
+}
+::view-transition-new(root) {
+  animation: route-fade-in .72s var(--ease-soft) both;
+}
+@keyframes route-fade-out {
+  to { opacity: 0; }
+}
+@keyframes route-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Navigation stays legible while the page scrolls; controls get clear, brief feedback. */
+.site-header { transition-duration: .55s; }
+.site-header.is-scrolled { background: rgb(247 244 238 / 94%); }
+.main-nav a, .sign-in, .footer-column a, .text-link { transition-timing-function: var(--ease-soft); }
+.pill { box-shadow: 0 1px 0 rgb(255 255 255 / 10%) inset; }
+.pill:active, .cart-btn:active, .menu-toggle:active, .chip:active, .qty button:active {
+  transform: scale(.97);
+}
+.pill:focus-visible, .cart-btn:focus-visible, .menu-toggle:focus-visible,
+.chip:focus-visible, .text-link:focus-visible { outline-color: var(--tan); }
+.pill:disabled { transform: none; opacity: .58; cursor: wait; }
+.pill .icon, .service-arrow .icon { transition: transform .28s var(--ease-soft); }
+.pill:hover .icon, .service-row:hover .service-arrow .icon { transform: translate(2px, -1px); }
+
+/* Subtle stroke draw on action arrows keeps the existing line icon language. */
+.pill:hover .icon path, .service-row:hover .service-arrow .icon path {
+  stroke-dasharray: 28;
+  animation: arrow-draw .36s var(--ease-soft) both;
+}
+@keyframes arrow-draw { from { stroke-dashoffset: 16; } to { stroke-dashoffset: 0; } }
+
+/* Make repeated data surfaces feel related, while keeping the page mostly open. */
+.auth-card, .gate, .summary, .booking, .dash-card, .track-eta, .fp-card, .track-steps, .job, .fp-stats > div {
+  border: 1px solid rgb(20 20 18 / 5%);
+  box-shadow: 0 2px 8px rgb(35 31 25 / 2%), var(--surface-shadow);
+}
+.booking, .dash-card, .fp-card, .job, .summary, .gate, .auth-card {
+  transition: border-color .3s ease, box-shadow .35s var(--ease-soft), transform .35s var(--ease-soft);
+}
+.booking:hover, .dash-card:hover, .fp-card:hover, .job:hover {
+  border-color: rgb(169 131 88 / 18%);
+  box-shadow: 0 14px 36px rgb(35 31 25 / 8%);
+}
+.product-art, .detail-art { border-radius: 20px; }
+.product a:hover .product-art { transform: translateY(-4px); }
+.service-row { transition-duration: .42s; }
+.service-row::before { background: #25251f; }
+.service-price { font-variant-numeric: tabular-nums; }
+
+/* Forms: increase focus clarity and soften field transitions without changing input behavior. */
+.field input, .field textarea, .shop-sort select, .coupon input {
+  transition: border-color .25s ease, background-size .32s var(--ease-soft), box-shadow .25s ease;
+}
+.field input:focus, .field textarea:focus, .shop-sort select:focus, .coupon input:focus {
+  border-color: var(--tan);
+}
+.search:focus-within { border-color: var(--tan); }
+.search button { transition: background .22s ease, transform .28s var(--ease-soft), box-shadow .22s ease; }
+.search button:active { transform: scale(.94); }
+.chip { transition: background .24s ease, color .24s ease, box-shadow .24s ease, transform .24s var(--ease-soft); }
+.chip:hover { transform: translateY(-1px); }
+.steps li { transition: color .28s ease, background .28s ease, box-shadow .28s ease; }
+.steps li.is-now { box-shadow: 0 5px 16px rgb(20 20 18 / 12%); }
+.wizard { animation-duration: .42s; }
+
+/* A restrained entrance for route content in browsers without View Transitions. */
+@supports not (view-transition-name: root) {
+  #root > main { animation: page-content-in .6s var(--ease-soft) both; }
+  @keyframes page-content-in { from { opacity: 0; } to { opacity: 1; } }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .product a:hover .product-name { color: var(--tan); }
+  .cart-btn:hover { transform: translateY(-1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  .pill:active, .cart-btn:active, .menu-toggle:active, .chip:active, .qty button:active,
+  .pill:hover .icon, .service-row:hover .service-arrow .icon { transform: none; }
+  .pill:hover .icon path, .service-row:hover .service-arrow .icon path { animation: none; }
+  .booking, .dash-card, .fp-card, .job, .summary, .gate, .auth-card { transition: none; }
+}

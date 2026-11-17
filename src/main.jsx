@@ -12,6 +12,7 @@ const provider = () => import('./provider.jsx');
 import { ToastProvider } from './ui.jsx';
 import '../assets/css/redesign.css';
 import '../assets/css/pages.css';
+import '../assets/css/polish.css';
 
 /* Each PHP entry (login, shop, …) serves this same shell; the page is chosen from the URL. */
 const ROUTES = {
