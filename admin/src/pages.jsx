@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
+import { AuditInsights, BannersInsights, BookingsInsights, CouponsInsights, InboxInsights, OrdersInsights, ProductsInsights, ProsInsights, ServicesInsights, UsersInsights } from './insights.jsx';
 import { LordIcon } from './LordIcon.jsx';
 import { ICONS } from './icons.js';
 import { Badge, FormModal, Page, Table, act, money, useList, when } from './ui.jsx';
@@ -187,6 +188,7 @@ export function Bookings() {
   const pros = useList('/admin/providers').rows ?? [];
   const next = (s) => (s === 'DONE' || s === 'CANCELLED' ? [] : [FLOW[FLOW.indexOf(s) + 1], 'CANCELLED']);
   return <Page title="Bookings">
+    <BookingsInsights rows={rows} />
     <Table error={error} rows={rows} empty="No bookings match." cols={[
       { h: 'Booking', filter: true, v: (b) => b.service.name, render: (b) => <div className="cell2"><b>{b.service.name}</b><small>#{b.id}</small></div> },
       { h: 'Customer', render: (b) => <div className="cell2"><span>{b.name}</span><small>{b.phone}</small></div> },
@@ -212,6 +214,7 @@ export function Orders() {
   const { rows, error, reload } = useList('/admin/orders');
   const set = (o, s) => act(() => api(`/admin/orders/${o.id}/status`, { method: 'PATCH', body: { status: s } }), `#${o.id} → ${label(s)}`, reload);
   return <Page title="Orders">
+    <OrdersInsights rows={rows} />
     <Table error={error} rows={rows} empty="No orders match." cols={[
       { h: 'ID', render: (o) => <b>#{o.id}</b> },
       { h: 'Placed', render: (o) => when(o.createdAt) },
@@ -236,6 +239,7 @@ export function Orders() {
 export function Users({ me }) {
   const { rows, error, reload } = useList('/admin/users');
   return <Page title="Users">
+    <UsersInsights rows={rows} />
     <Table error={error} rows={rows} empty="No users match." cols={[
       { h: 'Name', render: (u) => <b>{u.name}</b> },
       { h: 'Email', render: (u) => u.email },
@@ -253,11 +257,12 @@ export function Users({ me }) {
 }
 
 /* ---------- Generic catalog CRUD ---------- */
-function Crud({ title, path, listPath = path, noun, fields, cols, idKey = 'id', createExtra }) {
+function Crud({ title, path, listPath = path, noun, fields, cols, idKey = 'id', createExtra, Analysis }) {
   const { rows, error, reload } = useList(listPath);
   const [form, setForm] = useState(null); // { row? }
   const key = (r) => r[idKey];
   return <Page title={title} actions={<button className="btn primary" onClick={() => setForm({})}>Add {noun}</button>}>
+    {Analysis && <Analysis rows={rows} />}
     <Table error={error} rows={rows} cols={[...cols, { h: '', render: (r) => <div className="row-actions">
       <button className="btn sm" onClick={() => setForm({ row: r })}>Edit</button>
       <button className="btn sm danger" onClick={() => confirm(`Delete this ${noun}?`) && act(() => api(`${path}/${key(r)}`, { method: 'DELETE' }), `${noun} deleted`, reload)}>Delete</button>
@@ -269,7 +274,7 @@ function Crud({ title, path, listPath = path, noun, fields, cols, idKey = 'id', 
 }
 
 export function Services() {
-  return <Crud title="Services" path="/admin/services" listPath="/services" noun="service"
+  return <Crud title="Services" path="/admin/services" listPath="/services" noun="service" Analysis={ServicesInsights}
     fields={[
       { key: 'name', label: 'Name', type: 'text' }, { key: 'category', label: 'Category', type: 'text' },
       { key: 'description', label: 'Description', type: 'textarea' },
@@ -288,7 +293,7 @@ export function Providers() {
   const { rows, reload } = useList('/admin/providers');
   const [link, setLink] = useState(null); // { provider }
   return <>
-    <Crud title="Pros" path="/admin/providers" noun="pro"
+    <Crud title="Pros" path="/admin/providers" noun="pro" Analysis={ProsInsights}
       createExtra={{ verified: true, years: 1, response: '30 min' }}
       fields={[
         { key: 'name', label: 'Name', type: 'text' }, { key: 'years', label: 'Years of experience', type: 'number' },
@@ -314,7 +319,7 @@ export function Providers() {
 }
 
 export function Products() {
-  return <Crud title="Products" path="/admin/products" listPath="/products" noun="product"
+  return <Crud title="Products" path="/admin/products" listPath="/products" noun="product" Analysis={ProductsInsights}
     fields={[
       { key: 'name', label: 'Name', type: 'text' }, { key: 'seller', label: 'Seller', type: 'text' }, { key: 'category', label: 'Category', type: 'text' },
       { key: 'price', label: 'Price (₹)', type: 'number' }, { key: 'oldPrice', label: 'Old price (₹)', type: 'number' },
@@ -331,6 +336,7 @@ export function Coupons() {
   const { rows, error, reload } = useList('/admin/coupons');
   const [form, setForm] = useState(null);
   return <Page title="Coupons" actions={<button className="btn primary" onClick={() => setForm({})}>Add coupon</button>}>
+    <CouponsInsights rows={rows} />
     <Table error={error} rows={rows} cols={[
       { h: 'Code', render: (c) => <b>{c.code}</b> }, { h: 'Discount', render: (c) => `${c.percent}%` },
       { h: 'Status', filter: true, v: (c) => (c.active ? 'active' : 'inactive'), render: (c) => <Badge v={c.active ? 'DONE' : 'CANCELLED'} text={c.active ? 'active' : 'inactive'} /> },
@@ -355,6 +361,7 @@ export function Banners() {
   const { rows, error, reload } = useList('/admin/banners');
   const [form, setForm] = useState(null);
   return <Page title="Banners" actions={<button className="btn primary" onClick={() => setForm({})}>Add banner</button>}>
+    <BannersInsights rows={rows} />
     <Table error={error} rows={rows} empty="No banners yet." cols={[
       { h: 'Order', render: (b) => b.sort },
       { h: 'Banner', render: (b) => <><span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: 4, background: b.color, marginRight: 8 }} /><b>{b.title}</b><br /><small>{b.subtitle}</small></> },
@@ -429,6 +436,7 @@ const auditActionLabel = (action) => AUDIT_ACTION_LABELS[action]
 export function AuditLog() {
   const { rows, error } = useList('/admin/audit-log');
   return <Page title="Audit log">
+    <AuditInsights rows={rows} labelOf={auditActionLabel} />
     <Table error={error} rows={rows} empty="No admin activity yet." cols={[
       { h: 'When', render: (a) => when(a.createdAt) },
       { h: 'Admin', render: (a) => a.actorEmail },
@@ -443,6 +451,7 @@ export function Inbox() {
   const msgs = useList('/admin/messages');
   const reviews = useList('/admin/reviews');
   return <Page title="Inbox">
+    <InboxInsights messages={msgs.rows} reviews={reviews.rows} />
     <h2 className="subsection-title">Contact messages</h2>
     <Table error={msgs.error} rows={msgs.rows} empty="No messages." cols={[
       { h: 'Received', render: (m) => when(m.createdAt) }, { h: 'From', render: (m) => <>{m.name}<br /><small>{m.email}</small></> },
