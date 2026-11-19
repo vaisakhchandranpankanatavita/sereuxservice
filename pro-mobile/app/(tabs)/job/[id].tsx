@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Linking, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { api } from '../../src/api';
-import { Chat } from '../../src/chat';
-import { LiveMap } from '../../src/map';
-import { Badge, Button, Card, Field, Row, Status, Screen, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
+import { api } from '../../../src/api';
+import { Chat } from '../../../src/chat';
+import { LiveMap } from '../../../src/map';
+import { Badge, Button, Card, Field, Row, Status, Screen, Money, Txt, dayLabel, useFetch, useTheme } from '../../../src/ui';
 
 function ReleaseJob({ id, onDone }: { id: string; onDone: () => void }) {
   const [open, setOpen] = useState(false);
@@ -86,7 +86,7 @@ export default function Job() {
       <Txt size={15}>{b.phone}</Txt>
       <Txt muted size={14}>{b.address}</Txt>
       {!!b.notes && <Txt muted size={14} style={{ fontStyle: 'italic', marginTop: 4 }}>“{b.notes}”</Txt>}
-      <View style={{ marginTop: 8 }}><Row between><Txt muted>Estimate</Txt><Txt bold size={17} color={t.accent}>{money(b.estimate)}</Txt></Row></View>
+      <View style={{ marginTop: 8 }}><Row between><Txt muted>Estimate</Txt><Money amount={b.estimate} size={17} /></Row></View>
     </Card>
 
     <Card>

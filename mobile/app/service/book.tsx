@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api';
 import CouponBox, { type AppliedCoupon } from '../../src/CouponBox';
 import { useAddresses } from '../../src/addresses';
+import { usePlaceSuggestions, type Place } from '../../src/places';
 import { useSession } from '../../src/session';
 import { Avatar, Banner, Button, Card, Chip, FadeIn, Field, Row, Screen, Skeleton, Status, Tap, Txt, dayLabel, font, money, useFetch, useTheme } from '../../src/ui';
 
@@ -56,6 +57,9 @@ export default function Book() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [locBusy, setLocBusy] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [suggest, setSuggest] = useState(false);
+  const { results: places, loading: placesLoading } = usePlaceSuggestions(f.address, suggest);
   const { list: addrs, add: saveAddr, remove: removeAddr } = useAddresses();
   const [saving, setSaving] = useState<{ open: boolean; label: string }>({ open: false, label: '' });
   useEffect(() => setSlot(''), [day]);
@@ -68,10 +72,14 @@ export default function Book() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const [place] = await Location.reverseGeocodeAsync({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       const addr = [place?.name, place?.street, place?.district, place?.city, place?.region, place?.postalCode].filter(Boolean).join(', ');
-      if (addr) setF((p) => ({ ...p, address: addr })); else setErr('Could not determine your address from your location.');
+      if (addr) { setF((p) => ({ ...p, address: addr })); setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setSuggest(false); } else setErr('Could not determine your address from your location.');
     } catch { setErr('Could not get your location. Check location is enabled and try again.'); }
     finally { setLocBusy(false); }
   };
+
+  const typeAddress = (v: string) => { setF((p) => ({ ...p, address: v })); setCoords(null); setSuggest(true); };
+  const pickPlace = (pl: Place) => { setF((p) => ({ ...p, address: pl.label })); setCoords({ lat: pl.lat, lng: pl.lng }); setSuggest(false); };
+  const pickSaved = (a: { address: string; lat?: number; lng?: number }) => { setF((p) => ({ ...p, address: a.address })); setCoords(a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null); setSuggest(false); };
 
   const pro = svc.data?.providers.find((p: any) => String(p.id) === providerId);
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
@@ -90,7 +98,7 @@ export default function Book() {
   const submit = async () => {
     setBusy(true); setErr('');
     try {
-      const b = await api('/bookings', 'POST', { serviceId: Number(serviceId), ...(providerId ? { providerId: Number(providerId) } : {}), day, slot, name: f.name.trim(), phone: f.phone, address: f.address.trim(), ...(f.notes.trim() ? { notes: f.notes.trim() } : {}), ...(coupon ? { coupon: coupon.code } : {}) });
+      const b = await api('/bookings', 'POST', { serviceId: Number(serviceId), ...(providerId ? { providerId: Number(providerId) } : {}), day, slot, name: f.name.trim(), phone: f.phone, address: f.address.trim(), ...(coords ? { lat: coords.lat, lng: coords.lng } : {}), ...(f.notes.trim() ? { notes: f.notes.trim() } : {}), ...(coupon ? { coupon: coupon.code } : {}) });
       router.replace(`/booking/${b.id}`);
     } catch (e: any) { setErr(e.message); setBusy(false); if (e.status === 409) avail.reload(); }
   };
@@ -154,7 +162,7 @@ export default function Book() {
       {addrs.length > 0 && <View style={{ gap: 4 }}>
         <Txt bold size={13}>Saved addresses</Txt>
         {addrs.map((a) => <Row key={a.id} between>
-          <Pressable onPress={() => set('address')(a.address)} accessibilityRole="button" style={{ flex: 1 }}>
+          <Pressable onPress={() => pickSaved(a)} accessibilityRole="button" style={{ flex: 1 }}>
             <Txt bold size={13}>{a.label}</Txt>
             <Txt muted size={12} numberOfLines={1}>{a.address}</Txt>
           </Pressable>
@@ -163,14 +171,26 @@ export default function Book() {
           </Pressable>
         </Row>)}
       </View>}
-      <Field onCard label="Service address" value={f.address} onChangeText={set('address')} multiline autoComplete="street-address" />
+      <Field onCard label="Service address" value={f.address} onChangeText={typeAddress} multiline autoComplete="street-address" placeholder="Start typing to search, e.g. MG Road, Kochi" />
+      {suggest && (placesLoading || places.length > 0) && <View style={{ backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: t.line, overflow: 'hidden' }} accessibilityLabel="Address suggestions">
+        {placesLoading && !places.length && <Txt muted size={13} style={{ padding: 12 }}>Searching…</Txt>}
+        {places.map((pl, i) => <Pressable key={`${pl.lat},${pl.lng},${i}`} onPress={() => pickPlace(pl)} accessibilityRole="button" accessibilityLabel={`Use ${pl.label}`}
+          style={{ flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11, borderTopWidth: i ? 1 : 0, borderColor: t.line }}>
+          <Ionicons name="location-outline" size={18} color={t.ink} />
+          <Txt size={14} numberOfLines={2} style={{ flex: 1 }}>{pl.label}</Txt>
+        </Pressable>)}
+        <Txt muted size={10} style={{ padding: 8, textAlign: 'right' }}>© OpenStreetMap contributors</Txt>
+      </View>}
+      {!!f.address.trim() && !suggest && (coords
+        ? <Row style={{ gap: 6 }}><Ionicons name="checkmark-circle" size={16} color={t.green} /><Txt size={13} color={t.body}>Location pinned — your pro will see it on the map.</Txt></Row>
+        : <Txt size={13} color={t.body}>Tip: pick a suggestion so your pro can find you on the map.</Txt>)}
       {!!f.address.trim() && !saving.open && <Pressable onPress={() => setSaving({ open: true, label: '' })} hitSlop={8} style={{ alignSelf: 'flex-start' }}>
         <Txt size={14} bold>Save this address for later</Txt>
       </Pressable>}
       {saving.open && <Card tint="#fff" style={{ padding: 14, gap: 10 }}>
         <Field onCard label="Label (e.g. Home, Work)" value={saving.label} onChangeText={(label) => setSaving((s) => ({ ...s, label }))} />
         <Row>
-          <Button title="Save" style={{ flex: 1 }} disabled={!saving.label.trim()} onPress={() => { saveAddr({ label: saving.label.trim(), name: f.name, phone: f.phone, address: f.address.trim() }); setSaving({ open: false, label: '' }); }} />
+          <Button title="Save" style={{ flex: 1 }} disabled={!saving.label.trim()} onPress={() => { saveAddr({ label: saving.label.trim(), name: f.name, phone: f.phone, address: f.address.trim(), ...(coords ? { lat: coords.lat, lng: coords.lng } : {}) }); setSaving({ open: false, label: '' }); }} />
           <Button title="Cancel" kind="ghost" style={{ flex: 1 }} onPress={() => setSaving({ open: false, label: '' })} />
         </Row>
       </Card>}

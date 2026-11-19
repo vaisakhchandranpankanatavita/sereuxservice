@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-export type SavedAddress = { id: string; label: string; name?: string; phone?: string; address: string; city?: string; pin?: string };
+export type SavedAddress = { id: string; label: string; name?: string; phone?: string; address: string; city?: string; pin?: string; lat?: number; lng?: number };
 
 const KEY = 'fixzy_addresses';
 /* SecureStore has no web implementation; fall back to localStorage there (mirrors api.ts). */

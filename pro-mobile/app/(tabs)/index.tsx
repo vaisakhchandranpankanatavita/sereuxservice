@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { api } from '../../src/api';
-import { Badge, Button, Card, Row, Screen, Status, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
+import { Badge, Button, Card, Row, Screen, Status, Txt, Money, OnlineSwitch, dayLabel, setOnlineFlag, useFetch, useTheme } from '../../src/ui';
 
 export default function Requests() {
   const t = useTheme();
   const me = useFetch<any>('/pro/me');
+  useEffect(() => { if (me.data) setOnlineFlag(!!me.data.online); }, [me.data]);
   const reqs = useFetch<any[]>('/pro/requests', 15000);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState('');
@@ -17,7 +18,10 @@ export default function Requests() {
     finally { setBusy(null); }
   };
 
-  const toggleOnline = async (v: boolean) => { await api('/pro/online', 'PATCH', { online: v }); me.reload(); };
+  const toggleOnline = async (v: boolean) => {
+    try { await api('/pro/online', 'PATCH', { online: v }); setOnlineFlag(v); me.reload(); }
+    catch (e: any) { setErr(e.message); }
+  };
 
   return <Screen refresh={reqs.refresh} refreshing={reqs.refreshing}>
     <Row between>
@@ -25,7 +29,7 @@ export default function Requests() {
         <Txt bold size={26}>Requests</Txt>
         <Txt muted>{me.data?.online ? 'You’re visible to customers nearby.' : 'You’re offline right now.'}</Txt>
       </View>
-      <Button title={me.data?.online ? 'Go offline' : 'Go online'} kind={me.data?.online ? 'ghost' : 'primary'} onPress={() => toggleOnline(!me.data?.online)} />
+      <OnlineSwitch on={!!me.data?.online} onToggle={() => toggleOnline(!me.data?.online)} busy={!me.data} />
     </Row>
 
     {!!err && <Txt color={t.bad}>{err}</Txt>}
@@ -37,7 +41,7 @@ export default function Requests() {
         <Card key={r.id}>
           <Row between>
             <View style={{ flex: 1 }}><Txt bold size={18}>{r.service?.name}</Txt><Txt muted size={14}>{dayLabel(r.day)} · {r.slot}</Txt></View>
-            <Txt bold size={18} color={t.accent}>{money(r.estimate)}</Txt>
+            <Money amount={r.estimate} size={18} />
           </Row>
           <Txt size={15}>{r.name} · {r.phone}</Txt>
           <Txt muted size={14}>{r.address}</Txt>

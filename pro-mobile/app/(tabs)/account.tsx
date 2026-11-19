@@ -1,19 +1,24 @@
-import { useState } from 'react';
-import { View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
 import { api } from '../../src/api';
 import { useSession } from '../../src/session';
-import { Avatar, Button, Card, Field, Row, Screen, Status, Stars, Txt, money, useFetch, useTheme } from '../../src/ui';
+import { Avatar, Button, Card, Field, Row, Screen, Status, Stars, Txt, Money, OnlineSwitch, PulseDot, font, money, setOnlineFlag, useFetch, useTheme, R } from '../../src/ui';
 
-function Bar({ amount, max, label: l }: { amount: number; max: number; label: string }) {
-  const t = useTheme();
-  const h = Math.max(4, max > 0 ? Math.round((amount / max) * 54) : 4);
-  return <View style={{ alignItems: 'center', gap: 4, width: 20 }}>
-    <View style={{ height: 54, justifyContent: 'flex-end' }}>
-      <View style={{ height: h, width: 14, borderRadius: 4, backgroundColor: amount > 0 ? t.accent : t.line }} />
-    </View>
-    <Txt muted size={9}>{l}</Txt>
+/* Shared building blocks: a big-number tile and a card with a clear heading. */
+function Tile({ label: l, value, amount, sub, bg, fg, sub2 }: { label: string; value?: string; amount?: number; sub?: string; bg: string; fg: string; sub2?: string }) {
+  return <View style={{ flexGrow: 1, flexBasis: 150, minWidth: 140, backgroundColor: bg, borderRadius: R.md, padding: 16, gap: 2 }}>
+    <Text style={{ color: sub2 ?? fg, opacity: 0.75, fontFamily: font.medium, fontSize: 13 }}>{l}</Text>
+    {amount != null
+      ? <Money amount={amount} size={30} dark={fg === '#f9f5f2'} style={{ marginTop: 2, paddingVertical: 3 }} />
+      : <Text style={{ color: fg, fontFamily: font.heavy, fontSize: 30, letterSpacing: -1 }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>}
+    {!!sub && <Text style={{ color: fg, opacity: 0.7, fontFamily: font.regular, fontSize: 12 }}>{sub}</Text>}
   </View>;
 }
+const Section = ({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) =>
+  <Card style={{ gap: 14, padding: 18 }}>
+    <View><Txt bold size={18}>{title}</Txt>{!!hint && <Txt muted size={13}>{hint}</Txt>}</View>
+    {children}
+  </Card>;
 
 function Earnings() {
   const t = useTheme();
@@ -21,23 +26,33 @@ function Earnings() {
   if (!e.data) return <Status error={e.error} loading={!e.error} />;
   const d = e.data;
   const max = Math.max(1, ...d.daily.map((x: any) => x.amount));
-  return <Card>
-    <Txt bold size={16}>Earnings</Txt>
-    <Row between>
-      <View><Txt muted size={12}>Today</Txt><Txt bold size={17}>{money(d.today)}</Txt></View>
-      <View><Txt muted size={12}>This week</Txt><Txt bold size={17}>{money(d.week)}</Txt></View>
-      <View><Txt muted size={12}>This month</Txt><Txt bold size={17} color={t.accent}>{money(d.month)}</Txt></View>
-    </Row>
-    <Row between>
-      <View style={{ flexDirection: 'row', gap: 4, marginTop: 10 }}>
-        {d.daily.map((x: any) => <Bar key={x.day} amount={x.amount} max={max} label={new Date(x.day + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric' })} />)}
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const best = d.daily.reduce((m: any, x: any) => (x.amount > (m?.amount ?? 0) ? x : m), null);
+  return <Section title="Earnings" hint={`Net of ${d.commissionPercent}% platform commission`}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      <Tile label="Today" amount={d.today} bg={t.okBg} fg={t.ok} />
+      <Tile label="This week" amount={d.week} bg={t.infoBg} fg={t.ink} />
+      <Tile label="This month" amount={d.month} bg={t.ink} fg={t.brandInk} />
+    </View>
+    <View>
+      <Row between><Txt bold size={14}>Last {d.daily.length} days</Txt>{best && <Txt muted size={12}>Best day: <Money amount={best.amount} size={12} /></Txt>}</Row>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 150, marginTop: 10 }}>
+        {d.daily.map((x: any) => {
+          const h = Math.max(6, Math.round((x.amount / max) * 100));
+          const isToday = x.day === todayIso;
+          return <View key={x.day} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4, height: '100%' }}>
+            <Text style={{ color: t.body, fontFamily: font.bold, fontSize: 10 }} numberOfLines={1}>{x.amount > 0 ? money(x.amount) : ''}</Text>
+            <View style={{ width: '70%', maxWidth: 34, height: h, borderRadius: 8, backgroundColor: x.amount === 0 ? t.line : isToday ? t.ok : t.accent }} />
+            <Text style={{ color: isToday ? t.ink : t.muted, fontFamily: isToday ? font.bold : font.regular, fontSize: 11 }}>{new Date(x.day + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric' })}</Text>
+          </View>;
+        })}
       </View>
-    </Row>
-    <Row between><Txt muted>Lifetime earned</Txt><Txt bold>{money(d.lifetime)}</Txt></Row>
-    <Row between><Txt muted>Jobs completed</Txt><Txt bold>{d.jobs}</Txt></Row>
-    <Row between><Txt muted>Upcoming jobs</Txt><Txt bold>{d.upcoming}</Txt></Row>
-    <Txt muted size={11}>Net of {d.commissionPercent}% platform commission.</Txt>
-  </Card>;
+    </View>
+    <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+      <Row><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.accent }} /><Txt muted size={12}>Earned</Txt></Row>
+      <Row><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.ok }} /><Txt muted size={12}>Today</Txt></Row>
+    </View>
+  </Section>;
 }
 
 function Payouts() {
@@ -45,17 +60,24 @@ function Payouts() {
   const e = useFetch<any>('/pro/earnings');
   const h = useFetch<any>('/pro/payouts');
   if (!e.data) return null;
-  return <Card>
-    <Txt bold size={16}>Payouts</Txt>
-    <Row between><Txt muted>Paid out so far</Txt><Txt bold size={17}>{money(e.data.paidOut)}</Txt></Row>
-    <Row between><Txt muted>Balance due</Txt><Txt bold size={17} color={t.accent}>{money(e.data.balanceDue)}</Txt></Row>
-    {!!h.data?.length && <View style={{ marginTop: 8, gap: 6 }}>
-      {h.data.slice(0, 5).map((p: any) => <Row key={p.id} between>
-        <Txt size={13} muted>{new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{p.note ? ` · ${p.note}` : ''}</Txt>
-        <Txt size={13} bold>{money(p.amount)}</Txt>
+  const paid = e.data.paidOut || 0, due = e.data.balanceDue || 0, total = Math.max(1, paid + due);
+  return <Section title="Payouts" hint="What we've paid you and what's still owed">
+    <View style={{ flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden', backgroundColor: t.line }}>
+      <View style={{ flex: paid, backgroundColor: t.ok }} /><View style={{ flex: due, backgroundColor: t.accent }} />
+      {paid + due === 0 && <View style={{ flex: 1 }} />}
+    </View>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      <Tile label="Paid out" amount={paid} sub={`${Math.round((paid / total) * 100)}% of earnings`} bg={t.okBg} fg={t.ok} />
+      <Tile label="Balance due" amount={due} sub="Waiting to be paid" bg={t.warnBg} fg={t.warn} />
+    </View>
+    {!!h.data?.length && <View style={{ gap: 2 }}>
+      <Txt bold size={14}>Recent payouts</Txt>
+      {h.data.slice(0, 5).map((x: any) => <Row key={x.id} between>
+        <View style={{ paddingVertical: 8 }}><Txt size={14}>{new Date(x.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Txt>{!!x.note && <Txt muted size={12}>{x.note}</Txt>}</View>
+        <Money amount={x.amount} size={16} />
       </Row>)}
     </View>}
-  </Card>;
+  </Section>;
 }
 
 function ProfileEdit({ p, onSaved }: { p: any; onSaved: () => void }) {
@@ -97,34 +119,59 @@ export default function Account() {
   const t = useTheme();
   const { user, logout } = useSession();
   const me = useFetch<any>('/pro/me');
+  useEffect(() => { if (me.data) setOnlineFlag(!!me.data.online); }, [me.data]);
 
-  const toggleOnline = async (v: boolean) => { await api('/pro/online', 'PATCH', { online: v }); me.reload(); };
+  const [err, setErr] = useState('');
+  const toggleOnline = async (v: boolean) => {
+    setErr('');
+    try { await api('/pro/online', 'PATCH', { online: v }); setOnlineFlag(v); me.reload(); }
+    catch (e: any) { setErr(e.message); }
+  };
 
-  if (!me.data) return <Screen><Status error={me.error} loading={!me.error} /></Screen>;
+  if (!me.data) return <Screen>
+    <Status error={me.error} loading={!me.error} />
+    {!!me.error && <>
+      <Card>
+        <Txt muted size={13} style={{ textTransform: 'uppercase', letterSpacing: 1 }}>Signed in as</Txt>
+        <Txt bold size={16}>{user?.name}</Txt>
+        <Txt muted size={14}>{user?.email}</Txt>
+      </Card>
+      <Button title="Sign out" kind="danger" onPress={logout} />
+    </>}
+  </Screen>;
   const p = me.data;
 
   return <Screen refresh={me.refresh} refreshing={me.refreshing}>
-    <Row>
-      <Avatar name={p.name} size={60} />
-      <View style={{ flex: 1 }}>
-        <Txt bold size={22}>{p.name}{p.verified ? '  ✓' : ''}</Txt>
-        <Txt muted size={14}>{p.years} yrs experience · responds in {p.response}</Txt>
-      </View>
-    </Row>
-
-    <Card>
-      <Row between>
-        <Txt bold size={16}>{p.online ? 'You’re online' : 'You’re offline'}</Txt>
-        <Button title={p.online ? 'Go offline' : 'Go online'} kind={p.online ? 'ghost' : 'primary'} onPress={() => toggleOnline(!p.online)} />
+    <Card style={{ padding: 18, gap: 14 }}>
+      <Row>
+        <Avatar name={p.name} size={64} />
+        <View style={{ flex: 1 }}>
+          <Txt bold size={24} numberOfLines={1}>{p.name}</Txt>
+          <Row>
+            {p.verified && <View style={{ backgroundColor: t.okBg, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2 }}><Txt bold size={12} color={t.ok}>✓ Verified</Txt></View>}
+            <Txt muted size={14}>{p.years} yrs experience</Txt>
+          </Row>
+        </View>
       </Row>
-      <Txt muted size={14}>{p.online ? 'Visible to customers nearby and receiving requests.' : 'Go online to start receiving requests.'}</Txt>
+      <View style={{ backgroundColor: p.online ? t.okBg : t.idleBg, borderRadius: R.md, padding: 14, gap: 10 }}>
+        <Row between>
+          <Row>
+            <PulseDot on={!!p.online} />
+            <Txt bold size={17} color={p.online ? t.ok : t.ink}>{p.online ? 'You’re online' : 'You’re offline'}</Txt>
+          </Row>
+          <OnlineSwitch on={!!p.online} onToggle={() => toggleOnline(!p.online)} />
+        </Row>
+        <Txt muted size={13}>{p.online ? 'Visible to customers nearby and receiving requests.' : 'Go online to start receiving requests.'}</Txt>
+        {!!err && <Txt color={t.bad}>{err}</Txt>}
+      </View>
     </Card>
 
-    <Card>
-      <Row between><Txt muted>Jobs completed</Txt><Txt bold size={17}>{p.done}</Txt></Row>
-      <Row between><Txt muted>Total earned</Txt><Txt bold size={17} color={t.accent}>{money(p.earned)}</Txt></Row>
-      <Row between><Txt muted>Rating</Txt>{p.rating != null ? <Stars value={Math.round(p.rating)} /> : <Txt muted>No ratings yet</Txt>}</Row>
-    </Card>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+      <Tile label="Total earned" amount={p.earned} bg={t.ink} fg={t.brandInk} />
+      <Tile label="Jobs completed" value={String(p.done)} bg={t.infoBg} fg={t.ink} />
+      <Tile label="Rating" value={p.rating != null ? `${Number(p.rating).toFixed(1)} ★` : '—'} sub={p.rating != null ? 'Average from customers' : 'No ratings yet'} bg={t.warnBg} fg={t.warn} />
+      <Tile label="Replies in" value={String(p.response)} bg={t.okBg} fg={t.ok} />
+    </View>
 
     <Earnings />
     <Payouts />
