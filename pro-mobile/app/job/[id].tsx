@@ -3,6 +3,7 @@ import { Linking, View } from 'react-native';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api';
+import { Chat } from '../../src/chat';
 import { LiveMap } from '../../src/map';
 import { Badge, Button, Card, Field, Row, Status, Screen, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 
@@ -86,6 +87,11 @@ export default function Job() {
       <Txt muted size={14}>{b.address}</Txt>
       {!!b.notes && <Txt muted size={14} style={{ fontStyle: 'italic', marginTop: 4 }}>“{b.notes}”</Txt>}
       <View style={{ marginTop: 8 }}><Row between><Txt muted>Estimate</Txt><Txt bold size={17} color={t.accent}>{money(b.estimate)}</Txt></Row></View>
+    </Card>
+
+    <Card>
+      <Txt bold size={16}>Chat with {b.name.split(' ')[0]}</Txt>
+      <Chat bookingId={b.id} canSend={b.status !== 'DONE' && b.status !== 'CANCELLED'} />
     </Card>
 
     <Button title="Navigate" onPress={navigate} />

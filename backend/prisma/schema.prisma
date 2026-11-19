@@ -60,6 +60,7 @@ model User {
   resetTokens   PasswordResetToken[]
   provider      Provider?
   pushTokens    PushToken[]
+  chatMessages  ChatMessage[]
 }
 
 model RefreshToken {
@@ -184,6 +185,7 @@ model Booking {
   provider Provider? @relation(fields: [providerId], references: [id])
   review   Review?
   payment  Payment?
+  chat     ChatMessage[]
 
   @@index([userId, createdAt])
   @@index([providerId, day, slot])
@@ -313,4 +315,17 @@ model Banner {
   sort       Int      @default(0)
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  bookingId String
+  senderId  String
+  text      String
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender  User    @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
 }

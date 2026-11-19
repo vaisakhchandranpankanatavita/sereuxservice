@@ -6,6 +6,7 @@ import PageHeader, { PageSpace } from '../../src/PageHeader';
 import { api } from '../../src/api';
 import { usePayment } from '../../src/payment';
 import { useSession } from '../../src/session';
+import { Chat } from '../../src/chat';
 import { LiveMap } from '../../src/map';
 import { Timeline, type Step } from '../../src/timeline';
 import { Avatar, Badge, Banner, Button, Card, Chip, Field, RoundBtn, Screen, Skeleton, Stars, Status, Tap, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
@@ -168,6 +169,11 @@ ${b.address}` }).catch(() => {});
         <Txt bold size={24} style={{ marginBottom: 6 }}>Where things stand</Txt>
         <Timeline steps={STEPS} current={step} play />
         {live && <LiveMap home={{ lat: b.lat, lng: b.lng }} pro={{ lat: b.provider.lat, lng: b.provider.lng }} label={b.status === 'IN_PROGRESS' ? `${b.provider.name} is on the job` : `${b.provider.name} is on the way`} />}
+      </View>}
+
+      {!!b.provider && b.status !== 'REQUESTED' && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 12 }}>
+        <Txt bold size={24}>Chat with {b.provider.name.split(' ')[0]}</Txt>
+        <Chat bookingId={b.id} canSend={open} />
       </View>}
 
       {canTrack && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 12 }}>
