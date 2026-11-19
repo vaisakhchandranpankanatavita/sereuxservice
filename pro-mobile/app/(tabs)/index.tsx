@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../src/api';
-import { Badge, Button, Card, Row, Screen, Status, Txt, Money, OnlineSwitch, dayLabel, setOnlineFlag, useFetch, useTheme } from '../../src/ui';
+import { Button, Card, OnlineSwitch, PageTitle, R, Screen, Status, Txt, Money, dayLabel, font, mono, setOnlineFlag, useFetch, useTheme } from '../../src/ui';
+
+/* One labelled fact row: a quiet icon, then the value. Keeps cards scannable without bordered sub-boxes. */
+function Fact({ icon, children }: { icon: keyof typeof Ionicons.glyphMap; children: string }) {
+  const t = useTheme();
+  return <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+    <Ionicons name={icon} size={18} color={t.muted} style={{ marginTop: 1 }} />
+    <Text style={{ flex: 1, color: t.body, fontFamily: font.regular, fontSize: 15, lineHeight: 21 }}>{children}</Text>
+  </View>;
+}
 
 export default function Requests() {
   const t = useTheme();
@@ -23,33 +33,44 @@ export default function Requests() {
     catch (e: any) { setErr(e.message); }
   };
 
+  const online = !!me.data?.online;
+  const count = reqs.data?.length ?? 0;
+
   return <Screen refresh={reqs.refresh} refreshing={reqs.refreshing}>
-    <Row between>
-      <View>
-        <Txt bold size={26}>Requests</Txt>
-        <Txt muted>{me.data?.online ? 'You’re visible to customers nearby.' : 'You’re offline right now.'}</Txt>
-      </View>
-      <OnlineSwitch on={!!me.data?.online} onToggle={() => toggleOnline(!me.data?.online)} busy={!me.data} />
-    </Row>
+    <PageTitle title="Requests"
+      sub={!me.data ? ' ' : online ? (count ? `${count} nearby, nearest first` : 'You’re visible to customers nearby.') : 'You’re offline right now.'}
+      right={<OnlineSwitch on={online} onToggle={() => toggleOnline(!online)} busy={!me.data} />} />
 
-    {!!err && <Txt color={t.bad}>{err}</Txt>}
+    {err ? <Txt color={t.bad}>{err}</Txt> : null}
 
-    {!me.data?.online ? <Status empty="Go online to start receiving new service requests." /> :
+    {!online ? <Status empty="Go online to start receiving new service requests." /> :
       !reqs.data ? <Status error={reqs.error} loading={!reqs.error} /> :
-      reqs.data.length === 0 ? <Status empty="No requests right now. We’ll alert you when someone nearby needs help." /> :
+      count === 0 ? <Status empty="No requests right now. We’ll alert you when someone nearby needs help." /> :
       reqs.data.map((r) => (
-        <Card key={r.id}>
-          <Row between>
-            <View style={{ flex: 1 }}><Txt bold size={18}>{r.service?.name}</Txt><Txt muted size={14}>{dayLabel(r.day)} · {r.slot}</Txt></View>
-            <Money amount={r.estimate} size={18} />
-          </Row>
-          <Txt size={15}>{r.name} · {r.phone}</Txt>
-          <Txt muted size={14}>{r.address}</Txt>
-          {!!r.notes && <Txt muted size={14} style={{ fontStyle: 'italic' }}>“{r.notes}”</Txt>}
-          <View style={{ marginTop: 6 }}><Row>
-            <Button title="Accept" onPress={() => act(r.id, 'accept')} busy={busy === r.id} style={{ flex: 1 }} />
+        <Card key={r.id} style={{ gap: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={{ color: t.ink, fontFamily: font.semibold, fontSize: 20, letterSpacing: -0.4 }} numberOfLines={2}>{r.service?.name}</Text>
+              <Text style={mono(13, { color: t.muted })}>{dayLabel(r.day)} · {r.slot}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 2 }}>
+              <Money amount={r.estimate} size={22} style={{ alignSelf: 'flex-end' }} />
+              <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 12 }}>estimate</Text>
+            </View>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: t.line }} />
+
+          <View style={{ gap: 10 }}>
+            <Fact icon="person-outline">{[r.name, r.phone].filter(Boolean).join(' · ')}</Fact>
+            <Fact icon="location-outline">{r.address}</Fact>
+          </View>
+          {r.notes ? <Text style={{ color: t.body, fontFamily: font.regular, fontSize: 14, lineHeight: 20, backgroundColor: t.surface, borderRadius: R.sm, padding: 12 }}>“{r.notes}”</Text> : null}
+
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button title="Accept" onPress={() => act(r.id, 'accept')} busy={busy === r.id} style={{ flex: 1.4 }} />
             <Button title="Decline" kind="ghost" onPress={() => act(r.id, 'decline')} disabled={busy === r.id} style={{ flex: 1 }} />
-          </Row></View>
+          </View>
         </Card>
       ))}
   </Screen>;

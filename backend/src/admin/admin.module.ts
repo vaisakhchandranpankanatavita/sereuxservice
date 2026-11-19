@@ -44,6 +44,11 @@ class PatchProviderDto {
   @IsOptional() @IsInt() @Min(0) @Max(100) commissionPercent?: number;
 }
 
+class KycDecisionDto {
+  @IsIn(['APPROVED', 'REJECTED']) decision: 'APPROVED' | 'REJECTED';
+  @IsOptional() @IsString() @MaxLength(300) note?: string;
+}
+
 class RecordPayoutDto {
   @IsInt() providerId: number;
   @IsInt() @Min(1) amount: number;
@@ -251,6 +256,36 @@ class AdminService {
     await this.must(this.prisma.service.findUnique({ where: { id } }));
     await this.prisma.service.delete({ where: { id } });
     await this.audit(me, 'service.delete', `service:${id}`);
+  }
+
+  /* KYC queue: pros waiting for review first. The document image is only returned for a single pro. */
+  listKyc() {
+    return this.prisma.provider.findMany({
+      where: { kycStatus: { not: 'NOT_SUBMITTED' } },
+      orderBy: { id: 'asc' },
+      select: { id: true, name: true, kycStatus: true, kycNote: true, kyc: { select: { docType: true, docNumber: true, submittedAt: true } }, user: { select: { email: true, phone: true } } },
+    }).then((rows) => rows.sort((a, b) => Number(b.kycStatus === 'PENDING') - Number(a.kycStatus === 'PENDING')));
+  }
+  async kycDocument(id: number) {
+    const k = await this.must(this.prisma.providerKyc.findUnique({ where: { providerId: id }, select: { docImage: true } }));
+    return { image: k.docImage };
+  }
+  async decideKyc(me: AuthUser, id: number, dto: KycDecisionDto) {
+    const p = await this.must(this.prisma.provider.findUnique({ where: { id } }));
+    if (p.kycStatus !== 'PENDING') throw new BadRequestException('That pro has no pending verification.');
+    if (dto.decision === 'REJECTED' && !dto.note?.trim()) throw new BadRequestException('Tell the pro what to fix.');
+    const out = await this.prisma.provider.update({
+      where: { id },
+      data: { kycStatus: dto.decision, kycNote: dto.note?.trim() || null, verified: dto.decision === 'APPROVED', ...(dto.decision === 'REJECTED' && { online: false }) },
+      select: { id: true, name: true, kycStatus: true, kycNote: true },
+    });
+    await this.audit(me, `kyc.${dto.decision.toLowerCase()}`, `provider:${id}`, { note: dto.note });
+    if (p.userId) {
+      const text = dto.decision === 'APPROVED' ? 'You are verified. Go online to start taking jobs.' : `Verification needs attention: ${dto.note}`;
+      await this.prisma.notification.create({ data: { userId: p.userId, text } });
+      await this.push.send(p.userId, text, 'Fixzy Pro').catch(() => {});
+    }
+    return out;
   }
 
   listProviders() { return this.prisma.provider.findMany({ orderBy: { id: 'asc' }, include: { services: { select: { id: true, name: true } }, _count: { select: { bookings: true } } } }); }
@@ -474,6 +509,10 @@ class AdminController {
   @Post('services') createService(@CurrentUser() me: AuthUser, @Body() dto: ServiceDto) { return this.svc.createService(me, dto); }
   @Patch('services/:id') updateService(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchServiceDto) { return this.svc.updateService(me, id, dto); }
   @Delete('services/:id') @HttpCode(204) deleteService(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.deleteService(me, id); }
+
+  @Get('kyc') kyc() { return this.svc.listKyc(); }
+  @Get('kyc/:id/document') kycDoc(@Param('id', ParseIntPipe) id: number) { return this.svc.kycDocument(id); }
+  @Patch('kyc/:id') decideKyc(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: KycDecisionDto) { return this.svc.decideKyc(me, id, dto); }
 
   @Get('providers') providers() { return this.svc.listProviders(); }
   @Post('providers') createProvider(@CurrentUser() me: AuthUser, @Body() dto: ProviderDto) { return this.svc.createProvider(me, dto); }

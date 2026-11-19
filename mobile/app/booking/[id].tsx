@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Linking, Modal, Platform, Share, View } from 'react-native';
+import { Image, Linking, Modal, Platform, Share, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import PageHeader, { PageSpace } from '../../src/PageHeader';
@@ -53,6 +53,8 @@ export default function BookingDetail() {
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const withPhotos = !!b && (b.status === 'IN_PROGRESS' || b.status === 'DONE');
+  const photos = useFetch<any[]>(withPhotos ? `/bookings/${id}/photos` : null);
   const [reason, setReason] = useState('');
 
   const header = <PageHeader tone="activity" eyebrow={b ? `BOOKING #${b.id}` : 'BOOKING'} title={b ? b.service.name : 'Booking'} right={b ? <Badge v={b.status} /> : undefined}
@@ -171,6 +173,20 @@ ${b.address}` }).catch(() => {});
         {live && <LiveMap home={{ lat: b.lat, lng: b.lng }} pro={{ lat: b.provider.lat, lng: b.provider.lng }} label={b.status === 'IN_PROGRESS' ? `${b.provider.name} is on the job` : `${b.provider.name} is on the way`} />}
       </View>}
 
+      {!!b.otp && (b.status === 'ON_THE_WAY' || b.status === 'IN_PROGRESS') && <View style={{ backgroundColor: t.ink, borderRadius: 26, padding: 20, gap: 8, alignItems: 'center' }}>
+        <Txt size={14} color={t.brandInk} style={{ opacity: 0.75 }}>{b.status === 'ON_THE_WAY' ? 'Start code' : 'Completion code'}</Txt>
+        <Txt bold size={44} color={t.brandInk} style={{ letterSpacing: 12 }}>{b.otp}</Txt>
+        <Txt size={13} color={t.brandInk} style={{ opacity: 0.75, textAlign: 'center' }}>{b.status === 'ON_THE_WAY' ? 'Share this with your pro when they arrive, to start the work.' : 'Share this only once you’re happy with the finished work.'}</Txt>
+      </View>}
+
+      {!!photos.data?.length && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 12 }}>
+        <Txt bold size={24}>Photos from your pro</Txt>
+        {(['BEFORE', 'AFTER'] as const).map((k) => { const list = photos.data!.filter((p) => p.kind === k); return list.length ? <View key={k} style={{ gap: 8 }}>
+          <Txt size={14} color={t.body}>{k === 'BEFORE' ? 'Before' : 'After'}</Txt>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{list.map((p) => <Image key={p.id} source={{ uri: p.data }} style={{ width: 96, height: 96, borderRadius: 14 }} />)}</View>
+        </View> : null; })}
+      </View>}
+
       {!!b.provider && b.status !== 'REQUESTED' && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 12 }}>
         <Txt bold size={24}>Chat with {b.provider.name.split(' ')[0]}</Txt>
         <Chat bookingId={b.id} canSend={open} />
@@ -221,7 +237,7 @@ ${b.address}` }).catch(() => {});
         {[
           { icon: 'navigate', label: 'Directions', onPress: directions },
           { icon: 'share-social', label: 'Share', onPress: share },
-          { icon: 'repeat', label: 'Book again', onPress: () => router.push(`/service/${b.serviceId}` as any) },
+          { icon: 'repeat', label: 'Book again', onPress: () => router.push(`/service/book?serviceId=${b.serviceId}&rebook=${b.id}${b.providerId ? `&providerId=${b.providerId}` : ''}` as any) },
         ].map((a) => <Tap key={a.label} onPress={a.onPress} accessibilityRole="button" accessibilityLabel={a.label} scaleTo={0.96}
           style={{ flex: 1, backgroundColor: t.card, borderRadius: 22, paddingVertical: 14, alignItems: 'center', gap: 6 }}>
           <Ionicons name={a.icon as any} size={22} color={t.ink} />

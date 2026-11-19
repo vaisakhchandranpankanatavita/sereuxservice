@@ -5,9 +5,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../../src/api';
 import { Chat } from '../../../src/chat';
 import { LiveMap } from '../../../src/map';
-import { Badge, Button, Card, Field, Row, Status, Screen, Money, Txt, dayLabel, useFetch, useTheme } from '../../../src/ui';
+import { Text } from 'react-native';
+import { Badge, Button, Card, Field, PageTitle, Row, Status, Screen, Money, Txt, dayLabel, mono, useFetch, useTheme } from '../../../src/ui';
 
 function ReleaseJob({ id, onDone }: { id: string; onDone: () => void }) {
+  const t = useTheme();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
@@ -27,7 +29,7 @@ function ReleaseJob({ id, onDone }: { id: string; onDone: () => void }) {
     <Txt bold size={15}>Release this job</Txt>
     <Txt muted size={13}>It goes back to the pool so another pro can take it. The customer is notified.</Txt>
     <Field label="Reason" value={reason} onChangeText={setReason} placeholder="e.g. Vehicle broke down" />
-    {!!err && <Txt color="#a13a2a">{err}</Txt>}
+    {!!err && <Txt color={t.bad}>{err}</Txt>}
     <Row>
       <Button title="Confirm release" kind="danger" onPress={confirm} busy={busy} style={{ flex: 1 }} />
       <Button title="Cancel" kind="ghost" onPress={() => setOpen(false)} disabled={busy} style={{ flex: 1 }} />
@@ -72,11 +74,7 @@ export default function Job() {
   };
 
   return <Screen>
-    <Row between>
-      <Txt bold size={22}>{b.service?.name}</Txt>
-      <Badge v={b.status} />
-    </Row>
-    <Txt muted>{dayLabel(b.day)} · {b.slot}</Txt>
+    <PageTitle title={b.service?.name ?? 'Job'} sub={`${dayLabel(b.day)} · ${b.slot}`} right={<Badge v={b.status} />} />
 
     {home ? <LiveMap home={home} pro={tracking ? me : null} label={`Route to ${b.address}`} /> :
       <Card><Txt muted>No pinned location for this address yet — the customer booked without sharing GPS coordinates.</Txt></Card>}
@@ -94,8 +92,10 @@ export default function Job() {
       <Chat bookingId={b.id} canSend={b.status !== 'DONE' && b.status !== 'CANCELLED'} />
     </Card>
 
-    <Button title="Navigate" onPress={navigate} />
-    <Button title={`Call ${b.name.split(' ')[0]}`} kind="ghost" onPress={() => Linking.openURL(`tel:${b.phone}`)} />
+    <View style={{ flexDirection: 'row', gap: 10 }}>
+      <Button title="Navigate" onPress={navigate} style={{ flex: 1.3 }} />
+      <Button title={`Call ${b.name.split(' ')[0]}`} kind="ghost" onPress={() => Linking.openURL(`tel:${b.phone}`)} style={{ flex: 1 }} />
+    </View>
     {b.status === 'CONFIRMED' && <ReleaseJob id={b.id} onDone={() => router.replace('/(tabs)/jobs')} />}
   </Screen>;
 }

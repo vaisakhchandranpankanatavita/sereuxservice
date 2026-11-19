@@ -1,7 +1,7 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Injectable, Module, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { BookingStatus, Prisma, Role } from '@prisma/client';
 import { IsIn, IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
 import { PaymentsModule, PaymentsService } from '../payments/payments.module';
@@ -43,7 +43,12 @@ class UpdateBookingDto {
 
 class SetStatusDto {
   @IsIn(Object.keys(STATUS_TEXT)) status: BookingStatus;
+  @IsOptional() @IsString() @MaxLength(8) otp?: string;
 }
+
+/* The OTP is a secret shared between the customer and the pro on site; the pro must be told it in person. */
+export const omitOtp = <T extends { otp?: string | null }>(b: T): Omit<T, 'otp'> => { const { otp: _otp, ...rest } = b; return rest; };
+const newOtp = () => String(randomInt(1000, 10000));
 
 const isoToday = () => new Date().toISOString().slice(0, 10);
 const addDays = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
@@ -116,7 +121,16 @@ class BookingsService {
     if (!b) throw new NotFoundException();
     if (user.role === 'CUSTOMER' && b.userId !== user.id) throw new NotFoundException();
     if (user.role === 'PROVIDER' && b.provider?.userId !== user.id) throw new NotFoundException();
-    return b;
+    return user.role === 'PROVIDER' ? omitOtp(b) : b;
+  }
+
+  /* Before/after photos a pro attached to a job. Visible to the customer, the assigned pro and admins. */
+  async photos(user: AuthUser, id: string) {
+    const b = await this.prisma.booking.findUnique({ where: { id }, include: { provider: { select: { userId: true } } } });
+    if (!b) throw new NotFoundException();
+    const ok = user.role === 'ADMIN' || b.userId === user.id || b.provider?.userId === user.id;
+    if (!ok) throw new NotFoundException();
+    return this.prisma.jobPhoto.findMany({ where: { bookingId: id }, orderBy: { createdAt: 'asc' } });
   }
 
   async update(user: AuthUser, id: string, dto: UpdateBookingDto) {
@@ -149,7 +163,7 @@ class BookingsService {
     }, { isolationLevel: 'Serializable' });
   }
 
-  async setStatus(user: AuthUser, id: string, status: BookingStatus) {
+  async setStatus(user: AuthUser, id: string, status: BookingStatus, otp?: string) {
     const b = await this.prisma.booking.findUnique({ where: { id } });
     if (!b) throw new NotFoundException();
     if (user.role === 'PROVIDER') {
@@ -160,14 +174,24 @@ class BookingsService {
     if (status !== 'CANCELLED' && FLOW.indexOf(status) !== FLOW.indexOf(b.status) + 1) {
       throw new BadRequestException(`Status must move from ${b.status} to ${FLOW[FLOW.indexOf(b.status) + 1]}.`);
     }
+    // Pros must prove they are with the customer: the customer reads out the code shown in their app to start and to finish the job. Admins can override.
+    if (user.role === 'PROVIDER') {
+      if ((status === 'IN_PROGRESS' || status === 'DONE') && b.otp && b.otp !== otp?.trim()) {
+        throw new BadRequestException(status === 'IN_PROGRESS' ? 'Enter the start code shown in the customer’s app.' : 'Enter the completion code shown in the customer’s app.');
+      }
+      if (status === 'DONE' && !(await this.prisma.jobPhoto.count({ where: { bookingId: id, kind: 'AFTER' } }))) {
+        throw new BadRequestException('Add at least one “after” photo of the finished work.');
+      }
+    }
+    const nextOtp: string | null | undefined = status === 'ON_THE_WAY' || status === 'IN_PROGRESS' ? newOtp() : status === 'DONE' || status === 'CANCELLED' ? null : undefined;
     return this.prisma.$transaction(async (tx) => {
-      const out = await tx.booking.update({ where: { id }, data: { status } });
-      await tx.notification.create({ data: { userId: b.userId, text: `#${id}: ${STATUS_TEXT[status]}`, href: '/orders' } });
+      const out = await tx.booking.update({ where: { id }, data: { status, ...(nextOtp !== undefined && { otp: nextOtp }) } });
+      await tx.notification.create({ data: { userId: b.userId, text: `#${id}: ${STATUS_TEXT[status]}${nextOtp ? ` Your ${status === 'ON_THE_WAY' ? 'start' : 'completion'} code is ${nextOtp}.` : ''}`, href: '/orders' } });
       return out;
     }).then(async (out) => {
       if (status === 'CANCELLED') await this.payments.refundBookingIfPaid(id);
       await this.push.send(b.userId, `#${id}: ${STATUS_TEXT[status]}`, 'Fixzy', { href: '/orders' });
-      return out;
+      return user.role === 'PROVIDER' ? omitOtp(out) : out;
     });
   }
 }
@@ -178,10 +202,11 @@ class BookingsController {
   constructor(private svc: BookingsService) {}
   @Post() create(@CurrentUser() u: AuthUser, @Body() dto: CreateBookingDto) { return this.svc.create(u, dto); }
   @Get() list(@CurrentUser() u: AuthUser) { return this.svc.list(u); }
+  @Get(':id/photos') photos(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.photos(u, id); }
   @Get(':id') get(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.get(u, id); }
   @Patch(':id') update(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: UpdateBookingDto) { return this.svc.update(u, id, dto); }
   @Patch(':id/status') @Roles(Role.PROVIDER, Role.ADMIN)
-  setStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: SetStatusDto) { return this.svc.setStatus(u, id, dto.status); }
+  setStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: SetStatusDto) { return this.svc.setStatus(u, id, dto.status, dto.otp); }
 }
 
 @Module({ imports: [PaymentsModule], controllers: [BookingsController], providers: [BookingsService] })

@@ -466,6 +466,59 @@ export function Banners() {
   </Page>;
 }
 
+/* ---------- Pro verification (KYC) ---------- */
+const DOC_LABELS = { AADHAAR: 'Aadhaar', PAN: 'PAN', DRIVING_LICENCE: 'Driving licence', VOTER_ID: 'Voter ID' };
+export function Verification() {
+  const { rows, error, reload } = useList('/admin/kyc');
+  const [review, setReview] = useState(null); // { row, image, loading, error, rejecting, note }
+  const [busy, setBusy] = useState(false);
+
+  const open = async (row) => {
+    setReview({ row, image: null, loading: true });
+    try { setReview({ row, image: (await api(`/admin/kyc/${row.id}/document`)).image, loading: false }); }
+    catch (e) { setReview({ row, image: null, loading: false, error: e.message }); }
+  };
+  const decide = async (decision) => {
+    if (decision === 'REJECTED' && !review.note?.trim()) { setReview((r) => ({ ...r, error: 'Tell the pro what to fix.' })); return; }
+    setBusy(true);
+    const ok = await act(() => api(`/admin/kyc/${review.row.id}`, { method: 'PATCH', body: { decision, note: review.note?.trim() || undefined } }),
+      decision === 'APPROVED' ? `${review.row.name} approved` : `${review.row.name} sent back`, reload);
+    setBusy(false);
+    if (ok) setReview(null);
+  };
+
+  const pending = (rows ?? []).filter((r) => r.kycStatus === 'PENDING').length;
+  return <Page title="Verification">
+    <p className="muted" style={{ margin: '0 0 14px' }}>{rows ? (pending ? `${pending} pro${pending === 1 ? '' : 's'} waiting for review.` : 'Nothing waiting for review.') : ' '}</p>
+    <Table error={error} rows={rows} empty="No pros have submitted documents yet." cols={[
+      { h: 'Pro', render: (r) => <div className="cell2"><b>{r.name}</b><small>{r.user?.email ?? 'No login linked'}</small></div> },
+      { h: 'Document', render: (r) => r.kyc ? <div className="cell2"><b>{DOC_LABELS[r.kyc.docType] ?? r.kyc.docType}</b><small>{r.kyc.docNumber}</small></div> : '—' },
+      { h: 'Submitted', render: (r) => r.kyc ? when(r.kyc.submittedAt) : '—' },
+      { h: 'Status', render: (r) => <Badge v={r.kycStatus} /> },
+      { h: '', render: (r) => <div className="row-actions"><button className={`btn sm${r.kycStatus === 'PENDING' ? ' primary' : ''}`} onClick={() => open(r)}>{r.kycStatus === 'PENDING' ? 'Review' : 'View'}</button></div> },
+    ]} />
+    {review && <Modal title={`Verify ${review.row.name}`} onClose={() => !busy && setReview(null)}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="cell2"><b>{DOC_LABELS[review.row.kyc?.docType] ?? review.row.kyc?.docType}</b><small>{review.row.kyc?.docNumber}</small></div>
+        {review.loading ? <p className="muted">Loading document…</p>
+          : review.image ? <a href={review.image} target="_blank" rel="noreferrer"><img src={review.image} alt="Submitted ID document" style={{ width: '100%', maxHeight: 340, objectFit: 'contain', borderRadius: 10, background: 'var(--idle-bg)' }} /></a>
+          : <p className="muted">No image on file.</p>}
+        {review.row.kycStatus === 'REJECTED' && review.row.kycNote && <p className="muted">Previously sent back: {review.row.kycNote}</p>}
+        {review.row.kycStatus === 'PENDING' && <>
+          {review.rejecting && <textarea rows={3} maxLength={300} placeholder="What should the pro fix? (shown to them in the app)" value={review.note ?? ''} onChange={(e) => setReview((r) => ({ ...r, note: e.target.value, error: '' }))} />}
+          {review.error && <p className="err">{review.error}</p>}
+          <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+            {review.rejecting
+              ? <><button className="btn" disabled={busy} onClick={() => setReview((r) => ({ ...r, rejecting: false, error: '' }))}>Back</button><button className="btn danger" disabled={busy} onClick={() => decide('REJECTED')}>Send back</button></>
+              : <><button className="btn" disabled={busy} onClick={() => setReview((r) => ({ ...r, rejecting: true }))}>Reject</button><button className="btn primary" disabled={busy || review.loading || !review.image} onClick={() => decide('APPROVED')}>Approve</button></>}
+          </div>
+        </>}
+        {review.row.kycStatus !== 'PENDING' && review.error && <p className="err">{review.error}</p>}
+      </div>
+    </Modal>}
+  </Page>;
+}
+
 /* ---------- Payouts ---------- */
 export function Payouts() {
   const { rows, error, reload } = useList('/admin/payouts');
@@ -546,6 +599,8 @@ const AUDIT_ACTION_LABELS = {
   'coupon.update': 'Coupon updated',
   'coupon.delete': 'Coupon deleted',
   'payout.create': 'Payout recorded',
+  'kyc.approved': 'Pro verified',
+  'kyc.rejected': 'Pro verification sent back',
   'review.delete': 'Review deleted',
   'message.delete': 'Message deleted',
 };

@@ -1,10 +1,13 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 
 /* Shared by the long-running server (main.ts) and the Vercel serverless entry (serverless.ts). */
 export function configure(app: INestApplication) {
   app.setGlobalPrefix('api');
+  // KYC documents and job photos arrive as base64 data URLs (Vercel caps request bodies at 4.5 MB anyway).
+  (app as NestExpressApplication).useBodyParser('json', { limit: '3mb' });
   app.use(helmet());
   app.use(cookieParser());
   app.enableCors({ origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173').split(','), credentials: true });

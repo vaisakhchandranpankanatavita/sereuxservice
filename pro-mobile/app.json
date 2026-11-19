@@ -28,6 +28,7 @@
       "expo-secure-store",
       "expo-status-bar",
       "expo-notifications",
+      ["expo-image-picker", { "cameraPermission": "Fixzy Pro uses the camera to photograph your ID and job work." }],
       "expo-font",
       [
         "expo-location",

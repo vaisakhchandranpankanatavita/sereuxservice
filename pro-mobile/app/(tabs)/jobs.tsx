@@ -3,7 +3,9 @@ import { Linking, Pressable, Text, View, useWindowDimensions } from 'react-nativ
 import { useRouter } from 'expo-router';
 import { api } from '../../src/api';
 import { pingLive } from '../../src/live';
-import { Money, Screen, Status, dayLabel, font, label, useFetch, useTheme } from '../../src/ui';
+import { takePhoto } from '../../src/photo';
+import { CodeSheet } from '../../src/codesheet';
+import { Button, Money, PageTitle, R, Screen, Status, dayLabel, font, label, mono, overline, tone, useFetch, useTheme } from '../../src/ui';
 
 const NEXT: Record<string, [string, string]> = {
   CONFIRMED: ['ON_THE_WAY', 'Start trip'],
@@ -17,8 +19,8 @@ const isActive = (j: any) => j.status !== 'DONE' && j.status !== 'CANCELLED';
 const rank = (j: any) => (FLOW.indexOf(j.status) >= 1 ? FLOW.indexOf(j.status) : 0);
 const byNow = (a: any, b: any) => rank(b) - rank(a) || `${a.day} ${a.slot}`.localeCompare(`${b.day} ${b.slot}`);
 
-/* Type tokens for this page: a serif for times and headings, Inter for everything you read in a sentence. */
-const serif = (size: number, extra: object = {}) => ({ fontFamily: font.display, fontSize: size, letterSpacing: -size * 0.02, ...extra });
+/* Type tokens for this page: tight Inter semibold for headings; JetBrains Mono (tabular) for times. */
+const serif = (size: number, extra: object = {}) => ({ fontFamily: font.semibold, fontSize: size, letterSpacing: -size * 0.02, ...extra });
 
 export default function Jobs() {
   const t = useTheme();
@@ -29,13 +31,33 @@ export default function Jobs() {
   const [err, setErr] = useState('');
   const [tab, setTab] = useState<'active' | 'done'>('active');
 
+  /* Starting work and finishing both need the customer's code; finishing also needs an "after" photo. */
+  const [sheet, setSheet] = useState<any | null>(null);
+  const [thumbs, setThumbs] = useState<string[]>([]);
+  const [sheetErr, setSheetErr] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  const send = async (j: any, otp?: string) => {
+    const step = NEXT[j.status];
+    setBusy(j.id); setErr(''); setSheetErr('');
+    try { await api(`/bookings/${j.id}/status`, 'PATCH', { status: step[0], ...(otp ? { otp } : {}) }); setSheet(null); setThumbs([]); await jobs.reload(); pingLive(); }
+    catch (e: any) { if (sheet) setSheetErr(e.message); else setErr(e.message); }
+    finally { setBusy(null); }
+  };
+
   const advance = async (j: any) => {
     const step = NEXT[j.status];
     if (!step) return;
-    setBusy(j.id); setErr('');
-    try { await api(`/bookings/${j.id}/status`, 'PATCH', { status: step[0] }); await jobs.reload(); pingLive(); }
-    catch (e: any) { setErr(e.message); }
-    finally { setBusy(null); }
+    if (step[0] === 'IN_PROGRESS' || step[0] === 'DONE') { setSheet(j); setThumbs([]); setSheetErr(''); return; }
+    await send(j);
+  };
+
+  const addPhoto = async (kind: 'BEFORE' | 'AFTER') => {
+    setSheetErr(''); setPhotoBusy(true);
+    const image = await takePhoto().finally(() => setPhotoBusy(false));
+    if (!image) return;
+    try { await api(`/pro/bookings/${sheet.id}/photos`, 'POST', { kind, image }); setThumbs((p) => [...p, image]); }
+    catch (e: any) { setSheetErr(e.message); }
   };
 
   const active = (jobs.data ?? []).filter(isActive).sort(byNow);
@@ -49,68 +71,64 @@ export default function Jobs() {
     return diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff === -1 ? 'Yesterday' : dayLabel(iso);
   };
 
-  const Pill = ({ title, onPress, on, dark, busy: b }: { title: string; onPress: () => void; on?: boolean; dark?: boolean; busy?: boolean }) =>
-    <Pressable onPress={onPress} disabled={b} accessibilityRole="button" style={({ pressed }) => ({ borderRadius: 999, paddingVertical: 11, paddingHorizontal: 20, alignItems: 'center', opacity: b ? 0.6 : 1,
-      backgroundColor: on ? (dark ? (pressed ? '#d9b98d' : t.accent) : (pressed ? '#2c2b27' : t.ink)) : 'transparent', borderWidth: on ? 0 : 1, borderColor: dark ? 'rgba(249,245,242,0.4)' : t.ink })}>
-      <Text style={{ fontFamily: font.bold, fontSize: 14, color: on ? (dark ? t.ink : t.brandInk) : (dark ? t.brandInk : t.ink) }}>{b ? 'Updating…' : title}</Text>
-    </Pressable>;
-
-  const actions = (j: any, dark?: boolean) => {
+  const actions = (j: any) => {
     const step = NEXT[j.status];
     return <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-      {step && <Pill title={step[1]} on dark={dark} busy={busy === j.id} onPress={() => advance(j)} />}
-      <Pill title="Route" dark={dark} onPress={() => router.push(`/job/${j.id}`)} />
+      {step ? <Button title={busy === j.id ? 'Updating…' : step[1]} size="sm" busy={busy === j.id} onPress={() => advance(j)} style={{ flex: 1.3 }} /> : null}
+      <Button title="Details" kind="ghost" size="sm" onPress={() => router.push(`/job/${j.id}`)} style={{ flex: 1 }} />
     </View>;
   };
 
-  /* The one job that needs attention now: a dark block, big serif time, then plain labelled facts. */
+  /* The one job that needs attention now: a bordered card with a mono time, then plain labelled facts and a step tracker. */
   const now = (j: any) => {
     const at = Math.max(0, FLOW.indexOf(j.status));
-    const mute = 'rgba(249,245,242,0.6)';
-    return <View style={{ backgroundColor: t.ink, borderRadius: 20, padding: 24, gap: 20 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <Text style={{ color: t.accent, fontFamily: font.bold, fontSize: 13 }}>{j.status === 'CONFIRMED' ? 'Up next' : 'In progress now'}</Text>
-        <Text style={{ color: mute, fontFamily: font.regular, fontSize: 13 }}>{dayName(j.day)}</Text>
+    const c = tone(t, j.status === 'IN_PROGRESS' ? 'warn' : 'info');
+    return <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.line, borderRadius: R.lg, padding: 24, gap: 20 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ backgroundColor: c.bg, borderWidth: 1, borderColor: c.bd, borderRadius: 999, paddingHorizontal: 8, height: 22, justifyContent: 'center' }}>
+          <Text style={{ color: c.fg, fontFamily: font.semibold, fontSize: 11 }}>{j.status === 'CONFIRMED' ? 'Up next' : 'In progress now'}</Text>
+        </View>
+        <Text style={{ ...overline, color: t.muted }}>{dayName(j.day)}</Text>
       </View>
       <View style={{ gap: 6 }}>
-        <Text style={serif(64, { color: t.brandInk, lineHeight: 66 })}>{j.slot}</Text>
-        <Text style={serif(24, { color: t.brandInk })} numberOfLines={1}>{j.name || 'Customer'}</Text>
-        <Text style={{ color: mute, fontFamily: font.regular, fontSize: 14, lineHeight: 21 }}>{j.service?.name}, {j.address}</Text>
+        <Text style={mono(44, { color: t.ink, lineHeight: 48, letterSpacing: -1.5 })}>{j.slot}</Text>
+        <Text style={serif(20, { color: t.ink })} numberOfLines={1}>{j.name || 'Customer'}</Text>
+        <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 14, lineHeight: 21 }}>{j.service?.name}, {j.address}</Text>
       </View>
-      <View style={{ height: 1, backgroundColor: 'rgba(249,245,242,0.16)' }} />
+      <View style={{ height: 1, backgroundColor: t.line }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <View style={{ gap: 4 }}>
-          <Text style={{ color: mute, fontFamily: font.regular, fontSize: 12 }}>Phone</Text>
-          {j.phone ? <Pressable onPress={() => Linking.openURL(`tel:${j.phone}`)} accessibilityRole="link" accessibilityLabel={`Call ${j.name}`}><Text style={{ color: t.brandInk, fontFamily: font.bold, fontSize: 15, textDecorationLine: 'underline' }}>{j.phone}</Text></Pressable> : <Text style={{ color: mute }}>–</Text>}
+          <Text style={{ ...overline, color: t.muted }}>Phone</Text>
+          {j.phone ? <Pressable onPress={() => Linking.openURL(`tel:${j.phone}`)} accessibilityRole="link" accessibilityLabel={`Call ${j.name}`}><Text style={mono(14, { color: t.accent })}>{j.phone}</Text></Pressable> : <Text style={{ color: t.muted }}>–</Text>}
         </View>
         <View style={{ gap: 4, alignItems: 'flex-end' }}>
-          <Text style={{ color: mute, fontFamily: font.regular, fontSize: 12 }}>Estimate</Text>
-          <Money amount={net(j)} size={20} dark />
+          <Text style={{ ...overline, color: t.muted }}>Estimate</Text>
+          <Money amount={net(j)} size={18} />
         </View>
       </View>
-      {!!j.notes && <Text style={{ color: mute, fontFamily: font.regular, fontSize: 13, lineHeight: 19 }}>“{j.notes}”</Text>}
+      {!!j.notes && <Text style={{ color: t.body, fontFamily: font.regular, fontSize: 13, lineHeight: 19, backgroundColor: t.surface, borderRadius: R.sm, padding: 12 }}>“{j.notes}”</Text>}
       <View style={{ gap: 8 }}>
         <View style={{ flexDirection: 'row' }}>
-          {STEP_LABEL.map((s, i) => <Text key={s} style={{ flex: 1, fontSize: 12, fontFamily: i === at ? font.bold : font.regular, color: i === at ? t.brandInk : i < at ? t.accent : 'rgba(249,245,242,0.4)', textAlign: i === 0 ? 'left' : i === 2 ? 'right' : 'center' }}>{s}</Text>)}
+          {STEP_LABEL.map((s, i) => <Text key={s} style={{ flex: 1, fontSize: 12, fontFamily: i === at ? font.semibold : font.regular, color: i === at ? t.ink : i < at ? t.accent : t.muted, textAlign: i === 0 ? 'left' : i === 2 ? 'right' : 'center' }}>{s}</Text>)}
         </View>
-        <View style={{ height: 2, backgroundColor: 'rgba(249,245,242,0.16)' }}><View style={{ height: 2, width: `${((at + 1) / 3) * 100}%`, backgroundColor: t.accent }} /></View>
+        <View style={{ height: 3, borderRadius: 2, backgroundColor: t.surface }}><View style={{ height: 3, borderRadius: 2, width: `${((at + 1) / 3) * 100}%`, backgroundColor: t.accent }} /></View>
       </View>
-      {actions(j, true)}
+      {actions(j)}
     </View>;
   };
 
   /* Ledger row: time and name on a hairline, no card. Status is a coloured word; money is highlighted. */
-  const entry = (j: any) => <View key={j.id} style={{ borderTopWidth: 1, borderTopColor: t.line, paddingVertical: 18, gap: 14 }}>
+  const entry = (j: any) => <View key={j.id} style={{ borderTopWidth: 1, borderTopColor: t.line, paddingVertical: 16, gap: 12 }}>
     <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
-      <Text style={serif(28, { color: t.ink, width: 86 })}>{j.slot}</Text>
+      <Text style={mono(14, { color: t.ink, width: 78, paddingTop: 2 })}>{j.slot}</Text>
       <View style={{ flex: 1, gap: 3 }}>
-        <Text style={{ color: t.ink, fontFamily: font.bold, fontSize: 17 }} numberOfLines={1}>{j.name || 'Customer'}</Text>
-        <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 14, lineHeight: 20 }} numberOfLines={2}>{j.service?.name}, {j.address}</Text>
-        <Text style={{ color: statusColor(j.status), fontFamily: font.bold, fontSize: 13, marginTop: 2 }}>{label(j.status)}</Text>
+        <Text style={{ color: t.ink, fontFamily: font.semibold, fontSize: 15 }} numberOfLines={1}>{j.name || 'Customer'}</Text>
+        <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 13, lineHeight: 19 }} numberOfLines={2}>{j.service?.name}, {j.address}</Text>
+        <Text style={{ color: statusColor(j.status), fontFamily: font.semibold, fontSize: 12, marginTop: 2 }}>{label(j.status)}</Text>
       </View>
-      <Money amount={net(j)} size={17} />
+      <Money amount={net(j)} size={14} />
     </View>
-    {isActive(j) && <View style={{ paddingLeft: 102 }}>{actions(j)}</View>}
+    {isActive(j) && <View style={{ paddingLeft: 94 }}>{actions(j)}</View>}
   </View>;
 
   const ledger = (list: any[], newestFirst?: boolean) => {
@@ -121,8 +139,8 @@ export default function Jobs() {
         const items = list.filter((j) => j.day === d).sort((a, b) => (newestFirst ? -1 : 1) * a.slot.localeCompare(b.slot));
         return <View key={d}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 10 }}>
-            <Text style={serif(22, { color: t.ink })}>{dayName(d)}</Text>
-            <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 13 }}>{items.length} {items.length === 1 ? 'job' : 'jobs'}</Text>
+            <Text style={serif(16, { color: t.ink })}>{dayName(d)}</Text>
+            <Text style={mono(12, { color: t.muted })}>{items.length} {items.length === 1 ? 'job' : 'jobs'}</Text>
           </View>
           {items.map(entry)}
         </View>;
@@ -132,15 +150,22 @@ export default function Jobs() {
 
   const tabLabel = (k: 'active' | 'done', text: string, n: number) => {
     const on = tab === k;
-    return <Pressable key={k} onPress={() => setTab(k)} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ paddingVertical: 10, marginRight: 26, borderBottomWidth: 2, borderBottomColor: on ? t.ink : 'transparent', marginBottom: -1 }}>
-      <Text style={{ color: on ? t.ink : t.muted, fontFamily: on ? font.bold : font.regular, fontSize: 15 }}>{text}  <Text style={{ fontFamily: font.regular }}>{n}</Text></Text>
+    return <Pressable key={k} onPress={() => setTab(k)} accessibilityRole="tab" accessibilityState={{ selected: on }}
+      style={{ flex: 1, height: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, backgroundColor: on ? t.card : 'transparent', borderWidth: on ? 1 : 0, borderColor: t.line }}>
+      <Text style={{ color: on ? t.ink : t.muted, fontFamily: font.semibold, fontSize: 15 }}>{text}</Text>
+      <Text style={mono(12, { color: on ? t.accent : t.muted })}>{n}</Text>
     </Pressable>;
   };
 
+  const finishing = sheet?.status === 'IN_PROGRESS';
+  const codeSheet = <CodeSheet visible={!!sheet} finishing={finishing} customer={sheet?.name} busy={busy === sheet?.id || photoBusy} error={sheetErr} thumbs={thumbs}
+    onPhoto={() => addPhoto(finishing ? 'AFTER' : 'BEFORE')} onSubmit={(c) => send(sheet, c)} onClose={() => setSheet(null)} />;
+
   return <Screen refresh={jobs.refresh} refreshing={jobs.refreshing}>
-    <View style={{ width: '100%', gap: 22 }}>
-      <Text accessibilityRole="header" style={serif(38, { color: t.ink, lineHeight: 42 })}>My jobs</Text>
-      <View accessibilityRole="tablist" style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: t.line }}>
+    {codeSheet}
+    <View style={{ width: '100%', gap: 24 }}>
+      <PageTitle title="My jobs" sub={active.length ? `${active.length} active · ${first?.status === 'CONFIRMED' ? 'next up first' : 'work in progress first'}` : 'Nothing scheduled'} />
+      <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: 4, gap: 4, borderRadius: 15, backgroundColor: t.surface }}>
         {tabLabel('active', 'Active', active.length)}{tabLabel('done', 'Completed', past.length)}
       </View>
       {!!err && <Text style={{ color: t.bad, fontFamily: font.medium, fontSize: 14 }}>{err}</Text>}

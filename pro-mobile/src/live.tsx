@@ -23,7 +23,7 @@ const clock = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
   return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
 };
-const mono = { fontFamily: font.bold, fontVariant: ['tabular-nums' as const], letterSpacing: 0.3 };
+const mono = { fontFamily: font.mono, fontVariant: ['tabular-nums' as const], letterSpacing: 0 };
 
 /* Always-on floating timer, kept minimal: a small translucent pill with time online and the running trip / job time. */
 export function LiveTimer() {
@@ -63,25 +63,24 @@ export function LiveTimer() {
   const state = `${online ? 'on' : 'off'}:${job ? job.id + job.status : '-'}`;
   if ((!online && !job) || closedFor === state) return null;
   const trip = job?.status === 'ON_THE_WAY';
-  const glass: any = Platform.OS === 'web' ? { backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)' } : {};
 
   const item = (label: string, value: string, dot?: boolean) => <View style={{ gap: 1 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-      {dot && <PulseDot on size={4} color="#5fd39a" />}
-      <Text style={{ color: 'rgba(255,255,255,0.65)', fontFamily: font.medium, fontSize: 11 }}>{label}</Text>
+      {dot && <PulseDot on size={4} color="#34D399" />}
+      <Text style={{ color: '#A1A1AA', fontFamily: font.medium, fontSize: 11 }}>{label}</Text>
     </View>
-    <Text style={[mono, { color: '#fff', fontSize: 17 }]}>{value}</Text>
+    <Text style={[mono, { color: '#FAFAFA', fontSize: 16 }]}>{value}</Text>
   </View>;
 
   return <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 96, alignItems: 'center', zIndex: 50 }}>
-    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'rgba(20,20,18,0.62)', borderRadius: 16, paddingVertical: 8, paddingLeft: 16, paddingRight: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }, glass]}>
+    <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#18181B', borderRadius: 12, paddingVertical: 8, paddingLeft: 16, paddingRight: 8, borderWidth: 1, borderColor: '#27272A' }]}>
       <Pressable disabled={!job} onPress={() => job && router.push(`/job/${job.id}`)} accessibilityRole="button" accessibilityLabel="Live timers" style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
         {online && since != null && item('Online', clock(now - since), true)}
-        {online && since != null && job && <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.18)' }} />}
+        {online && since != null && job && <View style={{ width: 1, alignSelf: 'stretch', backgroundColor: '#27272A' }} />}
         {job && item(trip ? 'On the way' : 'Working', clock(now - new Date(job.updatedAt).getTime()))}
       </Pressable>
-      <Pressable onPress={() => setClosedFor(state)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Hide timer" style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' }}>
-        <Ionicons name="close" size={16} color="#fff" />
+      <Pressable onPress={() => setClosedFor(state)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Hide timer" style={{ width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#27272A' }}>
+        <Ionicons name="close" size={16} color="#FAFAFA" />
       </Pressable>
     </View>
   </View>;

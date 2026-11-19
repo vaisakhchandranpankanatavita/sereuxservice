@@ -9,7 +9,7 @@ import { fetchMe } from '../../src/session';
 import { useEffect, useRef, useState } from 'react';
 import { LivePopup } from '../../src/livepopup';
 
-/* While online the logo "lives": a green glow breathes behind it, a light sweeps across the letters, and the period turns into a pulsing green dot. */
+/* While online the logo "lives": a soft emerald glow breathes behind it and the period turns into a pulsing green dot. */
 function LiveLogo() {
   const t = useTheme();
   const k = useRef(new Animated.Value(0)).current;
@@ -18,14 +18,12 @@ function LiveLogo() {
     loop.start();
     return () => loop.stop();
   }, [k]);
-  const glow = k.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.06, 0.3, 0.06] });
-  const sweep = k.interpolate({ inputRange: [0, 1], outputRange: [-30, 90] });
+  const glow = k.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.0, 0.14, 0.0] });
   return <View style={{ justifyContent: 'center' }}>
     <Animated.View pointerEvents="none" style={{ position: 'absolute', left: -8, right: -8, top: -4, bottom: -4, borderRadius: 14, backgroundColor: t.ok, opacity: glow }} />
     <View style={{ flexDirection: 'row', alignItems: 'flex-end', overflow: 'hidden' }}>
-      <Text style={{ fontFamily: font.heavy, fontSize: 28, letterSpacing: -1.7, color: t.ink }}>fixzy</Text>
-      <View style={{ marginLeft: 2, marginBottom: 6 }}><PulseDot on size={7} /></View>
-      <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, width: 22, left: sweep as any, backgroundColor: 'rgba(255,255,255,0.65)', transform: [{ skewX: '-20deg' }] }} />
+      <Text style={{ fontFamily: font.semibold, fontSize: 24, letterSpacing: -1.1, color: t.ink }}>fixzy</Text>
+      <View style={{ marginLeft: 2, marginBottom: 5 }}><PulseDot on size={6} /></View>
     </View>
   </View>;
 }
@@ -38,23 +36,22 @@ function Topbar({ onBack }: { onBack?: () => void }) {
   const online = useOnlineFlag();
   /* Load the status once so the topbar is right on any tab, even before Requests/Account open. */
   useEffect(() => { fetchMe().then((m) => setOnlineFlag(!!m.online)).catch(() => {}); }, []);
-  return <View style={{ backgroundColor: t.card, paddingTop: top, borderBottomWidth: 1, borderBottomColor: t.line, shadowColor: '#141412', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 }}>
-    <View style={{ height: 60, width: '100%', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      {onBack && <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back" style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: t.line }}>
+  return <View style={{ backgroundColor: t.card, paddingTop: top }}>
+    <View style={{ height: 64, width: '100%', paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      {onBack && <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back" style={{ width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: t.surface }}>
         <Ionicons name="chevron-back" size={18} color={t.ink} />
       </Pressable>}
       {online ? <LiveLogo /> : <Wordmark size={28} />}
-      <View style={{ backgroundColor: t.accent, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginTop: 4 }}>
-        <Txt bold size={10} color="#fff" style={{ letterSpacing: 1.2, textTransform: 'uppercase' }}>Pro</Txt>
+      <View style={{ backgroundColor: t.surface, borderWidth: 1, borderColor: t.line, borderRadius: 6, paddingHorizontal: 6, height: 20, justifyContent: 'center', marginTop: 2 }}>
+        <Txt bold size={10} color={t.muted} style={{ letterSpacing: 0.9, textTransform: 'uppercase' }}>Pro</Txt>
       </View>
       <View style={{ flex: 1 }} />
       <Pressable onPress={logout} accessibilityRole="button" accessibilityLabel="Sign out"
-        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: t.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: pressed ? t.idleBg : 'transparent' })}>
-        <Ionicons name="log-out-outline" size={16} color={t.ink} />
-        <Txt bold size={12}>Sign out</Txt>
+        style={(st: any) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, height: 44, paddingHorizontal: 14, backgroundColor: st.pressed || st.hovered ? t.line : t.surface })}>
+        <Ionicons name="log-out-outline" size={17} color={t.ink} />
+        <Txt bold size={14} color={t.ink}>Sign out</Txt>
       </Pressable>
     </View>
-    <View style={{ height: 3, backgroundColor: t.accent }} />
   </View>;
 }
 
@@ -64,11 +61,11 @@ const BAR_PAD = 6;
 /* Tab icon: filled glyph on a soft pill when active, outline when idle. */
 const icon = (name: 'notifications' | 'briefcase' | 'star' | 'person', text: string, w: number) => ({ focused, color }: { focused: boolean; color: any }) => {
   const t = useTheme();
-  /* Stacked icon + label. Active item gets a soft tan tint and a deeper tan icon/label: the only colour in the bar. */
-  const on = '#8a6a40';
-  return <View style={{ width: w, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: focused ? t.warnBg : 'transparent' }}>
-    <Ionicons name={(focused ? name : `${name}-outline`) as any} size={20} color={focused ? on : color} />
-    <Txt bold size={11} color={focused ? on : color}>{text}</Txt>
+  /* Stacked icon + label. The active item gets a soft accent tint: the only colour in the bar. */
+  const on = t.accent;
+  return <View style={{ width: w, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: focused ? t.ink : 'transparent' }}>
+    <Ionicons name={(focused ? name : `${name}-outline`) as any} size={20} color={focused ? '#FFFFFF' : color} />
+    <Txt bold size={11} color={focused ? '#FFFFFF' : color} style={{ fontFamily: font.medium }}>{text}</Txt>
   </View>;
 };
 
@@ -76,10 +73,10 @@ const icon = (name: 'notifications' | 'briefcase' | 'star' | 'person', text: str
 const liveIcon = (w: number) => ({ focused, color }: { focused: boolean; color: any }) => {
   const t = useTheme();
   const online = useOnlineFlag();
-  const on = '#8a6a40';
-  return <View style={{ width: w, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', gap: 1, backgroundColor: focused ? t.warnBg : 'transparent' }}>
-    <Radar on={!!online} size={26} color={t.ok} idle={focused ? on : color} />
-    <Txt bold size={11} color={online ? t.ok : focused ? on : color}>Live</Txt>
+  const on = t.accent;
+  return <View style={{ width: w, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 1, backgroundColor: focused ? t.ink : 'transparent' }}>
+    <Radar on={!!online} size={26} color={t.ok} idle={focused ? '#FFFFFF' : color} />
+    <Txt bold size={11} color={focused ? '#FFFFFF' : online ? t.ok : color} style={{ fontFamily: font.medium }}>Live</Txt>
   </View>;
 };
 
@@ -95,7 +92,7 @@ export default function TabsLayout() {
     header: ({ navigation, route }) => <Topbar onBack={route.name === 'job/[id]' ? () => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('jobs')) : undefined} />,
     tabBarActiveTintColor: t.ink, tabBarInactiveTintColor: t.muted,
     /* Floating pill bar: detached from the screen edges, content scrolls underneath. */
-    tabBarStyle: { position: 'absolute', left: (win - barW) / 2, width: barW, bottom: 12 + bottom, height: 64, paddingTop: 0, paddingBottom: 0, paddingHorizontal: BAR_PAD, backgroundColor: t.card, borderTopWidth: 0, borderWidth: 1, borderColor: t.line, borderRadius: 32, shadowColor: '#141412', shadowOpacity: 0.16, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 12 },
+    tabBarStyle: { position: 'absolute', left: (win - barW) / 2, width: barW, bottom: 12 + bottom, height: 64, paddingTop: 0, paddingBottom: 0, paddingHorizontal: BAR_PAD, backgroundColor: t.card, borderTopWidth: 0, borderWidth: 1, borderColor: t.line, borderRadius: 22, shadowColor: '#09090B', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
     tabBarShowLabel: false,
     tabBarItemStyle: { justifyContent: 'center', alignItems: 'center', paddingVertical: 0 },
   }}>

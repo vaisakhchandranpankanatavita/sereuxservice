@@ -10,6 +10,7 @@ import { ComingSoon_400Regular } from '@expo-google-fonts/coming-soon';
 import { HeaderTitle, useTheme } from '../src/ui';
 import Intro from '../src/Intro';
 import BottomBar from '../src/BottomBar';
+import { OtpPopup } from '../src/OtpPopup';
 
 function Gate() {
   const { user } = useSession();
@@ -52,6 +53,7 @@ function Gate() {
       <Stack.Screen name="wishlist" options={{ title: 'Wishlist' }} />
     </Stack>}
     {introDone && user && !inAuth && <BottomBar />}
+    {introDone && user && !inAuth && <OtpPopup />}
     {!introDone && <Intro onDone={() => setIntroDone(true)} />}
   </View>;
 }

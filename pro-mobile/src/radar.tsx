@@ -4,7 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 /* Signal radar: a core dot with three rings. Offline it is a still, faded mark; online the rings expand and fade in a staggered loop.
    The loop value is mirrored into state so plain <Circle>s render each frame (animating SVG nodes through Animated warns on web). */
-export function Radar({ on, size = 24, color, idle = '#9a958c' }: { on: boolean; size?: number; color: string; idle?: string }) {
+export function Radar({ on, size = 24, color, idle = '#A1A1AA' }: { on: boolean; size?: number; color: string; idle?: string }) {
   const k = useRef(new Animated.Value(0)).current;
   const [p, setP] = useState(0);
   useEffect(() => {

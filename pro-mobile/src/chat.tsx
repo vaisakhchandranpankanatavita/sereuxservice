@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { api } from './api';
 import { useSession } from './session';
-import { Txt, useFetch, useTheme } from './ui';
+import { Txt, font, mono, useFetch, useTheme } from './ui';
 
 /* Booking chat between the customer and the assigned pro. Polls every 5s; the server enforces who may read/send. */
 export function Chat({ bookingId, canSend }: { bookingId: string; canSend: boolean }) {
@@ -27,18 +27,18 @@ export function Chat({ bookingId, canSend }: { bookingId: string; canSend: boole
     {!list.length && <Txt size={14} color={t.muted}>{canSend ? 'No messages yet. Say hello!' : 'No messages.'}</Txt>}
     {list.map((m) => {
       const mine = m.senderId === user?.id;
-      return <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '82%', backgroundColor: mine ? t.ink : t.bg, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, gap: 2 }}>
-        <Text style={{ color: mine ? t.bg : t.ink, fontSize: 15 }}>{m.text}</Text>
-        <Text style={{ color: mine ? t.bg : t.muted, opacity: 0.6, fontSize: 10, alignSelf: 'flex-end' }}>{new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
+      return <View key={m.id} style={{ alignSelf: mine ? 'flex-end' : 'flex-start', maxWidth: '82%', backgroundColor: mine ? t.ink : t.surface, borderRadius: 18, borderBottomRightRadius: mine ? 6 : 18, borderBottomLeftRadius: mine ? 18 : 6, paddingHorizontal: 14, paddingVertical: 10, gap: 2 }}>
+        <Text style={{ color: mine ? '#FFFFFF' : t.ink, fontSize: 14, lineHeight: 20, fontFamily: font.regular }}>{m.text}</Text>
+        <Text style={[mono(10, { color: mine ? '#FFFFFF' : t.muted, opacity: 0.7, alignSelf: 'flex-end' })]}>{new Date(m.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</Text>
       </View>;
     })}
     {!!err && <Txt size={13} color={t.bad}>{err}</Txt>}
     {canSend && <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
       <TextInput value={text} onChangeText={setText} placeholder="Message" placeholderTextColor={t.muted} multiline maxLength={1000} accessibilityLabel="Message"
-        style={{ flex: 1, maxHeight: 100, borderWidth: 1, borderColor: t.line, backgroundColor: t.bg, color: t.ink, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 }} />
+        style={{ flex: 1, minHeight: 48, maxHeight: 110, backgroundColor: t.surface, color: t.ink, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, fontFamily: font.regular }} />
       <Pressable onPress={send} disabled={busy || !text.trim()} accessibilityRole="button" accessibilityLabel="Send message"
-        style={{ backgroundColor: t.ink, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 12, opacity: busy || !text.trim() ? 0.4 : 1 }}>
-        <Text style={{ color: t.bg, fontWeight: '700' }}>Send</Text>
+        style={(st: any) => ({ height: 48, justifyContent: 'center', backgroundColor: st.hovered || st.pressed ? '#27272A' : t.ink, borderRadius: 14, paddingHorizontal: 20, opacity: busy || !text.trim() ? 0.4 : 1 })}>
+        <Text style={{ color: '#FFFFFF', fontFamily: font.semibold, fontSize: 14 }}>Send</Text>
       </Pressable>
     </View>}
   </View>;

@@ -2,21 +2,27 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { api } from '../../src/api';
 import { useSession } from '../../src/session';
-import { Avatar, Button, Card, Field, Row, Screen, Status, Stars, Txt, Money, OnlineSwitch, PulseDot, font, money, setOnlineFlag, useFetch, useTheme, R } from '../../src/ui';
+import { KycCard } from '../../src/kyc';
+import { Avatar, Button, PageTitle, Card, Field, Row, Screen, Status, Stars, Txt, Money, OnlineSwitch, PulseDot, font, mono, money, overline, setOnlineFlag, useFetch, useTheme, R } from '../../src/ui';
 
 /* Shared building blocks: a big-number tile and a card with a clear heading. */
 function Tile({ label: l, value, amount, sub, bg, fg, sub2 }: { label: string; value?: string; amount?: number; sub?: string; bg: string; fg: string; sub2?: string }) {
-  return <View style={{ flexGrow: 1, flexBasis: 150, minWidth: 140, backgroundColor: bg, borderRadius: R.md, padding: 16, gap: 2 }}>
-    <Text style={{ color: sub2 ?? fg, opacity: 0.75, fontFamily: font.medium, fontSize: 13 }}>{l}</Text>
+  /* Metric tile: bordered surface, overline label, mono number. Semantic tiles keep a soft tint; the neutral "dark" tile becomes a plain card. */
+  const t = useTheme();
+  const semantic = ['Paid out', 'Balance due', 'Today'].includes(l); // only money-state tiles get a tint; the rest stay neutral
+  const tint = semantic ? bg : t.card;
+  const ink = semantic ? fg : t.ink;
+  return <View style={{ flexGrow: 1, flexBasis: 150, minWidth: 140, backgroundColor: tint, borderWidth: 1, borderColor: t.line, borderRadius: R.md, padding: 16, gap: 6 }}>
+    <Text style={[overline, { color: sub2 ?? t.muted }]}>{l}</Text>
     {amount != null
-      ? <Money amount={amount} size={30} dark={fg === '#f9f5f2'} style={{ marginTop: 2, paddingVertical: 3 }} />
-      : <Text style={{ color: fg, fontFamily: font.heavy, fontSize: 30, letterSpacing: -1 }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>}
-    {!!sub && <Text style={{ color: fg, opacity: 0.7, fontFamily: font.regular, fontSize: 12 }}>{sub}</Text>}
+      ? <Money amount={amount} size={24} style={{ marginTop: 2 }} />
+      : <Text style={mono(24, { color: ink, letterSpacing: -0.7 })} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>}
+    {!!sub && <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 12 }}>{sub}</Text>}
   </View>;
 }
 const Section = ({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) =>
-  <Card style={{ gap: 14, padding: 18 }}>
-    <View><Txt bold size={18}>{title}</Txt>{!!hint && <Txt muted size={13}>{hint}</Txt>}</View>
+  <Card style={{ gap: 16, padding: 20 }}>
+    <View style={{ gap: 2 }}><Txt bold size={16} style={{ fontFamily: font.semibold }}>{title}</Txt>{!!hint && <Txt muted size={13}>{hint}</Txt>}</View>
     {children}
   </Card>;
 
@@ -35,22 +41,22 @@ function Earnings() {
       <Tile label="This month" amount={d.month} bg={t.ink} fg={t.brandInk} />
     </View>
     <View>
-      <Row between><Txt bold size={14}>Last {d.daily.length} days</Txt>{best && <Txt muted size={12}>Best day: <Money amount={best.amount} size={12} /></Txt>}</Row>
+      <Row between><Text style={[overline, { color: t.muted }]}>Last {d.daily.length} days</Text>{best && <Text style={mono(12, { color: t.muted })}>Best day {money(best.amount)}</Text>}</Row>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 150, marginTop: 10 }}>
         {d.daily.map((x: any) => {
           const h = Math.max(6, Math.round((x.amount / max) * 100));
           const isToday = x.day === todayIso;
           return <View key={x.day} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4, height: '100%' }}>
-            <Text style={{ color: t.body, fontFamily: font.bold, fontSize: 10 }} numberOfLines={1}>{x.amount > 0 ? money(x.amount) : ''}</Text>
-            <View style={{ width: '70%', maxWidth: 34, height: h, borderRadius: 8, backgroundColor: x.amount === 0 ? t.line : isToday ? t.ok : t.accent }} />
-            <Text style={{ color: isToday ? t.ink : t.muted, fontFamily: isToday ? font.bold : font.regular, fontSize: 11 }}>{new Date(x.day + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric' })}</Text>
+            <Text style={mono(10, { color: t.body })} numberOfLines={1}>{x.amount > 0 ? money(x.amount) : ''}</Text>
+            <View style={{ width: '70%', maxWidth: 34, height: h, borderTopLeftRadius: 4, borderTopRightRadius: 4, backgroundColor: x.amount === 0 ? t.line : isToday ? t.ok : t.accent }} />
+            <Text style={mono(11, { color: isToday ? t.ink : t.muted, fontFamily: isToday ? font.mono : font.monoRegular })}>{new Date(x.day + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric' })}</Text>
           </View>;
         })}
       </View>
     </View>
     <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
-      <Row><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.accent }} /><Txt muted size={12}>Earned</Txt></Row>
-      <Row><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.ok }} /><Txt muted size={12}>Today</Txt></Row>
+      <Row><View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: t.accent }} /><Txt muted size={12}>Earned</Txt></Row>
+      <Row><View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: t.ok }} /><Txt muted size={12}>Today</Txt></Row>
     </View>
   </Section>;
 }
@@ -62,8 +68,8 @@ function Payouts() {
   if (!e.data) return null;
   const paid = e.data.paidOut || 0, due = e.data.balanceDue || 0, total = Math.max(1, paid + due);
   return <Section title="Payouts" hint="What we've paid you and what's still owed">
-    <View style={{ flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden', backgroundColor: t.line }}>
-      <View style={{ flex: paid, backgroundColor: t.ok }} /><View style={{ flex: due, backgroundColor: t.accent }} />
+    <View style={{ flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: t.line }}>
+      <View style={{ flex: paid, backgroundColor: t.ok }} /><View style={{ flex: due, backgroundColor: t.warn }} />
       {paid + due === 0 && <View style={{ flex: 1 }} />}
     </View>
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
@@ -71,9 +77,9 @@ function Payouts() {
       <Tile label="Balance due" amount={due} sub="Waiting to be paid" bg={t.warnBg} fg={t.warn} />
     </View>
     {!!h.data?.length && <View style={{ gap: 2 }}>
-      <Txt bold size={14}>Recent payouts</Txt>
+      <Text style={[overline, { color: t.muted, marginBottom: 4 }]}>Recent payouts</Text>
       {h.data.slice(0, 5).map((x: any) => <Row key={x.id} between>
-        <View style={{ paddingVertical: 8 }}><Txt size={14}>{new Date(x.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Txt>{!!x.note && <Txt muted size={12}>{x.note}</Txt>}</View>
+        <View style={{ paddingVertical: 8 }}><Text style={mono(13, { color: t.ink })}>{new Date(x.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>{!!x.note && <Txt muted size={12}>{x.note}</Txt>}</View>
         <Money amount={x.amount} size={16} />
       </Row>)}
     </View>}
@@ -89,7 +95,7 @@ function ProfileEdit({ p, onSaved }: { p: any; onSaved: () => void }) {
 
   if (!editing) return <Card>
     <Row between>
-      <Txt bold size={16}>Profile</Txt>
+      <Txt bold size={16} style={{ fontFamily: font.semibold }}>Profile</Txt>
       <Button title="Edit" kind="ghost" onPress={() => setEditing(true)} />
     </Row>
     <Txt muted size={14}>Responds in {p.response}</Txt>
@@ -107,7 +113,7 @@ function ProfileEdit({ p, onSaved }: { p: any; onSaved: () => void }) {
     <Txt bold size={16}>Edit profile</Txt>
     <Field label="Responds in" value={response} onChangeText={setResponse} placeholder="e.g. 10 mins" />
     <Field label="Bio" value={bio} onChangeText={setBio} placeholder="A line about your experience" multiline />
-    {!!err && <Txt color="#a13a2a">{err}</Txt>}
+    {!!err && <Txt color={useTheme().bad}>{err}</Txt>}
     <Row>
       <Button title="Save" onPress={save} busy={busy} style={{ flex: 1 }} />
       <Button title="Cancel" kind="ghost" onPress={() => setEditing(false)} disabled={busy} style={{ flex: 1 }} />
@@ -142,22 +148,24 @@ export default function Account() {
   const p = me.data;
 
   return <Screen refresh={me.refresh} refreshing={me.refreshing}>
-    <Card style={{ padding: 18, gap: 14 }}>
+    <PageTitle title="Account" />
+    <KycCard onChange={me.reload} />
+    <Card style={{ padding: 20, gap: 16 }}>
       <Row>
         <Avatar name={p.name} size={64} />
         <View style={{ flex: 1 }}>
           <Txt bold size={24} numberOfLines={1}>{p.name}</Txt>
           <Row>
-            {p.verified && <View style={{ backgroundColor: t.okBg, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2 }}><Txt bold size={12} color={t.ok}>✓ Verified</Txt></View>}
+            {p.verified && <View style={{ backgroundColor: t.okBg, borderWidth: 1, borderColor: t.okLine, borderRadius: 999, paddingHorizontal: 8, height: 22, justifyContent: 'center' }}><Txt bold size={11} color={t.ok}>✓ Verified</Txt></View>}
             <Txt muted size={14}>{p.years} yrs experience</Txt>
           </Row>
         </View>
       </Row>
-      <View style={{ backgroundColor: p.online ? t.okBg : t.idleBg, borderRadius: R.md, padding: 14, gap: 10 }}>
+      <View style={{ backgroundColor: p.online ? t.okBg : t.idleBg, borderWidth: 1, borderColor: p.online ? t.okLine : t.idleLine, borderRadius: R.md, padding: 14, gap: 10 }}>
         <Row between>
           <Row>
             <PulseDot on={!!p.online} />
-            <Txt bold size={17} color={p.online ? t.ok : t.ink}>{p.online ? 'You’re online' : 'You’re offline'}</Txt>
+            <Txt bold size={16} color={p.online ? t.ok : t.ink} style={{ fontFamily: font.semibold }}>{p.online ? 'You’re online' : 'You’re offline'}</Txt>
           </Row>
           <OnlineSwitch on={!!p.online} onToggle={() => toggleOnline(!p.online)} />
         </Row>
@@ -178,8 +186,8 @@ export default function Account() {
     <ProfileEdit p={p} onSaved={me.reload} />
 
     <Card>
-      <Txt muted size={13} style={{ textTransform: 'uppercase', letterSpacing: 1 }}>Signed in as</Txt>
-      <Txt bold size={16}>{user?.name}</Txt>
+      <Text style={[overline, { color: t.muted }]}>Signed in as</Text>
+      <Txt bold size={16} style={{ fontFamily: font.semibold }}>{user?.name}</Txt>
       <Txt muted size={14}>{user?.email}</Txt>
     </Card>
 

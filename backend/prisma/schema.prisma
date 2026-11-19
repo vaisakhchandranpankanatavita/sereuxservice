@@ -30,6 +30,13 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum PaymentMethod {
   COD
   ONLINE
@@ -125,6 +132,9 @@ model Provider {
   lat               Float?
   lng               Float?
   commissionPercent Int       @default(20)
+  kycStatus         KycStatus @default(NOT_SUBMITTED)
+  kycNote           String?
+  kyc               ProviderKyc?
   services          Service[]
   bookings          Booking[]
   payouts           Payout[]
@@ -177,6 +187,7 @@ model Booking {
   discount   Int           @default(0)
   status     BookingStatus @default(REQUESTED)
   cancelReason String?
+  otp        String?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -186,6 +197,7 @@ model Booking {
   review   Review?
   payment  Payment?
   chat     ChatMessage[]
+  photos   JobPhoto[]
 
   @@index([userId, createdAt])
   @@index([providerId, day, slot])
@@ -328,4 +340,27 @@ model ChatMessage {
   sender  User    @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([bookingId, createdAt])
+}
+
+model JobPhoto {
+  id        String   @id @default(cuid())
+  bookingId String
+  kind      String
+  data      String
+  createdAt DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+/* Identity document a pro submitted. Kept off Provider so it never leaks through public provider queries. */
+model ProviderKyc {
+  providerId  Int      @id
+  docType     String
+  docNumber   String
+  docImage    String
+  submittedAt DateTime @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
 }

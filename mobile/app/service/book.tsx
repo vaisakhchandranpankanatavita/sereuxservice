@@ -43,7 +43,7 @@ const PERIODS: { label: string; icon: keyof typeof Ionicons.glyphMap; test: (h: 
 ];
 
 export default function Book() {
-  const { serviceId, providerId } = useLocalSearchParams<{ serviceId: string; providerId?: string }>();
+  const { serviceId, providerId, rebook } = useLocalSearchParams<{ serviceId: string; providerId?: string; rebook?: string }>();
   const router = useRouter();
   const { user } = useSession();
   const t = useTheme();
@@ -63,6 +63,17 @@ export default function Book() {
   const { list: addrs, add: saveAddr, remove: removeAddr } = useAddresses();
   const [saving, setSaving] = useState<{ open: boolean; label: string }>({ open: false, label: '' });
   useEffect(() => setSlot(''), [day]);
+
+  /* "Book again": carry over contact details, address and notes from the earlier booking. */
+  const prev = useFetch<any>(rebook ? `/bookings/${rebook}` : null);
+  const prefilled = useRef(false);
+  useEffect(() => {
+    const b = prev.data;
+    if (!b || prefilled.current) return;
+    prefilled.current = true;
+    setF({ name: b.name, phone: b.phone, address: b.address, notes: b.notes ?? '' });
+    if (b.lat != null && b.lng != null) setCoords({ lat: b.lat, lng: b.lng });
+  }, [prev.data]);
 
   const useMyLocation = async () => {
     setLocBusy(true); setErr('');

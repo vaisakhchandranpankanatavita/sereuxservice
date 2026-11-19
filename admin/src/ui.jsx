@@ -23,6 +23,7 @@ const CHIP = {
   DONE: ['#16a34a', 'check'], DELIVERED: ['#16a34a', 'check'], CONFIRMED: ['#4f46e5', 'shield'], SHIPPED: ['#0284c7', 'arrow'], ON_THE_WAY: ['#0284c7', 'arrow'],
   IN_PROGRESS: ['#ea580c', 'spin'], REQUESTED: ['#b7791f', 'clock'], PLACED: ['#b7791f', 'clock'], CANCELLED: ['#dc2626', 'x'],
   ADMIN: ['#7c3aed', 'star'], PROVIDER: ['#0d9488', 'bolt'], CUSTOMER: ['#64748b', 'user'],
+  APPROVED: ['#16a34a', 'check'], REJECTED: ['#dc2626', 'x'], PENDING: ['#b7791f', 'clock'], NOT_SUBMITTED: ['#64748b', 'clock'],
   PAID: ['#16a34a', 'check'], FAILED: ['#dc2626', 'x'], REFUNDED: ['#64748b', 'arrow'], CREATED: ['#b7791f', 'clock'], COD: ['#64748b', 'user'],
 };
 export const Badge = ({ v, text }) => {
