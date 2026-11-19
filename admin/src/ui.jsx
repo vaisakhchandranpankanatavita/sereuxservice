@@ -3,6 +3,12 @@ import { api } from './api.js';
 import { LordIcon } from './LordIcon.jsx';
 
 export const money = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+/* Great-circle distance in km (haversine) — used to show how far a pro is from a job. */
+export const distanceKm = (lat1, lng1, lat2, lng2) => {
+  const R = 6371, rad = (x) => (x * Math.PI) / 180;
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
 export const when = (d) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /* Status chip: a solid, glossy pill in the status's own colour, with a white icon medallion —

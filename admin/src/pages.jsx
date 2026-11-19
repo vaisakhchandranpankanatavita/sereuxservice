@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { AuditInsights, BannersInsights, BookingsInsights, CouponsInsights, InboxInsights, OrdersInsights, PayoutsInsights, ProductsInsights, ProsInsights, ServicesInsights, UsersInsights } from './insights.jsx';
 import { LordIcon } from './LordIcon.jsx';
 import { ICONS } from './icons.js';
-import { Badge, FormModal, Modal, Page, Table, act, money, useList, when } from './ui.jsx';
+import { Badge, FormModal, Modal, Page, Table, act, distanceKm, money, useList, when } from './ui.jsx';
 
 const FLOW = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
 const ORDER_FLOW = ['PLACED', 'SHIPPED', 'DELIVERED'];
@@ -194,11 +194,16 @@ export function Bookings() {
       { h: 'Customer', render: (b) => <div className="cell2"><span>{b.name}</span><small>{b.phone}</small></div> },
       { h: 'Schedule', render: (b) => <div className="cell2"><span>{b.day}</span><small>{b.slot}</small></div> },
       { h: 'Address', wrap: true, render: (b) => <span className="clamp muted">{b.address}</span> },
-      { h: 'Pro', v: (b) => (pros.find((p) => p.id === b.providerId)?.name ?? 'Unassigned'), render: (b) => <select value={b.providerId ?? ''} aria-label="Assign pro"
-          onChange={(e) => act(() => api(`/admin/bookings/${b.id}/provider`, { method: 'PATCH', body: { providerId: e.target.value ? Number(e.target.value) : null } }), 'Pro updated', reload)}>
-          <option value="">Unassigned</option>
-          {pros.filter((p) => p.services.some((s) => s.id === b.serviceId)).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select> },
+      { h: 'Pro', v: (b) => (pros.find((p) => p.id === b.providerId)?.name ?? 'Unassigned'), render: (b) => {
+          const eligible = pros.filter((p) => p.services.some((s) => s.id === b.serviceId))
+            .map((p) => ({ ...p, km: b.lat != null && b.lng != null && p.lat != null && p.lng != null ? distanceKm(b.lat, b.lng, p.lat, p.lng) : null }))
+            .sort((a, c) => (a.online !== c.online ? (a.online ? -1 : 1) : (a.km ?? Infinity) - (c.km ?? Infinity)));
+          return <select value={b.providerId ?? ''} aria-label="Assign pro"
+            onChange={(e) => act(() => api(`/admin/bookings/${b.id}/provider`, { method: 'PATCH', body: { providerId: e.target.value ? Number(e.target.value) : null } }), 'Pro updated', reload)}>
+            <option value="">Unassigned</option>
+            {eligible.map((p) => <option key={p.id} value={p.id}>{p.name}{p.online ? ' · online' : ' · offline'}{p.km != null ? ` · ${p.km < 1 ? '<1 km' : `${Math.round(p.km)} km`}` : ''}</option>)}
+          </select>;
+        } },
       { h: 'Est.', num: true, render: (b) => <b>{money(b.estimate)}</b> },
       { h: 'Payment', filter: true, v: (b) => b.payment ? b.payment.status : 'COD', render: (b) => b.payment ? <Badge v={b.payment.status} text={`${b.payment.status.toLowerCase()} · online`} /> : <Badge v="COD" text="pay on completion" /> },
       { h: 'Status', filter: true, v: (b) => b.status, render: (b) => <Badge v={b.status} /> },

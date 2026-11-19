@@ -4,6 +4,7 @@ import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-val
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
 import { PushService } from '../common/push';
+import { distanceKm } from '../common/geo';
 import { STATUS_TEXT } from '../bookings/bookings.module';
 
 class OnlineDto { @IsBoolean() online: boolean; }
@@ -45,15 +46,22 @@ class ProService {
     return this.prisma.provider.update({ where: { id: p.id }, data: { lat: dto.lat ?? null, lng: dto.lng ?? null } });
   }
 
-  /* Open pool: unassigned requests for services I offer, plus anything already assigned to me. */
+  /* Open pool: unassigned requests for services I offer (only while online — an offline pro shouldn't
+     see new work land), plus anything already assigned to me regardless of online status. Sorted
+     nearest-first when both my location and the job's are known. */
   async requests(userId: string) {
     const p = await this.mine(userId);
     const ids = (await this.prisma.provider.findUnique({ where: { id: p.id }, include: { services: { select: { id: true } } } }))!.services.map((s) => s.id);
-    return this.prisma.booking.findMany({
-      where: { status: 'REQUESTED', OR: [{ providerId: null, serviceId: { in: ids } }, { providerId: p.id }] },
+    const pool = p.online ? [{ providerId: null, serviceId: { in: ids } }] : [];
+    const rows = await this.prisma.booking.findMany({
+      where: { status: 'REQUESTED', OR: [...pool, { providerId: p.id }] },
       orderBy: { createdAt: 'desc' },
       include: { service: true },
     });
+    if (p.lat == null || p.lng == null) return rows;
+    return rows
+      .map((b) => ({ ...b, distanceKm: b.lat != null && b.lng != null ? distanceKm(p.lat!, p.lng!, b.lat, b.lng) : null }))
+      .sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
   }
 
   async jobs(userId: string) {
