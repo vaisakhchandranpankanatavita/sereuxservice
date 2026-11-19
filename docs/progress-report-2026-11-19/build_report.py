@@ -66,6 +66,15 @@ s += [Paragraph("Summary", H2), Paragraph(
     "money is now highlighted everywhere, and a new Live status popup and a floating timer show how long you have been online and how long the current trip has run. "
     "The checks we could run automatically all passed. Items we could not test yet are listed in the testing report on the last pages.", BODY)]
 
+URL = "https://fixzy-tau.vercel.app"
+s += [Paragraph("Live deployment", H2), table([
+    [P("<b>Item</b>"), P("<b>Details</b>")],
+    [P("Production site (Vercel)", CELLB), P('<link href="%s" color="#1a5fb4"><u>%s</u></link>' % (URL, URL))],
+    [P("Deployment status", CELLB), P("Ready. Deployed automatically from the latest push to the main branch (19 November 2026).")],
+    [P("Source code", CELLB), P('<link href="https://github.com/vaisakhchandranpankanatavita/sereuxservice" color="#1a5fb4"><u>github.com/vaisakhchandranpankanatavita/sereuxservice</u></link> (main branch)')],
+], [4.2 * cm, 12.8 * cm]),
+    Spacer(1, 3), Paragraph("The Vercel site is the Fixzy customer website. The provider app described below is the mobile app and its browser version used for these screenshots; it is not hosted on this Vercel address.", SMALL)]
+
 s += [Paragraph("What changed", H2)]
 s += [Paragraph("1. New sign-in page", H3)]
 s += bullets([
