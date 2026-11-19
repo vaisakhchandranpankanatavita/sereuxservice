@@ -40,9 +40,9 @@ export default function Job() {
   const t = useTheme();
   const job = useFetch<any>(`/bookings/${id}`);
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
-  const tracking = job.data?.status === 'ON_THE_WAY';
+  const tracking = job.data?.status === 'ON_THE_WAY' || job.data?.status === 'IN_PROGRESS';
 
-  // While en route, refresh my own GPS fix every 15s and share it so the route line stays current.
+  // While en route or on the job, refresh my own GPS fix every 15s and share it so the customer's map stays current.
   useEffect(() => {
     if (!tracking) return;
     let alive = true;

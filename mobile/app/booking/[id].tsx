@@ -72,7 +72,7 @@ export default function BookingDetail() {
   const open = b.status !== 'DONE' && b.status !== 'CANCELLED';
   const canMove = b.status === 'REQUESTED' || b.status === 'CONFIRMED';
 
-  const live = b.status === 'ON_THE_WAY' && b.provider?.lat != null && b.provider?.lng != null && b.lat != null && b.lng != null;
+  const live = (b.status === 'ON_THE_WAY' || b.status === 'IN_PROGRESS') && b.provider?.lat != null && b.provider?.lng != null && b.lat != null && b.lng != null;
   const facts = [
     { icon: 'calendar', chip: t.accent, label: 'Date', value: dayLabel(b.day), sub: `at ${b.slot}` },
     { icon: 'cash', chip: t.green, label: 'Estimate', value: money(b.estimate), sub: paid ? 'paid online' : 'pay online or after the job' },
@@ -167,7 +167,7 @@ ${b.address}` }).catch(() => {});
       {b.status !== 'CANCELLED' && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 6 }}>
         <Txt bold size={24} style={{ marginBottom: 6 }}>Where things stand</Txt>
         <Timeline steps={STEPS} current={step} play />
-        {live && <LiveMap home={{ lat: b.lat, lng: b.lng }} pro={{ lat: b.provider.lat, lng: b.provider.lng }} label={`${b.provider.name} is on the way`} />}
+        {live && <LiveMap home={{ lat: b.lat, lng: b.lng }} pro={{ lat: b.provider.lat, lng: b.provider.lng }} label={b.status === 'IN_PROGRESS' ? `${b.provider.name} is on the job` : `${b.provider.name} is on the way`} />}
       </View>}
 
       {canTrack && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 12 }}>
