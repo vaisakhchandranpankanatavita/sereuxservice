@@ -33,6 +33,7 @@ class ProviderDto {
   @IsString() @MaxLength(60) response: string;
   @IsBoolean() verified: boolean;
   @IsArray() @IsInt({ each: true }) serviceIds: number[];
+  @IsOptional() @IsInt() @Min(0) @Max(100) commissionPercent?: number;
 }
 class PatchProviderDto {
   @IsOptional() @IsString() @MaxLength(80) name?: string;
@@ -40,6 +41,13 @@ class PatchProviderDto {
   @IsOptional() @IsString() @MaxLength(60) response?: string;
   @IsOptional() @IsBoolean() verified?: boolean;
   @IsOptional() @IsArray() @IsInt({ each: true }) serviceIds?: number[];
+  @IsOptional() @IsInt() @Min(0) @Max(100) commissionPercent?: number;
+}
+
+class RecordPayoutDto {
+  @IsInt() providerId: number;
+  @IsInt() @Min(1) amount: number;
+  @IsOptional() @IsString() @MaxLength(200) note?: string;
 }
 
 class ProductDto {
@@ -289,6 +297,46 @@ class AdminService {
     await this.audit(me, 'provider.delete', `provider:${id}`);
   }
 
+  /* Payouts: what each pro has earned (net of their commission) from completed jobs, minus what they've been paid. */
+  async listPayouts() {
+    const providers = await this.prisma.provider.findMany({ orderBy: { id: 'asc' }, select: { id: true, name: true, commissionPercent: true } });
+    const [earned, paid] = await Promise.all([
+      this.prisma.booking.groupBy({ by: ['providerId'], where: { status: 'DONE', providerId: { not: null } }, _sum: { estimate: true } }),
+      this.prisma.payout.groupBy({ by: ['providerId'], _sum: { amount: true } }),
+    ]);
+    const earnedMap = new Map(earned.map((e) => [e.providerId, e._sum.estimate ?? 0]));
+    const paidMap = new Map(paid.map((p) => [p.providerId, p._sum.amount ?? 0]));
+    return providers.map((p) => {
+      const gross = earnedMap.get(p.id) ?? 0;
+      const netEarned = Math.round(gross * (100 - p.commissionPercent) / 100);
+      const paidOut = paidMap.get(p.id) ?? 0;
+      return { providerId: p.id, name: p.name, commissionPercent: p.commissionPercent, grossEarned: gross, netEarned, paidOut, balanceDue: Math.max(0, netEarned - paidOut) };
+    });
+  }
+
+  providerPayouts(id: number) {
+    return this.prisma.payout.findMany({ where: { providerId: id }, orderBy: { createdAt: 'desc' } });
+  }
+
+  private async providerBalance(providerId: number) {
+    const provider = await this.must(this.prisma.provider.findUnique({ where: { id: providerId } }));
+    const [earned, paidOut] = await Promise.all([
+      this.prisma.booking.aggregate({ _sum: { estimate: true }, where: { providerId, status: 'DONE' } }),
+      this.prisma.payout.aggregate({ _sum: { amount: true }, where: { providerId } }),
+    ]);
+    const netEarned = Math.round((earned._sum.estimate ?? 0) * (100 - provider.commissionPercent) / 100);
+    const paid = paidOut._sum.amount ?? 0;
+    return { provider, due: Math.max(0, netEarned - paid) };
+  }
+
+  async recordPayout(me: AuthUser, dto: RecordPayoutDto) {
+    const { provider, due } = await this.providerBalance(dto.providerId);
+    if (dto.amount > due) throw new BadRequestException(`Balance due is only ${due}.`);
+    const out = await this.prisma.payout.create({ data: { providerId: provider.id, amount: dto.amount, note: dto.note ?? '', createdBy: me.email } });
+    await this.audit(me, 'payout.create', `provider:${provider.id}`, { amount: dto.amount, note: dto.note });
+    return out;
+  }
+
   async createProduct(me: AuthUser, dto: ProductDto) {
     const id = await this.nextId('product');
     const out = await this.prisma.product.create({ data: { id, ...dto } });
@@ -432,6 +480,10 @@ class AdminController {
   @Patch('providers/:id') updateProvider(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchProviderDto) { return this.svc.updateProvider(me, id, dto); }
   @Patch('providers/:id/link') linkProvider(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: LinkProviderDto) { return this.svc.linkProvider(me, id, dto.email); }
   @Delete('providers/:id') @HttpCode(204) deleteProvider(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.deleteProvider(me, id); }
+
+  @Get('payouts') payouts() { return this.svc.listPayouts(); }
+  @Get('payouts/:providerId') providerPayouts(@Param('providerId', ParseIntPipe) id: number) { return this.svc.providerPayouts(id); }
+  @Post('payouts') recordPayout(@CurrentUser() me: AuthUser, @Body() dto: RecordPayoutDto) { return this.svc.recordPayout(me, dto); }
 
   @Post('products') createProduct(@CurrentUser() me: AuthUser, @Body() dto: ProductDto) { return this.svc.createProduct(me, dto); }
   @Patch('products/:id') updateProduct(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchProductDto) { return this.svc.updateProduct(me, id, dto); }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
-import { AuditInsights, BannersInsights, BookingsInsights, CouponsInsights, InboxInsights, OrdersInsights, ProductsInsights, ProsInsights, ServicesInsights, UsersInsights } from './insights.jsx';
+import { AuditInsights, BannersInsights, BookingsInsights, CouponsInsights, InboxInsights, OrdersInsights, PayoutsInsights, ProductsInsights, ProsInsights, ServicesInsights, UsersInsights } from './insights.jsx';
 import { LordIcon } from './LordIcon.jsx';
 import { ICONS } from './icons.js';
 import { Badge, FormModal, Modal, Page, Table, act, money, useList, when } from './ui.jsx';
@@ -298,16 +298,18 @@ export function Providers() {
   const [link, setLink] = useState(null); // { provider }
   return <>
     <Crud title="Pros" path="/admin/providers" noun="pro" Analysis={ProsInsights}
-      createExtra={{ verified: true, years: 1, response: '30 min' }}
+      createExtra={{ verified: true, years: 1, response: '30 min', commissionPercent: 20 }}
       fields={[
         { key: 'name', label: 'Name', type: 'text' }, { key: 'years', label: 'Years of experience', type: 'number' },
         { key: 'response', label: 'Typical response (e.g. 30 min)', type: 'text' },
         { key: 'verified', label: 'Verified', type: 'bool' },
+        { key: 'commissionPercent', label: 'Platform commission (%)', type: 'number' },
         { key: 'serviceIds', label: 'Services offered (ctrl/cmd-click for several)', type: 'multi', options: services },
       ]}
       cols={[
         { h: 'ID', render: (p) => p.id }, { h: 'Name', render: (p) => <b>{p.name}</b> }, { h: 'Experience', render: (p) => `${p.years} yrs` },
-        { h: 'Response', render: (p) => p.response }, { h: 'Verified', filter: true, v: (p) => (p.verified ? 'verified' : 'pending'), render: (p) => <Badge v={p.verified ? 'DONE' : 'REQUESTED'} text={p.verified ? 'verified' : 'pending'} /> },
+        { h: 'Response', render: (p) => p.response }, { h: 'Commission', render: (p) => `${p.commissionPercent}%` },
+        { h: 'Verified', filter: true, v: (p) => (p.verified ? 'verified' : 'pending'), render: (p) => <Badge v={p.verified ? 'DONE' : 'REQUESTED'} text={p.verified ? 'verified' : 'pending'} /> },
         { h: 'Services', wrap: true, render: (p) => p.services.map((s) => s.name).join(', ') }, { h: 'Jobs', render: (p) => p._count.bookings },
         { h: 'App login', render: (p) => {
           const row = (rows ?? []).find((r) => r.id === p.id);
@@ -459,6 +461,52 @@ export function Banners() {
   </Page>;
 }
 
+/* ---------- Payouts ---------- */
+export function Payouts() {
+  const { rows, error, reload } = useList('/admin/payouts');
+  const [pay, setPay] = useState(null); // { row }
+  const [history, setHistory] = useState(null); // { row, list, error? }
+
+  const openHistory = async (row) => {
+    setHistory({ row, list: null });
+    try { setHistory({ row, list: await api(`/admin/payouts/${row.providerId}`) }); }
+    catch (e) { setHistory({ row, list: [], error: e.message }); }
+  };
+
+  return <Page title="Payouts">
+    <PayoutsInsights rows={rows} />
+    <Table error={error} rows={rows} empty="No pros yet." cols={[
+      { h: 'Pro', render: (r) => <b>{r.name}</b> },
+      { h: 'Commission', render: (r) => `${r.commissionPercent}%` },
+      { h: 'Gross earned', render: (r) => money(r.grossEarned) },
+      { h: 'Net earned', render: (r) => money(r.netEarned) },
+      { h: 'Paid out', render: (r) => money(r.paidOut) },
+      { h: 'Balance due', num: true, render: (r) => <b>{money(r.balanceDue)}</b> },
+      { h: '', render: (r) => <div className="row-actions">
+        <button className="btn sm" onClick={() => openHistory(r)}>History</button>
+        <button className="btn sm primary" disabled={!r.balanceDue} onClick={() => setPay({ row: r })}>Record payout</button>
+      </div> },
+    ]} />
+    {pay && <FormModal title={`Record payout — ${pay.row.name}`} initial={{ amount: pay.row.balanceDue, note: '' }} onClose={() => setPay(null)}
+      fields={[
+        { key: 'amount', label: `Amount (₹, up to ${money(pay.row.balanceDue)} due)`, type: 'number' },
+        { key: 'note', label: 'Note (optional, e.g. UPI ref)', type: 'text', required: false },
+      ]}
+      onSubmit={async (v) => {
+        await api('/admin/payouts', { method: 'POST', body: { providerId: pay.row.providerId, amount: Number(v.amount), note: v.note || undefined } });
+        await reload();
+      }} />}
+    {history && <Modal title={`Payout history — ${history.row.name}`} onClose={() => setHistory(null)}>
+      {!history.list ? <p className="muted">Loading…</p>
+        : history.error ? <p className="err">{history.error}</p>
+        : !history.list.length ? <p className="muted">No payouts recorded yet.</p>
+        : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {history.list.map((p) => <div key={p.id} className="cell2"><b>{money(p.amount)}</b><small>{when(p.createdAt)}{p.note ? ` · ${p.note}` : ''}</small></div>)}
+        </div>}
+    </Modal>}
+  </Page>;
+}
+
 /* ---------- Reviews & messages ---------- */
 /* Raw JSON is unreadable: show non-empty fields as "key value" pairs, clamped to two lines,
    with the full JSON available on hover. */
@@ -492,6 +540,7 @@ const AUDIT_ACTION_LABELS = {
   'coupon.create': 'Coupon created',
   'coupon.update': 'Coupon updated',
   'coupon.delete': 'Coupon deleted',
+  'payout.create': 'Payout recorded',
   'review.delete': 'Review deleted',
   'message.delete': 'Message deleted',
 };

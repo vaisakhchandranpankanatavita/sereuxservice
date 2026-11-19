@@ -113,19 +113,34 @@ model Service {
 }
 
 model Provider {
-  id       Int       @id
-  userId   String?   @unique
-  name     String
-  years    Int
-  verified Boolean   @default(true)
-  response String
-  bio      String    @default("")
-  online   Boolean   @default(false)
-  lat      Float?
-  lng      Float?
-  services Service[]
-  bookings Booking[]
-  user     User?     @relation(fields: [userId], references: [id])
+  id                Int       @id
+  userId            String?   @unique
+  name              String
+  years             Int
+  verified          Boolean   @default(true)
+  response          String
+  bio               String    @default("")
+  online            Boolean   @default(false)
+  lat               Float?
+  lng               Float?
+  commissionPercent Int       @default(20)
+  services          Service[]
+  bookings          Booking[]
+  payouts           Payout[]
+  user              User?     @relation(fields: [userId], references: [id])
+}
+
+model Payout {
+  id         String   @id @default(cuid())
+  providerId Int
+  amount     Int
+  note       String   @default("")
+  createdBy  String
+  createdAt  DateTime @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id])
+
+  @@index([providerId, createdAt])
 }
 
 model Product {

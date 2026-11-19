@@ -10,6 +10,7 @@ export const ICONS = {
   products: 'rezibkiy',    // Wooden Box
   coupons: 'dkobpcrm',     // Sale Tag
   banners: 'kezeezyg',     // Gift
+  payouts: 'bsdkzyjd',     // Coins
   inbox: 'vpbspaec',       // Mail Fast
   auditLog: 'hmpomorl',    // Document
 

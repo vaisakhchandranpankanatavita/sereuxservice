@@ -31,7 +31,8 @@ class ProService {
       this.prisma.booking.aggregate({ _sum: { estimate: true }, where: { providerId: p.id, status: 'DONE' } }),
       this.prisma.review.aggregate({ _avg: { rating: true }, where: { kind: 'service', booking: { providerId: p.id } } }),
     ]);
-    return { ...p, done, earned: earnings._sum.estimate ?? 0, rating: rating._avg.rating ?? null };
+    const earned = Math.round((earnings._sum.estimate ?? 0) * (100 - p.commissionPercent) / 100);
+    return { ...p, done, earned, rating: rating._avg.rating ?? null };
   }
 
   async setOnline(userId: string, online: boolean) {
@@ -93,22 +94,36 @@ class ProService {
     return this.prisma.provider.update({ where: { id: p.id }, data: { ...(dto.bio !== undefined && { bio: dto.bio }), ...(dto.response !== undefined && { response: dto.response }) } });
   }
 
-  /* Totals for completed jobs (by job day) plus a per-day series for the last 14 days. */
+  /* Totals for completed jobs (by job day) plus a per-day series for the last 14 days, net of
+     platform commission, alongside what has actually been paid out so far. */
   async earnings(userId: string) {
     const p = await this.mine(userId);
     const iso = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+    const net = (gross: number) => Math.round(gross * (100 - p.commissionPercent) / 100);
     const rows = await this.prisma.booking.findMany({ where: { providerId: p.id, status: 'DONE', day: { gte: iso(29) } }, select: { day: true, estimate: true } });
-    const sum = (from: string) => rows.filter((r) => r.day >= from).reduce((a, r) => a + r.estimate, 0);
+    const sum = (from: string) => net(rows.filter((r) => r.day >= from).reduce((a, r) => a + r.estimate, 0));
     const daily = Array.from({ length: 14 }, (_, i) => {
       const day = iso(13 - i);
       const list = rows.filter((r) => r.day === day);
-      return { day, jobs: list.length, amount: list.reduce((a, r) => a + r.estimate, 0) };
+      return { day, jobs: list.length, amount: net(list.reduce((a, r) => a + r.estimate, 0)) };
     });
-    const [lifetime, upcoming] = await Promise.all([
+    const [lifetime, upcoming, paidOut] = await Promise.all([
       this.prisma.booking.aggregate({ _sum: { estimate: true }, _count: true, where: { providerId: p.id, status: 'DONE' } }),
       this.prisma.booking.count({ where: { providerId: p.id, status: { in: ['CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS'] } } }),
+      this.prisma.payout.aggregate({ _sum: { amount: true }, where: { providerId: p.id } }),
     ]);
-    return { today: sum(iso(0)), week: sum(iso(6)), month: sum(iso(29)), lifetime: lifetime._sum.estimate ?? 0, jobs: lifetime._count, upcoming, daily };
+    const lifetimeNet = net(lifetime._sum.estimate ?? 0);
+    const paid = paidOut._sum.amount ?? 0;
+    return {
+      today: sum(iso(0)), week: sum(iso(6)), month: sum(iso(29)),
+      lifetime: lifetimeNet, jobs: lifetime._count, upcoming, daily,
+      commissionPercent: p.commissionPercent, paidOut: paid, balanceDue: Math.max(0, lifetimeNet - paid),
+    };
+  }
+
+  async payouts(userId: string) {
+    const p = await this.mine(userId);
+    return this.prisma.payout.findMany({ where: { providerId: p.id }, orderBy: { createdAt: 'desc' } });
   }
 
   /* Reviews customers left for this pro: summary (average, count, 1-5 breakdown) plus the latest 50. Customers appear by first name only. */
@@ -169,6 +184,7 @@ class ProController {
   @Patch('online') online(@CurrentUser() u: AuthUser, @Body() dto: OnlineDto) { return this.svc.setOnline(u.id, dto.online); }
   @Patch('location') location(@CurrentUser() u: AuthUser, @Body() dto: LocationDto) { return this.svc.setLocation(u.id, dto); }
   @Get('earnings') earnings(@CurrentUser() u: AuthUser) { return this.svc.earnings(u.id); }
+  @Get('payouts') payouts(@CurrentUser() u: AuthUser) { return this.svc.payouts(u.id); }
   @Get('reviews') reviews(@CurrentUser() u: AuthUser) { return this.svc.reviews(u.id); }
   @Patch('profile') profile(@CurrentUser() u: AuthUser, @Body() dto: ProfileDto) { return this.svc.updateProfile(u.id, dto); }
   @Post('bookings/:id/release') release(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: ReleaseDto) { return this.svc.release(u.id, id, dto.reason); }

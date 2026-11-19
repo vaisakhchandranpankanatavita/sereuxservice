@@ -36,6 +36,25 @@ function Earnings() {
     <Row between><Txt muted>Lifetime earned</Txt><Txt bold>{money(d.lifetime)}</Txt></Row>
     <Row between><Txt muted>Jobs completed</Txt><Txt bold>{d.jobs}</Txt></Row>
     <Row between><Txt muted>Upcoming jobs</Txt><Txt bold>{d.upcoming}</Txt></Row>
+    <Txt muted size={11}>Net of {d.commissionPercent}% platform commission.</Txt>
+  </Card>;
+}
+
+function Payouts() {
+  const t = useTheme();
+  const e = useFetch<any>('/pro/earnings');
+  const h = useFetch<any>('/pro/payouts');
+  if (!e.data) return null;
+  return <Card>
+    <Txt bold size={16}>Payouts</Txt>
+    <Row between><Txt muted>Paid out so far</Txt><Txt bold size={17}>{money(e.data.paidOut)}</Txt></Row>
+    <Row between><Txt muted>Balance due</Txt><Txt bold size={17} color={t.accent}>{money(e.data.balanceDue)}</Txt></Row>
+    {!!h.data?.length && <View style={{ marginTop: 8, gap: 6 }}>
+      {h.data.slice(0, 5).map((p: any) => <Row key={p.id} between>
+        <Txt size={13} muted>{new Date(p.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{p.note ? ` · ${p.note}` : ''}</Txt>
+        <Txt size={13} bold>{money(p.amount)}</Txt>
+      </Row>)}
+    </View>}
   </Card>;
 }
 
@@ -108,6 +127,7 @@ export default function Account() {
     </Card>
 
     <Earnings />
+    <Payouts />
     <ProfileEdit p={p} onSaved={me.reload} />
 
     <Card>

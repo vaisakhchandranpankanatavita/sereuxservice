@@ -5,7 +5,7 @@ import { login, logout, refresh } from './api.js';
 import { AppLoader, Toaster } from './ui.jsx';
 import { LordIcon } from './LordIcon.jsx';
 import { ICONS } from './icons.js';
-import { Admins, AuditLog, Banners, Bookings, Coupons, Dashboard, Inbox, Notifications, Orders, Products, Providers, Services, Users } from './pages.jsx';
+import { Admins, AuditLog, Banners, Bookings, Coupons, Dashboard, Inbox, Notifications, Orders, Payouts, Products, Providers, Services, Users } from './pages.jsx';
 
 /* Vivid active-state colour per section (bg) and the icon colour that reads best on it. */
 const BRIGHT = {
@@ -27,6 +27,7 @@ const ROUTES = [
   ['services', 'Services', Services, ICONS.services, 'c5', 'catalog'],
   ['pros', 'Pros', Providers, ICONS.pros, 'c6', 'catalog'],
   ['products', 'Products', Products, ICONS.products, 'c7', 'catalog'],
+  ['payouts', 'Payouts', Payouts, ICONS.payouts, 'c10', 'catalog'],
   ['coupons', 'Coupons', Coupons, ICONS.coupons, 'c8', 'marketing'],
   ['banners', 'Banners', Banners, ICONS.banners, 'c11', 'marketing'],
   ['notifications', 'Notifications', Notifications, ICONS.bell, 'c12', 'admin'],

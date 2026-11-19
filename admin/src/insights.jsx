@@ -328,6 +328,23 @@ export function CouponsInsights({ rows }) {
     ]} />;
 }
 
+export function PayoutsInsights({ rows }) {
+  if (!rows?.length) return null;
+  const totalDue = rows.reduce((a, r) => a + r.balanceDue, 0);
+  const totalPaid = rows.reduce((a, r) => a + r.paidOut, 0);
+  const owed = rows.filter((r) => r.balanceDue > 0).length;
+  const top = [...rows].sort((a, b) => b.balanceDue - a.balanceDue);
+  return <Insights title="Payout insights"
+    kpis={[
+      { label: 'Pros', value: rows.length }, { label: 'Owed now', value: totalDue, fmt: 'money' }, { label: 'Paid out', value: totalPaid, fmt: 'money' }, { label: 'Pros owed', value: owed },
+    ]}
+    charts={[{ title: 'Balance due by pro', kind: 'bars', fmt: 'money', data: top.slice(0, 6).filter((r) => r.balanceDue).map((r) => ({ label: r.name, value: r.balanceDue })) }]}
+    notes={[
+      owed ? `${plural(owed, 'pro')} currently owed a payout.` : 'Everyone is paid up.',
+      top[0]?.balanceDue ? `${top[0].name} is owed the most: ₹${Math.round(top[0].balanceDue).toLocaleString('en-IN')}.` : null,
+    ].filter(Boolean)} />;
+}
+
 export function BannersInsights({ rows }) {
   if (!rows?.length) return null;
   const live = rows.filter((b) => b.active).length, offer = rows.filter((b) => b.coupon).length, linked = rows.filter((b) => b.serviceId != null).length;
