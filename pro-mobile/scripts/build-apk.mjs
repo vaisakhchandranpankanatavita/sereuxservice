@@ -20,6 +20,14 @@ const variant = debug ? 'debug' : 'release';
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://fixzy-api.vercel.app/api';
 const ASSET_URL = process.env.EXPO_PUBLIC_ASSET_URL || 'https://fixzy-tau.vercel.app';
 
+// A release APK is handed to real devices off this network — a leftover local/emulator URL in the
+// environment (e.g. from a dev session) would ship a build that can only talk to your own machine.
+const LOCAL_HOST = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|10\.0\.2\.2|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:|\/|$)/i;
+if (!debug) {
+  const bad = [['EXPO_PUBLIC_API_URL', API_URL], ['EXPO_PUBLIC_ASSET_URL', ASSET_URL]].filter(([, url]) => LOCAL_HOST.test(url));
+  if (bad.length) throw new Error(`Refusing to build a release APK pointed at a local/dev address:\n${bad.map(([k, v]) => `  ${k}=${v}`).join('\n')}\nUnset it in your shell/.env so the public default above is used, point it at the public deployment, or pass --debug for a local test build.`);
+}
+
 const firstExisting = (...p) => p.filter(Boolean).find((x) => existsSync(x));
 const sdk = firstExisting(process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, process.env.LOCALAPPDATA && join(process.env.LOCALAPPDATA, 'Android', 'Sdk'), process.env.HOME && join(process.env.HOME, 'Android', 'Sdk'), process.env.HOME && join(process.env.HOME, 'Library', 'Android', 'sdk'));
 const jdk = firstExisting(process.env.JAVA_HOME, 'C:/Program Files/Android/Android Studio/jbr', '/Applications/Android Studio.app/Contents/jbr/Contents/Home', '/opt/android-studio/jbr');
