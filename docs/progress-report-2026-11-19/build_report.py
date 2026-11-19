@@ -71,7 +71,6 @@ s += [Paragraph("Live deployment", H2), table([
     [P("<b>Item</b>"), P("<b>Details</b>")],
     [P("Production site (Vercel)", CELLB), P('<link href="%s" color="#1a5fb4"><u>%s</u></link>' % (URL, URL))],
     [P("Deployment status", CELLB), P("Ready. Deployed automatically from the latest push to the main branch (19 November 2026).")],
-    [P("Source code", CELLB), P('<link href="https://github.com/vaisakhchandranpankanatavita/sereuxservice" color="#1a5fb4"><u>github.com/vaisakhchandranpankanatavita/sereuxservice</u></link> (main branch)')],
 ], [4.2 * cm, 12.8 * cm]),
     Spacer(1, 3), Paragraph("The Vercel site is the Fixzy customer website. The provider app described below is the mobile app and its browser version used for these screenshots; it is not hosted on this Vercel address.", SMALL)]
 
