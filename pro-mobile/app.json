@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.fixzy.pro",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-adaptive-foreground.png",
         "backgroundColor": "#141412"
