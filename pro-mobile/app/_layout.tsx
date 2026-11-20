@@ -3,7 +3,7 @@ import { Platform, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
-import { JetBrainsMono_400Regular, JetBrainsMono_500Medium } from '@expo-google-fonts/jetbrains-mono';
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
 import { SessionProvider, useSession } from '../src/session';
 import { onNotificationTap, registerPush } from '../src/push';
 import { font, useTheme } from '../src/ui';
@@ -12,7 +12,7 @@ import { LiveTimer } from '../src/live';
 function Gate() {
   const { user } = useSession();
   const t = useTheme();
-  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, JetBrainsMono_400Regular, JetBrainsMono_500Medium });
+  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Fraunces_600SemiBold });
   const segments = useSegments();
   const router = useRouter();
   const inAuth = segments[0] === '(auth)';

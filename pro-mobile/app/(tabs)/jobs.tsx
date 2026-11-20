@@ -13,14 +13,13 @@ const NEXT: Record<string, [string, string]> = {
   IN_PROGRESS: ['DONE', 'Mark complete'],
 };
 const FLOW = ['CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS'];
-const STEP_LABEL = ['Confirmed', 'On the way', 'Working'];
 const isActive = (j: any) => j.status !== 'DONE' && j.status !== 'CANCELLED';
 /* Work already under way first, then by date and slot, so the top block is always "what to do now". */
 const rank = (j: any) => (FLOW.indexOf(j.status) >= 1 ? FLOW.indexOf(j.status) : 0);
 const byNow = (a: any, b: any) => rank(b) - rank(a) || `${a.day} ${a.slot}`.localeCompare(`${b.day} ${b.slot}`);
 
-/* Type tokens for this page: tight Inter semibold for headings; JetBrains Mono (tabular) for times. */
-const serif = (size: number, extra: object = {}) => ({ fontFamily: font.semibold, fontSize: size, letterSpacing: -size * 0.02, ...extra });
+/* Tight Inter semibold for section titles and customer names. */
+const title = (size: number, extra: object = {}) => ({ fontFamily: font.display, fontSize: size, letterSpacing: -size * 0.015, ...extra });
 
 export default function Jobs() {
   const t = useTheme();
@@ -79,27 +78,26 @@ export default function Jobs() {
     </View>;
   };
 
-  /* The one job that needs attention now: a bordered card with a mono time, then plain labelled facts and a step tracker. */
+  /* Keep one clear focus job; the current status carries the progress without a second tracker. */
   const now = (j: any) => {
-    const at = Math.max(0, FLOW.indexOf(j.status));
     const c = tone(t, j.status === 'IN_PROGRESS' ? 'warn' : 'info');
-    return <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.line, borderRadius: R.lg, padding: 24, gap: 20 }}>
+    return <View style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.line, borderLeftWidth: 4, borderLeftColor: c.fg, borderRadius: R.lg, padding: 22, gap: 18, shadowColor: '#09090B', shadowOpacity: 0.06, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ backgroundColor: c.bg, borderWidth: 1, borderColor: c.bd, borderRadius: 999, paddingHorizontal: 8, height: 22, justifyContent: 'center' }}>
-          <Text style={{ color: c.fg, fontFamily: font.semibold, fontSize: 11 }}>{j.status === 'CONFIRMED' ? 'Up next' : 'In progress now'}</Text>
+        <View style={{ backgroundColor: c.bg, borderRadius: R.pill, paddingHorizontal: 10, height: 26, justifyContent: 'center' }}>
+          <Text style={{ color: c.fg, fontFamily: font.semibold, fontSize: 11 }}>{label(j.status)}</Text>
         </View>
         <Text style={{ ...overline, color: t.muted }}>{dayName(j.day)}</Text>
       </View>
       <View style={{ gap: 6 }}>
-        <Text style={mono(44, { color: t.ink, lineHeight: 48, letterSpacing: -1.5 })}>{j.slot}</Text>
-        <Text style={serif(20, { color: t.ink })} numberOfLines={1}>{j.name || 'Customer'}</Text>
+        <Text style={{ color: t.ink, fontFamily: font.display, fontSize: 38, lineHeight: 44, letterSpacing: -0.8, fontVariant: ['lining-nums', 'tabular-nums'] }}>{j.slot}</Text>
+        <Text style={title(20, { color: t.ink })} numberOfLines={1}>{j.name || 'Customer'}</Text>
         <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 14, lineHeight: 21 }}>{j.service?.name}, {j.address}</Text>
       </View>
       <View style={{ height: 1, backgroundColor: t.line }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <View style={{ gap: 4 }}>
           <Text style={{ ...overline, color: t.muted }}>Phone</Text>
-          {j.phone ? <Pressable onPress={() => Linking.openURL(`tel:${j.phone}`)} accessibilityRole="link" accessibilityLabel={`Call ${j.name}`}><Text style={mono(14, { color: t.accent })}>{j.phone}</Text></Pressable> : <Text style={{ color: t.muted }}>–</Text>}
+          {j.phone ? <Pressable onPress={() => Linking.openURL(`tel:${j.phone}`)} accessibilityRole="link" accessibilityLabel={`Call ${j.name}`} style={{ minHeight: 32, justifyContent: 'center' }}><Text style={mono(13, { color: t.accent })}>{j.phone}</Text></Pressable> : <Text style={{ color: t.muted }}>–</Text>}
         </View>
         <View style={{ gap: 4, alignItems: 'flex-end' }}>
           <Text style={{ ...overline, color: t.muted }}>Estimate</Text>
@@ -107,12 +105,6 @@ export default function Jobs() {
         </View>
       </View>
       {!!j.notes && <Text style={{ color: t.body, fontFamily: font.regular, fontSize: 13, lineHeight: 19, backgroundColor: t.surface, borderRadius: R.sm, padding: 12 }}>“{j.notes}”</Text>}
-      <View style={{ gap: 8 }}>
-        <View style={{ flexDirection: 'row' }}>
-          {STEP_LABEL.map((s, i) => <Text key={s} style={{ flex: 1, fontSize: 12, fontFamily: i === at ? font.semibold : font.regular, color: i === at ? t.ink : i < at ? t.accent : t.muted, textAlign: i === 0 ? 'left' : i === 2 ? 'right' : 'center' }}>{s}</Text>)}
-        </View>
-        <View style={{ height: 3, borderRadius: 2, backgroundColor: t.surface }}><View style={{ height: 3, borderRadius: 2, width: `${((at + 1) / 3) * 100}%`, backgroundColor: t.accent }} /></View>
-      </View>
       {actions(j)}
     </View>;
   };
@@ -122,7 +114,7 @@ export default function Jobs() {
     <View style={{ flexDirection: 'row', gap: 16, alignItems: 'flex-start' }}>
       <Text style={mono(14, { color: t.ink, width: 78, paddingTop: 2 })}>{j.slot}</Text>
       <View style={{ flex: 1, gap: 3 }}>
-        <Text style={{ color: t.ink, fontFamily: font.semibold, fontSize: 15 }} numberOfLines={1}>{j.name || 'Customer'}</Text>
+        <Text style={{ color: t.ink, fontFamily: font.semibold, fontSize: 16 }} numberOfLines={1}>{j.name || 'Customer'}</Text>
         <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 13, lineHeight: 19 }} numberOfLines={2}>{j.service?.name}, {j.address}</Text>
         <Text style={{ color: statusColor(j.status), fontFamily: font.semibold, fontSize: 12, marginTop: 2 }}>{label(j.status)}</Text>
       </View>
@@ -138,9 +130,8 @@ export default function Jobs() {
       {days.map((d) => {
         const items = list.filter((j) => j.day === d).sort((a, b) => (newestFirst ? -1 : 1) * a.slot.localeCompare(b.slot));
         return <View key={d}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 10 }}>
-            <Text style={serif(16, { color: t.ink })}>{dayName(d)}</Text>
-            <Text style={mono(12, { color: t.muted })}>{items.length} {items.length === 1 ? 'job' : 'jobs'}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingBottom: 6 }}>
+            <Text style={title(16, { color: t.ink })}>{dayName(d)}</Text>
           </View>
           {items.map(entry)}
         </View>;
@@ -163,8 +154,8 @@ export default function Jobs() {
 
   return <Screen refresh={jobs.refresh} refreshing={jobs.refreshing}>
     {codeSheet}
-    <View style={{ width: '100%', gap: 24 }}>
-      <PageTitle title="My jobs" sub={active.length ? `${active.length} active · ${first?.status === 'CONFIRMED' ? 'next up first' : 'work in progress first'}` : 'Nothing scheduled'} />
+    <View style={{ width: '100%', gap: 20 }}>
+      <PageTitle title="My jobs" />
       <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: 4, gap: 4, borderRadius: 15, backgroundColor: t.surface }}>
         {tabLabel('active', 'Active', active.length)}{tabLabel('done', 'Completed', past.length)}
       </View>

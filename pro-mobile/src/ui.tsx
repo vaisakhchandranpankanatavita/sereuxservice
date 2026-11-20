@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Animated, Easing, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from './api';
 
 /* Design tokens: tinted zinc neutrals (never pure black/white), one cobalt accent reserved for primary actions and active states.
@@ -18,8 +19,8 @@ export type Theme = typeof theme;
 export const useTheme = (): Theme => theme;
 export const CONTENT_MAX = 1200;
 export const R = { sm: 12, md: 16, lg: 20, pill: 999 };
-/* Inter for UI copy; JetBrains Mono (tabular) for every number, time, date and id. `display*` keep their old names but are now Inter. */
-export const font = { regular: 'Inter_400Regular', medium: 'Inter_500Medium', semibold: 'Inter_600SemiBold', bold: 'Inter_700Bold', heavy: 'Inter_600SemiBold', display: 'Inter_600SemiBold', displayBold: 'Inter_600SemiBold', mono: 'JetBrainsMono_500Medium', monoRegular: 'JetBrainsMono_400Regular' };
+/* Inter throughout the app; tabular numerals keep times and amounts aligned without changing the typeface. */
+export const font = { regular: 'Inter_400Regular', medium: 'Inter_500Medium', semibold: 'Inter_600SemiBold', bold: 'Inter_700Bold', heavy: 'Inter_600SemiBold', display: 'Fraunces_600SemiBold', displayBold: 'Fraunces_600SemiBold', mono: 'Inter_500Medium', monoRegular: 'Inter_400Regular' };
 export const mono = (size: number, extra: object = {}) => ({ fontFamily: font.mono, fontSize: size, fontVariant: ['tabular-nums' as const], ...extra });
 /* Section overline / table-header style: 11px, uppercase, wide tracking, muted. */
 export const overline = { fontFamily: font.semibold, fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase' as const };
@@ -46,8 +47,9 @@ export function useFetch<T = any>(path: string | null, pollMs = 0) {
 
 export function Screen({ children, refresh, refreshing, pad = true }: { children: ReactNode; refresh?: () => void; refreshing?: boolean; pad?: boolean }) {
   const t = useTheme();
+  const top = useSafeAreaInsets().top; /* the topbar floats over the page, so content starts below it */
   return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}>
-    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ padding: pad ? 16 : 0, gap: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled"
+    <ScrollView style={{ backgroundColor: t.bg }} contentContainerStyle={{ padding: pad ? 16 : 0, paddingTop: top + 72 + 16, gap: 16, paddingBottom: 120 }} keyboardShouldPersistTaps="handled"
       refreshControl={refresh ? <RefreshControl refreshing={!!refreshing} onRefresh={refresh} /> : undefined}>
       {/* One shared content width for every screen, so wide browser windows are used consistently. */}
       <View style={{ width: '100%', maxWidth: CONTENT_MAX, alignSelf: 'center', gap: 16 }}>{children}</View>
@@ -110,7 +112,7 @@ export function PageTitle({ title, sub, right }: { title: string; sub?: string; 
   const t = useTheme();
   return <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, paddingTop: 8 }}>
     <View style={{ flex: 1, gap: 4 }}>
-      <Text accessibilityRole="header" style={{ color: t.ink, fontFamily: font.semibold, fontSize: 32, letterSpacing: -1, lineHeight: 36 }}>{title}</Text>
+      <Text accessibilityRole="header" style={{ color: t.ink, fontFamily: font.display, fontSize: 34, letterSpacing: -0.8, lineHeight: 40 }}>{title}</Text>
       {sub ? <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 15, lineHeight: 21 }}>{sub}</Text> : null}
     </View>
     {right}
