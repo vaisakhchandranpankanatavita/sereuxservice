@@ -8,7 +8,7 @@ import CouponBox, { type AppliedCoupon } from '../../src/CouponBox';
 import { useAddresses } from '../../src/addresses';
 import { usePlaceSuggestions, type Place } from '../../src/places';
 import { useSession } from '../../src/session';
-import { Avatar, Banner, Button, Card, Chip, FadeIn, Field, Row, Screen, Skeleton, Status, Tap, Txt, dayLabel, font, money, useFetch, useTheme } from '../../src/ui';
+import { Avatar, Banner, Button, Card, Chip, FadeIn, Field, R, Row, Screen, Skeleton, Status, Tap, Txt, dayLabel, font, money, useFetch, useTheme } from '../../src/ui';
 
 const isoDay = (offset: number) => {
   const d = new Date(); d.setDate(d.getDate() + offset);
@@ -208,15 +208,79 @@ export default function Book() {
       <Field onCard label="Notes for the pro (optional)" value={f.notes} onChangeText={set('notes')} multiline />
     </Card></FadeIn>}
 
-    {step === 2 && <FadeIn key="s2" rise={12}><Card style={{ padding: 18, gap: 12 }}>
-      <Row between><Txt muted size={14}>Service</Txt><Txt bold size={14}>{svc.data.name}{pro ? ` · ${pro.name}` : ''}</Txt></Row>
-      <Row between><Txt muted size={14}>When</Txt><Txt bold size={14}>{dayLabel(day)}{slot ? ` · ${slot}` : ''}</Txt></Row>
-      <Row between><Txt muted size={14}>Name</Txt><Txt bold size={14}>{f.name}</Txt></Row>
-      <Row between><Txt muted size={14}>Phone</Txt><Txt bold size={14}>{f.phone}</Txt></Row>
-      <Row between style={{ alignItems: 'flex-start' }}><Txt muted size={14}>Address</Txt><Txt bold size={14} style={{ flex: 1, textAlign: 'right' }}>{f.address}</Txt></Row>
-      <CouponBox onCard applied={coupon} onChange={setCoupon} />
-      <Row between><Txt muted size={14}>Estimate</Txt><Txt bold size={18}>from {money(svc.data.fromPrice - (coupon ? Math.round(svc.data.fromPrice * coupon.percent / 100) : 0))}</Txt></Row>
-    </Card></FadeIn>}
+    {step === 2 && <FadeIn key="s2" rise={12} style={{ gap: 14 }}>
+      <View style={{ gap: 2 }}>
+        <Txt bold size={22}>Review booking</Txt>
+        <Txt muted size={13}>Check your visit details before confirming.</Txt>
+      </View>
+
+      {/* Service & Time Card */}
+      <Card style={{ padding: 18, gap: 14 }}>
+        <Row between>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Txt muted size={12} style={{ letterSpacing: 0.5, textTransform: 'uppercase', fontFamily: font.bold }}>Service</Txt>
+            <Txt bold size={16}>{svc.data.name}</Txt>
+            {pro && <Txt size={13} color={t.body}>Assigned Pro: <Text style={{ fontFamily: font.bold }}>{pro.name}</Text></Txt>}
+          </View>
+          <View style={{ backgroundColor: t.bg, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, alignItems: 'flex-end', borderWidth: 1, borderColor: t.line }}>
+            <Row style={{ gap: 5 }}>
+              <Ionicons name="calendar-outline" size={14} color={t.ink} />
+              <Txt bold size={13}>{dayLabel(day)}</Txt>
+            </Row>
+            {slot ? <Txt size={12} color={t.muted} style={{ marginTop: 2 }}>{slot}</Txt> : null}
+          </View>
+        </Row>
+      </Card>
+
+      {/* Location & Contact Card */}
+      <Card style={{ padding: 18, gap: 14 }}>
+        <View style={{ gap: 2 }}>
+          <Txt muted size={12} style={{ letterSpacing: 0.5, textTransform: 'uppercase', fontFamily: font.bold }}>Service Location</Txt>
+          <Row style={{ alignItems: 'flex-start', gap: 8, marginTop: 4 }}>
+            <Ionicons name="location-outline" size={18} color={t.ink} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Txt bold size={14}>{f.address}</Txt>
+              <Txt muted size={13}>{f.name} · {f.phone}</Txt>
+            </View>
+          </Row>
+        </View>
+        {f.notes?.trim() ? (
+          <View style={{ paddingTop: 8, borderTopWidth: 1, borderTopColor: t.line, gap: 2 }}>
+            <Txt muted size={12}>Notes for pro:</Txt>
+            <Txt size={13} color={t.body}>{f.notes.trim()}</Txt>
+          </View>
+        ) : null}
+      </Card>
+
+      {/* Price & Summary */}
+      <Card style={{ padding: 18, gap: 12 }}>
+        <CouponBox onCard applied={coupon} onChange={setCoupon} />
+        <View style={{ paddingTop: 8, borderTopWidth: 1, borderTopColor: t.line, gap: 8 }}>
+          <Row between>
+            <Txt muted size={14}>Estimated starting price</Txt>
+            <Txt size={14}>{money(svc.data.fromPrice)}</Txt>
+          </Row>
+          {coupon ? (
+            <Row between>
+              <Txt size={13} color={t.ok}>Coupon discount ({coupon.code})</Txt>
+              <Txt size={13} color={t.ok}>−{money(Math.round(svc.data.fromPrice * coupon.percent / 100))}</Txt>
+            </Row>
+          ) : null}
+          <Row between style={{ marginTop: 2 }}>
+            <View>
+              <Txt bold size={16}>Estimated total</Txt>
+              <Txt muted size={11}>Final rate confirmed on site</Txt>
+            </View>
+            <Txt bold size={22}>from {money(svc.data.fromPrice - (coupon ? Math.round(svc.data.fromPrice * coupon.percent / 100) : 0))}</Txt>
+          </Row>
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.okBg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: R.sm, marginTop: 4 }}>
+          <Ionicons name="shield-checkmark" size={14} color={t.ok} />
+          <Txt size={12} color={t.ok} style={{ fontFamily: font.medium }}>Pay after service is completed · No upfront fee</Txt>
+        </View>
+      </Card>
+    </FadeIn>}
 
     {!!err && <Banner kind="bad">{err}</Banner>}
     <Row>

@@ -16,15 +16,15 @@ type Props = {
 };
 
 /* Bottom sheet for the two proof steps: the customer's 4-digit code (start and finish) plus job photos.
-   Finishing needs an "after" photo, so the primary button stays off until both are present. */
+   Photos are optional; the primary button only needs the code. */
 export function CodeSheet({ visible, finishing, customer, busy, error, thumbs, onPhoto, onSubmit, onClose }: Props) {
   const t = useTheme();
   const [code, setCode] = useState('');
   const input = useRef<React.ElementRef<typeof TextInput>>(null);
   useEffect(() => { if (visible) { setCode(''); setTimeout(() => input.current?.focus(), 350); } }, [visible]);
 
-  const ready = code.length === 4 && (!finishing || thumbs.length > 0);
-  const hint = code.length < 4 ? 'Enter the 4-digit code' : finishing && !thumbs.length ? 'Add an “after” photo to finish' : '';
+  const ready = code.length === 4; /* photos are optional for both steps */
+  const hint = code.length < 4 ? 'Enter the 4-digit code' : '';
 
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
@@ -55,7 +55,7 @@ export function CodeSheet({ visible, finishing, customer, busy, error, thumbs, o
           <View style={{ gap: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={{ fontFamily: font.semibold, fontSize: 15, color: t.ink }}>{finishing ? 'After photos' : 'Before photos'}</Text>
-              <Text style={{ fontFamily: font.medium, fontSize: 12, color: finishing && !thumbs.length ? t.warn : t.muted }}>{finishing ? 'Required' : 'Optional'}</Text>
+              <Text style={{ fontFamily: font.medium, fontSize: 12, color: t.muted }}>Optional</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
               {thumbs.map((u, i) => <Image key={i} source={{ uri: u }} accessibilityLabel={`Photo ${i + 1}`} style={{ width: 72, height: 72, borderRadius: R.md, backgroundColor: t.surface }} />)}

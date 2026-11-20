@@ -7,7 +7,7 @@ import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
 
 const COOKIE = 'fixzy_rt';
 /* Native apps can't rely on cookies: they send `x-client: mobile` and get the refresh token in the body instead. */
-const isMobile = (req: Request) => req.headers['x-client'] === 'mobile';
+const isMobile = (req: Request) => /^(pro-)?mobile$/.test(String(req.headers['x-client'] ?? ''));
 const setCookie = (res: Response, token: string) =>
   res.cookie(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/api/auth', maxAge: 30 * 864e5 });
 

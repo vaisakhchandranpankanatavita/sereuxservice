@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
+import Svg, { Circle, Defs, Pattern, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 import { font } from './ui';
 
@@ -86,6 +86,30 @@ function Backdrop({ reduced }: { reduced: boolean }) {
         opacity: r.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.7, 0] }), transform: [{ scale: r.interpolate({ inputRange: [0, 1], outputRange: [0.08, 1] }) }] }} />)}
       <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#60A5FA' }} />
     </View> : null}
+  </View>;
+}
+
+/* Soft sky-to-blush gradient with two large light blobs that drift very slowly (≈16s, a few dozen px). Static under reduced motion. */
+export function GradientBackdrop({ dark, reduced }: { dark: boolean; reduced: boolean }) {
+  const { width, height } = useWindowDimensions();
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduced) { a.setValue(0); return; }
+    const l = Animated.loop(Animated.sequence([
+      Animated.timing(a, { toValue: 1, duration: 16000, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+      Animated.timing(a, { toValue: 0, duration: 16000, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVE }),
+    ]));
+    l.start();
+    return () => l.stop();
+  }, [reduced, a]);
+  const base = dark ? ['#16233F', '#1E2238', '#0F1017'] : ['#7DA9E3', '#D9DDEE', '#F1EFF6'];
+  const blobA = dark ? '#3B6FD0' : '#8DB4EC', blobB = dark ? '#5A3B6B' : '#F0DCE6';
+  const S = Math.max(width, height) * 0.9;
+  const blob = (id: string, color: string, op: number) => <Svg width={S} height={S}><Defs><RadialGradient id={id} cx="50%" cy="50%" r="50%"><Stop offset="0" stopColor={color} stopOpacity={op} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient></Defs><Rect width={S} height={S} fill={`url(#${id})`} /></Svg>;
+  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+    <LinearGradient colors={base as any} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+    <Animated.View style={{ position: 'absolute', left: -S * 0.4, top: -S * 0.35, transform: [{ translateX: a.interpolate({ inputRange: [0, 1], outputRange: [0, 40] }) }, { translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, 28] }) }] }}>{blob('ga', blobA, 0.9)}</Animated.View>
+    <Animated.View style={{ position: 'absolute', right: -S * 0.45, top: height * 0.1, transform: [{ translateX: a.interpolate({ inputRange: [0, 1], outputRange: [0, -36] }) }, { translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, 34] }) }] }}>{blob('gb', blobB, 0.85)}</Animated.View>
   </View>;
 }
 

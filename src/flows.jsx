@@ -231,14 +231,35 @@ export function ServiceRequest() {
           </div>
         )}
         {step === 3 && (
-          <dl className="review">
-            <dt>Service</dt><dd>{service.name}</dd>
-            {pro && <><dt>Pro</dt><dd>{pro.name}</dd></>}
-            <dt>When</dt><dd>{day} at {slot}</dd>
-            <dt>Where</dt><dd>{form.address}</dd>
-            <dt>Contact</dt><dd>{form.name} · {form.phone}</dd>
-            <dt>Estimate</dt><dd>From {service.price} / hr · about {service.duration} min</dd>
-          </dl>
+          <div className="review-card-modern">
+            <div className="review-section">
+              <span className="review-label">Service & Timing</span>
+              <div className="review-item">
+                <span className="review-title">{service.name}</span>
+                {pro && <span className="review-sub">Assigned Pro: {pro.name}</span>}
+                <span className="review-meta">{day} · {slot}</span>
+              </div>
+            </div>
+
+            <div className="review-section">
+              <span className="review-label">Location & Contact</span>
+              <div className="review-item">
+                <span className="review-title">{form.name}</span>
+                <span className="review-sub">{form.phone}</span>
+                <span className="review-meta">{form.address}</span>
+                {form.notes?.trim() && <p className="review-notes">Note: {form.notes}</p>}
+              </div>
+            </div>
+
+            <div className="review-section review-pricing">
+              <span className="review-label">Estimate</span>
+              <div className="review-price-row">
+                <span>Estimated starting price</span>
+                <b>From {service.price}</b>
+              </div>
+              <p className="review-pricing-hint">Duration: ~{service.duration} mins · Pay after service completion</p>
+            </div>
+          </div>
         )}
       </div>
       <div className="wizard-nav">

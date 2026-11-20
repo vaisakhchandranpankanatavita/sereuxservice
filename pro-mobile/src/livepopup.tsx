@@ -24,7 +24,7 @@ export function LivePopup({ visible, onClose }: { visible: boolean; onClose: () 
 
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <Pressable onPress={onClose} accessibilityLabel="Close" style={{ flex: 1, backgroundColor: 'rgba(9,9,11,0.45)', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 380, backgroundColor: t.card, borderRadius: 16, borderWidth: 1, borderColor: t.line, padding: 24, alignItems: 'center', gap: 12, shadowColor: '#09090B', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 }}>
+      <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 380, backgroundColor: t.card, borderRadius: 16, padding: 24, alignItems: 'center', gap: 12, shadowColor: '#09090B', shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 }}>
         <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close" style={{ position: 'absolute', top: 14, right: 14 }}>
           <Ionicons name="close" size={22} color={t.muted} />
         </Pressable>
@@ -36,11 +36,11 @@ export function LivePopup({ visible, onClose }: { visible: boolean; onClose: () 
         <OnlineSwitch on={on} onToggle={toggle} busy={!me.data} />
         {!!err && <Txt color={t.bad}>{err}</Txt>}
         {on && <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
-          <View style={{ flex: 1, backgroundColor: t.surface, borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 14, gap: 4 }}>
+          <View style={{ flex: 1, backgroundColor: t.surface, borderRadius: 12, padding: 14, gap: 4 }}>
             <Text style={[overline, { color: t.muted }]}>Open requests</Text>
             <Text style={mono(24, { color: t.ink, letterSpacing: -0.7 })}>{reqs.data?.length ?? '–'}</Text>
           </View>
-          <View style={{ flex: 1, backgroundColor: t.surface, borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 14, gap: 4 }}>
+          <View style={{ flex: 1, backgroundColor: t.surface, borderRadius: 12, padding: 14, gap: 4 }}>
             <Text style={[overline, { color: t.muted }]}>Total earned</Text>
             {me.data ? <Money amount={me.data.earned} size={24} /> : <Text style={{ color: t.muted }}>–</Text>}
           </View>

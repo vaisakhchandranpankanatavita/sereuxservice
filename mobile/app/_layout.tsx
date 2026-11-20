@@ -11,6 +11,7 @@ import { HeaderTitle, useTheme } from '../src/ui';
 import Intro from '../src/Intro';
 import BottomBar from '../src/BottomBar';
 import { OtpPopup } from '../src/OtpPopup';
+import { RatePopup } from '../src/RatePopup';
 
 function Gate() {
   const { user } = useSession();
@@ -54,6 +55,7 @@ function Gate() {
     </Stack>}
     {introDone && user && !inAuth && <BottomBar />}
     {introDone && user && !inAuth && <OtpPopup />}
+    {introDone && user && !inAuth && <RatePopup />}
     {!introDone && <Intro onDone={() => setIntroDone(true)} />}
   </View>;
 }

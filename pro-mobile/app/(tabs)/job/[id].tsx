@@ -32,7 +32,7 @@ function ReleaseJob({ id, onDone }: { id: string; onDone: () => void }) {
     {!!err && <Txt color={t.bad}>{err}</Txt>}
     <Row>
       <Button title="Confirm release" kind="danger" onPress={confirm} busy={busy} style={{ flex: 1 }} />
-      <Button title="Cancel" kind="ghost" onPress={() => setOpen(false)} disabled={busy} style={{ flex: 1 }} />
+      <Button title="Cancel" kind="ghost" icon="close" iconOnly onPress={() => setOpen(false)} disabled={busy} />
     </Row>
   </Card>;
 }
@@ -65,7 +65,7 @@ export default function Job() {
     return () => { alive = false; clearInterval(t2); };
   }, [tracking]);
 
-  if (!job.data) return <Screen><Status error={job.error} loading={!job.error} /></Screen>;
+  if (!job.data) return <Screen header={<PageTitle title="Job" />}><Status error={job.error} loading={!job.error} /></Screen>;
   const b = job.data;
   const home = b.lat != null && b.lng != null ? { lat: b.lat, lng: b.lng } : null;
   const navigate = () => {
@@ -73,8 +73,7 @@ export default function Job() {
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${q}`);
   };
 
-  return <Screen>
-    <PageTitle title={b.service?.name ?? 'Job'} sub={`${dayLabel(b.day)} · ${b.slot}`} right={<Badge v={b.status} />} />
+  return <Screen header={<PageTitle title={b.service?.name ?? 'Job'} sub={`${dayLabel(b.day)} · ${b.slot}`} right={<Badge v={b.status} />} />}>
 
     {home ? <LiveMap home={home} pro={tracking ? me : null} label={`Route to ${b.address}`} /> :
       <Card><Txt muted>No pinned location for this address yet — the customer booked without sharing GPS coordinates.</Txt></Card>}
@@ -93,8 +92,8 @@ export default function Job() {
     </Card>
 
     <View style={{ flexDirection: 'row', gap: 10 }}>
-      <Button title="Navigate" onPress={navigate} style={{ flex: 1.3 }} />
-      <Button title={`Call ${b.name.split(' ')[0]}`} kind="ghost" onPress={() => Linking.openURL(`tel:${b.phone}`)} style={{ flex: 1 }} />
+      <Button title="Navigate" icon="navigate" onPress={navigate} style={{ flex: 1.3 }} />
+      <Button title={`Call ${b.name.split(' ')[0]}`} kind="ghost" icon="call" iconOnly onPress={() => Linking.openURL(`tel:${b.phone}`)} />
     </View>
     {b.status === 'CONFIRMED' && <ReleaseJob id={b.id} onDone={() => router.replace('/(tabs)/jobs')} />}
   </Screen>;

@@ -112,8 +112,17 @@ class BookingsService {
     await Promise.all(pros.map((p) => this.push.alert(p.userId!, `New ${service} request for ${day}, ${slot} (#${id}).`, 'New job request')));
   }
 
-  list(user: AuthUser) {
-    return this.prisma.booking.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, include: { service: true, provider: true, review: true, payment: { select: { status: true, amount: true } } } });
+  /* A trip/job that is under way must always have a code for the customer (covers rows moved on before codes existed). */
+  private async ensureOtp<T extends { id: string; status: string; otp?: string | null }>(b: T): Promise<T> {
+    if (b.otp || (b.status !== 'ON_THE_WAY' && b.status !== 'IN_PROGRESS')) return b;
+    const otp = newOtp();
+    await this.prisma.booking.update({ where: { id: b.id }, data: { otp } });
+    return { ...b, otp };
+  }
+
+  async list(user: AuthUser) {
+    const rows = await this.prisma.booking.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, include: { service: true, provider: true, review: true, payment: { select: { status: true, amount: true } } } });
+    return Promise.all(rows.map((b) => this.ensureOtp(b)));
   }
 
   async get(user: AuthUser, id: string) {
@@ -121,7 +130,7 @@ class BookingsService {
     if (!b) throw new NotFoundException();
     if (user.role === 'CUSTOMER' && b.userId !== user.id) throw new NotFoundException();
     if (user.role === 'PROVIDER' && b.provider?.userId !== user.id) throw new NotFoundException();
-    return user.role === 'PROVIDER' ? omitOtp(b) : b;
+    return user.role === 'PROVIDER' ? omitOtp(b) : this.ensureOtp(b);
   }
 
   /* Before/after photos a pro attached to a job. Visible to the customer, the assigned pro and admins. */
@@ -178,9 +187,6 @@ class BookingsService {
     if (user.role === 'PROVIDER') {
       if ((status === 'IN_PROGRESS' || status === 'DONE') && b.otp && b.otp !== otp?.trim()) {
         throw new BadRequestException(status === 'IN_PROGRESS' ? 'Enter the start code shown in the customer’s app.' : 'Enter the completion code shown in the customer’s app.');
-      }
-      if (status === 'DONE' && !(await this.prisma.jobPhoto.count({ where: { bookingId: id, kind: 'AFTER' } }))) {
-        throw new BadRequestException('Add at least one “after” photo of the finished work.');
       }
     }
     const nextOtp: string | null | undefined = status === 'ON_THE_WAY' || status === 'IN_PROGRESS' ? newOtp() : status === 'DONE' || status === 'CANCELLED' ? null : undefined;

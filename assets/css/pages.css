@@ -185,6 +185,18 @@ html.lenis { scroll-behavior: auto !important; }
 .wizard-nav { display: flex; gap: 12px; margin-top: 32px; }
 .wizard-nav .pill[disabled] { opacity: .35; cursor: not-allowed; }
 .review { display: grid; grid-template-columns: max-content 1fr; gap: 12px 32px; margin: 0; } .review dt { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; } .review dd { margin: 0; font-weight: 600; }
+.review-card-modern { display: grid; gap: 20px; padding: 24px; background: #fff; border-radius: var(--r-lg); box-shadow: 0 4px 20px rgba(0,0,0,0.04); border: 1px solid var(--line); }
+.review-section { display: grid; gap: 6px; }
+.review-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.review-item { display: grid; gap: 4px; }
+.review-title { font-size: 18px; font-weight: 700; color: var(--ink); }
+.review-sub { font-size: 14px; font-weight: 500; color: var(--body); }
+.review-meta { font-size: 13px; color: var(--muted); }
+.review-notes { margin: 8px 0 0; padding: 10px 14px; background: #faf9f6; border-radius: var(--r-sm); font-size: 13px; color: var(--body); }
+.review-pricing { padding-top: 16px; border-top: 1px solid var(--line); }
+.review-price-row { display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
+.review-price-row b { font-size: 18px; }
+.review-pricing-hint { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
 .done-check { width: 96px; height: 96px; fill: none; stroke: var(--success); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 24px; }
 .done-check circle { stroke-dasharray: 151; stroke-dashoffset: 151; animation: draw .8s var(--ease) forwards; }
 .done-check path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: draw .5s var(--ease) .6s forwards; }
@@ -239,6 +251,35 @@ html.lenis { scroll-behavior: auto !important; }
 .heart:active { transform: scale(.88); } .heart.is-on { color: var(--error); } .heart.is-on svg { fill: currentColor; animation: pop .45s var(--ease); }
 .buy-actions .heart { position: static; width: 46px; height: 46px; box-shadow: inset 0 0 0 1.5px var(--ink); background: transparent; }
 .reviews { margin-top: 64px; display: grid; gap: 16px; max-width: 720px; }
+.modern-reviews { margin-top: 64px; display: grid; gap: 24px; max-width: 760px; }
+.rv-header { display: flex; justify-content: space-between; align-items: flex-end; }
+.rv-sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.rv-hero-card { display: flex; gap: 32px; padding: 24px; background: #fff; border-radius: var(--r-lg); border: 1px solid var(--line); align-items: center; }
+.rv-hero-score { display: grid; gap: 6px; min-width: 160px; }
+.rv-big-num { font-size: 48px; font-weight: 800; letter-spacing: -2px; line-height: 1; color: var(--ink); }
+.rv-stars-group { display: flex; align-items: center; gap: 8px; }
+.rv-count-tag { font-size: 12px; color: var(--muted); font-weight: 600; }
+.rv-sat-pill { display: inline-flex; font-size: 11px; font-weight: 700; color: var(--success); background: rgba(31,138,91,0.1); padding: 3px 8px; border-radius: 999px; margin-top: 4px; }
+.rv-breakdown { flex: 1; display: grid; gap: 6px; }
+.rv-bar-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.rv-bar-label { width: 30px; font-weight: 600; color: var(--body); }
+.rv-bar-track { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.rv-bar-fill { height: 100%; border-radius: 3px; background: var(--ink); }
+.rv-bar-count { width: 24px; text-align: right; color: var(--muted); font-size: 11px; }
+.rv-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip-sm { padding: 6px 14px; font-size: 13px; border-radius: 999px; border: 0; background: #f0efeb; color: var(--body); cursor: pointer; transition: background .2s; }
+.chip-sm.is-on { background: var(--ink); color: #fff; }
+.rv-card { display: grid; gap: 10px; padding: 18px 20px; background: #fff; border-radius: var(--r-md); border: 1px solid var(--line); }
+.rv-card-head { display: flex; align-items: center; gap: 12px; }
+.rv-user-meta { flex: 1; display: grid; gap: 2px; }
+.rv-user-row { display: flex; align-items: center; gap: 8px; }
+.rv-name { font-size: 15px; color: var(--ink); }
+.rv-verified-pill { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--success); background: rgba(31,138,91,0.08); padding: 2px 6px; border-radius: 999px; }
+.rv-time { font-size: 12px; color: var(--muted); }
+.rv-star-pill { display: flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: rgba(244,168,96,0.12); color: #b45309; font-weight: 700; font-size: 12px; }
+.rv-comment { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--body); }
+.review-auth-gate { padding: 16px 20px; background: #fff; border-radius: var(--r-md); border: 1px solid var(--line); }
+.rate-val { margin-left: 10px; font-size: 13px; font-weight: 700; color: var(--ink); }
 .rv-sum { display: flex; align-items: center; gap: 12px; margin: 0; } .rv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
 .rv-list li { display: flex; gap: 14px; } .rv-list p { margin: 6px 0 0; color: var(--body); }
 .review-form { display: grid; gap: 14px; padding: 20px; background: #fff; border-radius: var(--r-lg); } .review-form fieldset { border: 0; margin: 0; padding: 0; } .review-form legend { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }

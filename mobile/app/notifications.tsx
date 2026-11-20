@@ -15,7 +15,10 @@ export default function Notifications() {
     if (data?.some((n) => !n.read)) { const id = setTimeout(() => api('/notifications/read-all', 'POST').catch(() => {}), 1500); return () => clearTimeout(id); }
   }, [data]);
 
-  const go = (href?: string) => { if (href?.startsWith('/orders')) router.push('/activity'); };
+  const go = (href?: string) => {
+    if (href?.startsWith('/orders')) router.push('/activity');
+    else if (href?.startsWith('/booking/')) router.push(href.split('?')[0] as any);
+  };
 
   return <Screen refresh={refresh} refreshing={refreshing}>
     {!data && !error && <Skeleton height={76} />}

@@ -12,7 +12,7 @@ function Tile({ label: l, value, amount, sub, bg, fg, sub2 }: { label: string; v
   const semantic = ['Paid out', 'Balance due', 'Today'].includes(l); // only money-state tiles get a tint; the rest stay neutral
   const tint = semantic ? bg : t.card;
   const ink = semantic ? fg : t.ink;
-  return <View style={{ flexGrow: 1, flexBasis: 150, minWidth: 140, backgroundColor: tint, borderWidth: 1, borderColor: t.line, borderRadius: R.md, padding: 16, gap: 6 }}>
+  return <View style={{ flexGrow: 1, flexBasis: 150, minWidth: 140, backgroundColor: tint, borderRadius: R.md, padding: 16, gap: 6 }}>
     <Text style={[overline, { color: sub2 ?? t.muted }]}>{l}</Text>
     {amount != null
       ? <Money amount={amount} size={24} style={{ marginTop: 2 }} />
@@ -96,7 +96,7 @@ function ProfileEdit({ p, onSaved }: { p: any; onSaved: () => void }) {
   if (!editing) return <Card>
     <Row between>
       <Txt bold size={16} style={{ fontFamily: font.semibold }}>Profile</Txt>
-      <Button title="Edit" kind="ghost" onPress={() => setEditing(true)} />
+      <Button title="Edit profile" kind="ghost" icon="create-outline" iconOnly onPress={() => setEditing(true)} style={{ alignSelf: 'flex-start' }} />
     </Row>
     <Txt muted size={14}>Responds in {p.response}</Txt>
     <Txt size={14}>{p.bio || 'No bio yet — add a line about your experience.'}</Txt>
@@ -115,8 +115,8 @@ function ProfileEdit({ p, onSaved }: { p: any; onSaved: () => void }) {
     <Field label="Bio" value={bio} onChangeText={setBio} placeholder="A line about your experience" multiline />
     {!!err && <Txt color={useTheme().bad}>{err}</Txt>}
     <Row>
-      <Button title="Save" onPress={save} busy={busy} style={{ flex: 1 }} />
-      <Button title="Cancel" kind="ghost" onPress={() => setEditing(false)} disabled={busy} style={{ flex: 1 }} />
+      <Button title="Save" icon="checkmark" onPress={save} busy={busy} style={{ flex: 1 }} />
+      <Button title="Cancel" kind="ghost" icon="close" iconOnly onPress={() => setEditing(false)} disabled={busy} />
     </Row>
   </Card>;
 }
@@ -134,7 +134,7 @@ export default function Account() {
     catch (e: any) { setErr(e.message); }
   };
 
-  if (!me.data) return <Screen>
+  if (!me.data) return <Screen header={<PageTitle title="Account" />}>
     <Status error={me.error} loading={!me.error} />
     {!!me.error && <>
       <Card>
@@ -142,13 +142,12 @@ export default function Account() {
         <Txt bold size={16}>{user?.name}</Txt>
         <Txt muted size={14}>{user?.email}</Txt>
       </Card>
-      <Button title="Sign out" kind="danger" onPress={logout} />
+      <Button title="Sign out" kind="danger" icon="power" iconOnly onPress={logout} style={{ alignSelf: 'center' }} />
     </>}
   </Screen>;
   const p = me.data;
 
-  return <Screen refresh={me.refresh} refreshing={me.refreshing}>
-    <PageTitle title="Account" />
+  return <Screen refresh={me.refresh} refreshing={me.refreshing} header={<PageTitle title="Account" />}>
     <KycCard onChange={me.reload} />
     <Card style={{ padding: 20, gap: 16 }}>
       <Row>
@@ -156,12 +155,12 @@ export default function Account() {
         <View style={{ flex: 1 }}>
           <Txt bold size={24} numberOfLines={1}>{p.name}</Txt>
           <Row>
-            {p.verified && <View style={{ backgroundColor: t.okBg, borderWidth: 1, borderColor: t.okLine, borderRadius: 999, paddingHorizontal: 8, height: 22, justifyContent: 'center' }}><Txt bold size={11} color={t.ok}>✓ Verified</Txt></View>}
+            {p.verified && <View style={{ backgroundColor: t.okBg, borderRadius: 999, paddingHorizontal: 8, height: 22, justifyContent: 'center' }}><Txt bold size={11} color={t.ok}>✓ Verified</Txt></View>}
             <Txt muted size={14}>{p.years} yrs experience</Txt>
           </Row>
         </View>
       </Row>
-      <View style={{ backgroundColor: p.online ? t.okBg : t.idleBg, borderWidth: 1, borderColor: p.online ? t.okLine : t.idleLine, borderRadius: R.md, padding: 14, gap: 10 }}>
+      <View style={{ backgroundColor: p.online ? t.okBg : t.idleBg, borderRadius: R.md, padding: 14, gap: 10 }}>
         <Row between>
           <Row>
             <PulseDot on={!!p.online} />
@@ -191,6 +190,6 @@ export default function Account() {
       <Txt muted size={14}>{user?.email}</Txt>
     </Card>
 
-    <Button title="Sign out" kind="danger" onPress={logout} />
+    <Button title="Sign out" kind="danger" icon="power" iconOnly onPress={logout} style={{ alignSelf: 'center' }} />
   </Screen>;
 }

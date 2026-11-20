@@ -46,13 +46,31 @@ async function adopt(r: any) {
 }
 
 /* Restore a session from the stored refresh token. Concurrent callers share one request, since tokens rotate. */
+let onLost: (() => void) | null = null;
+export const onSessionLost = (f: (() => void) | null) => { onLost = f; };
+
+/* Refresh tokens are single-use, so two tabs (or two overlapping polls) refreshing at once would invalidate each other.
+   On the web, a lock serialises refreshes across tabs, and a rejected token is retried once with whatever another tab stored meanwhile. */
+const withLock = <T,>(fn: () => Promise<T>): Promise<T> => {
+  const locks: any = Platform.OS === 'web' && typeof navigator !== 'undefined' ? (navigator as any).locks : null;
+  return locks?.request ? locks.request(KEY, fn) : fn();
+};
+
 export function restore(): Promise<any | null> {
-  refreshing ??= (async () => {
+  refreshing ??= withLock(async () => {
     const t = await store.get();
     if (!t) return null;
     try { return await adopt(await send('/auth/refresh', 'POST', { refreshToken: t })); }
-    catch (e: any) { if (e.status === 401) await store.del(); access = null; return null; }
-  })().finally(() => { refreshing = null; });
+    catch (e: any) {
+      if (e.status === 401) {
+        const t2 = await store.get();
+        if (t2 && t2 !== t) { try { return await adopt(await send('/auth/refresh', 'POST', { refreshToken: t2 })); } catch { /* fall through */ } }
+        await store.del();
+      }
+      access = null;
+      return null;
+    }
+  }).finally(() => { refreshing = null; });
   return refreshing;
 }
 
@@ -60,7 +78,7 @@ export async function api(path: string, method = 'GET', body?: any) {
   try { return await send(path, method, body); }
   catch (e: any) {
     if (e.status !== 401 || path.startsWith('/auth/')) throw e;
-    if (!(await restore())) throw e;
+    if (!(await restore())) { onLost?.(); throw e; }
     return send(path, method, body);
   }
 }

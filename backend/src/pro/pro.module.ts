@@ -1,5 +1,6 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Injectable, Module, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
+import { randomInt } from 'crypto';
 import { IsBoolean, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
@@ -220,6 +221,18 @@ class ProService {
     });
   }
 
+  /* The pro tapped "Start work": tell the customer right now (push + in-app) so their start code pops up full-screen. */
+  async requestCode(userId: string, id: string) {
+    const p = await this.mine(userId);
+    const b = await this.prisma.booking.findUnique({ where: { id } });
+    if (!b || b.providerId !== p.id) throw new NotFoundException();
+    if (b.status !== 'ON_THE_WAY' && b.status !== 'IN_PROGRESS') throw new BadRequestException('A code can only be requested while the job is on the way or in progress.');
+    if (!b.otp) await this.prisma.booking.update({ where: { id }, data: { otp: String(randomInt(1000, 10000)) } });
+    const start = b.status === 'ON_THE_WAY';
+    await this.push.alert(b.userId, start ? `#${id}: Your pro is ready to start. Open the app and share your start code.` : `#${id}: Your pro has finished the work. Open the app and share your completion code once you're happy.`, start ? 'Share your start code' : 'Share your completion code', `/booking/${id}?code=1`);
+    return { ok: true };
+  }
+
   async decline(userId: string, id: string) {
     const p = await this.mine(userId);
     const b = await this.prisma.booking.findUnique({ where: { id } });
@@ -236,6 +249,7 @@ class ProService {
 @Roles(Role.PROVIDER)
 class ProController {
   constructor(private svc: ProService) {}
+  @Post('bookings/:id/request-code') requestCode(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.requestCode(u.id, id); }
   @Get('me') me(@CurrentUser() u: AuthUser) { return this.svc.me(u.id); }
   @Patch('online') online(@CurrentUser() u: AuthUser, @Body() dto: OnlineDto) { return this.svc.setOnline(u.id, dto.online); }
   @Patch('location') location(@CurrentUser() u: AuthUser, @Body() dto: LocationDto) { return this.svc.setLocation(u.id, dto); }

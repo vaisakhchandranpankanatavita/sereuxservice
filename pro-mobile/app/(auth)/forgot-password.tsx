@@ -1,17 +1,15 @@
-import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View, useColorScheme, useWindowDimensions } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 import { api } from '../../src/api';
 import { font } from '../../src/ui';
-import { Field, Hero, palette, useReducedMotion, useStagger } from '../../src/authkit';
+import { Brand, Field, GradientBackdrop, palette, useReducedMotion, useStagger } from '../../src/authkit';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ForgotPassword() {
-  const dark = useColorScheme() === 'dark';
+  const dark = true; /* forgot password uses the exact same dark gradient background as sign in */
   const c = useMemo(() => palette(dark), [dark]);
-  const { width } = useWindowDimensions();
-  const wide = width >= 900;
   const reduced = useReducedMotion();
   const at = useStagger(reduced);
   const [email, setEmail] = useState('');
@@ -31,8 +29,8 @@ export default function ForgotPassword() {
     finally { setBusy(false); }
   };
 
-  const form = <View style={wide ? { width: '45%', minWidth: 440, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg } : { backgroundColor: c.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -28, flexGrow: 1 }}>
-    <View style={{ width: '100%', maxWidth: 420, padding: 24, paddingTop: wide ? 24 : 32, paddingBottom: 28, flexGrow: wide ? 0 : 1 }}>
+  const form = <View style={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+    <View style={{ width: '100%', maxWidth: 440, padding: 24, paddingTop: 32, paddingBottom: 28, borderRadius: 28, backgroundColor: dark ? 'rgba(11,11,12,0.55)' : 'rgba(255,255,255,0.62)', borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)' }}>
       <Animated.View style={at(0)}>
         <Text accessibilityRole="header" style={{ color: c.ink, fontFamily: font.semibold, fontSize: 32, letterSpacing: -1, lineHeight: 36 }}>{sent ? 'Check your email' : 'Reset password'}</Text>
         <Text style={{ color: c.body, fontFamily: font.regular, fontSize: 16, lineHeight: 23, marginTop: 6, marginBottom: 26 }}>
@@ -40,14 +38,25 @@ export default function ForgotPassword() {
         </Text>
       </Animated.View>
 
-      {sent ? null : <>
+      {sent ? (
+        <Animated.View style={at(1)}>
+          <Link href="/login" asChild>
+            <Pressable accessibilityRole="link" accessibilityLabel="Back to sign in"
+              style={(st: any) => ({ marginTop: 10, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: c.btn, transform: [{ scale: st.pressed ? 0.98 : 1 }] })}>
+              <Text style={{ color: c.btnInk, fontFamily: font.semibold, fontSize: 16 }}>Back to sign in</Text>
+            </Pressable>
+          </Link>
+        </Animated.View>
+      ) : <>
         {err ? <View accessibilityRole="alert" style={{ borderLeftWidth: 3, borderLeftColor: c.bad, paddingLeft: 12, marginBottom: 18 }}>
           <Text style={{ color: c.bad, fontFamily: font.medium, fontSize: 14, lineHeight: 20 }}>{err}</Text>
         </View> : null}
+
         <Animated.View style={at(1)}>
           <Field c={c} label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress"
             returnKeyType="go" onSubmitEditing={submit} error={emailErr} onBlurValidate={() => setTouched(true)} placeholder="you@company.com" />
         </Animated.View>
+
         <Animated.View style={at(2)}>
           <Pressable onPress={submit} disabled={busy} accessibilityRole="button" accessibilityLabel="Send reset link" accessibilityState={{ disabled: busy, busy }}
             style={(st: any) => ({ marginTop: 6, backgroundColor: c.btn, borderRadius: 14, height: 56, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, opacity: busy ? 0.7 : valid ? (st.pressed ? 0.88 : 1) : 0.45, transform: [{ scale: st.pressed ? 0.98 : 1 }] })}>
@@ -55,21 +64,27 @@ export default function ForgotPassword() {
             <Text style={{ color: c.btnInk, fontFamily: font.semibold, fontSize: 16 }}>{busy ? 'Sending' : 'Send reset link'}</Text>
           </Pressable>
         </Animated.View>
+
+        <Animated.View style={at(3)}>
+          <Link href="/login" asChild>
+            <Pressable accessibilityRole="link" accessibilityLabel="Back to sign in"
+              style={(st: any) => ({ marginTop: 10, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', backgroundColor: st.pressed || st.hovered ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)', transform: [{ scale: st.pressed ? 0.98 : 1 }] })}>
+              <Text style={{ color: c.ink, fontFamily: font.semibold, fontSize: 16 }}>Back to sign in</Text>
+            </Pressable>
+          </Link>
+        </Animated.View>
       </>}
 
-      <Animated.View style={at(3)}>
-        <Link href="/login" asChild>
-          <Pressable accessibilityRole="link" style={{ height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
-            <Text style={{ color: c.ink, fontFamily: font.medium, fontSize: 15 }}>Back to sign in</Text>
-          </Pressable>
-        </Link>
+      <Animated.View style={[{ paddingTop: 20 }, at(4)]}>
+        <Text style={{ color: c.body, fontFamily: font.regular, fontSize: 13, lineHeight: 19, textAlign: 'center' }}>For Fixzy providers only. Booking a service? Use the Fixzy customer app.</Text>
       </Animated.View>
     </View>
   </View>;
 
-  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-    <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ flexGrow: 1, flexDirection: wide ? 'row' : 'column' }}>
-      <Hero c={c} reduced={reduced} fill={wide} />
+  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: dark ? '#16233F' : '#D9DDEE' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <GradientBackdrop dark={dark} reduced={reduced} />
+    <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ flexGrow: 1, paddingTop: 48 }}>
+      <View style={{ alignItems: 'center' }}><Brand ink={c.ink} bg={dark ? '#0B0B0C' : '#FFFFFF'} accent={c.accent} tag={c.body} /></View>
       {form}
     </ScrollView>
   </KeyboardAvoidingView>;

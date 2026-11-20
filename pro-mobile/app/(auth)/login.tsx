@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View, useColorScheme, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Link } from 'expo-router';
 import { useSession } from '../../src/session';
 import { font } from '../../src/ui';
-import { Field, Hero, palette, useReducedMotion, useStagger } from '../../src/authkit';
+import { Brand, Field, GradientBackdrop, palette, useReducedMotion, useStagger } from '../../src/authkit';
 
 /* Dev-only convenience: release builds (__DEV__ false) start with an empty form. In dev, prefill the seeded demo pro
    (backend `npm run seed:demo`) that has jobs, earnings and reviews. */
@@ -12,7 +12,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
   const { login, error } = useSession();
-  const dark = useColorScheme() === 'dark';
+  const dark = true; /* login always uses the dark gradient, regardless of the OS theme */
   const c = useMemo(() => palette(dark), [dark]);
   const { width } = useWindowDimensions();
   const wide = width >= 900;
@@ -38,8 +38,8 @@ export default function Login() {
     try { await login(email.trim(), password); } catch (e: any) { setErr(e.message || error || 'Sign-in failed. Check your details and try again.'); } finally { setBusy(false); }
   };
 
-  const form = <View style={wide ? { width: '45%', minWidth: 440, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg } : { backgroundColor: c.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, marginTop: -28, flexGrow: 1 }}>
-    <View style={{ width: '100%', maxWidth: 420, padding: 24, paddingTop: wide ? 24 : 32, paddingBottom: 28, flexGrow: wide ? 0 : 1 }}>
+  const form = <View style={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+    <View style={{ width: '100%', maxWidth: 440, padding: 24, paddingTop: 32, paddingBottom: 28, borderRadius: 28, backgroundColor: dark ? 'rgba(11,11,12,0.55)' : 'rgba(255,255,255,0.62)', borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)' }}>
       <Animated.View style={at(0)}>
         <Text accessibilityRole="header" style={{ color: c.ink, fontFamily: font.semibold, fontSize: 32, letterSpacing: -1, lineHeight: 36 }}>Sign in</Text>
         <Text style={{ color: c.body, fontFamily: font.regular, fontSize: 16, lineHeight: 23, marginTop: 6, marginBottom: 26 }}>Use the account your Fixzy admin created for you.</Text>
@@ -68,21 +68,23 @@ export default function Login() {
           <Text style={{ color: c.btnInk, fontFamily: font.semibold, fontSize: 16 }}>{busy ? 'Signing in' : 'Sign in'}</Text>
         </Pressable>
         <Link href="/forgot-password" asChild>
-          <Pressable accessibilityRole="link" style={{ height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
-            <Text style={{ color: c.ink, fontFamily: font.medium, fontSize: 15 }}>Forgot password?</Text>
+          <Pressable accessibilityRole="link" accessibilityLabel="Forgot password"
+            style={(st: any) => ({ marginTop: 10, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', backgroundColor: st.pressed || st.hovered ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.08)', transform: [{ scale: st.pressed ? 0.98 : 1 }] })}>
+            <Text style={{ color: c.ink, fontFamily: font.semibold, fontSize: 16 }}>Forgot password?</Text>
           </Pressable>
         </Link>
       </Animated.View>
 
-      <Animated.View style={[{ flexGrow: 1, justifyContent: 'flex-end', paddingTop: 20 }, at(4)]}>
+      <Animated.View style={[{ paddingTop: 20 }, at(4)]}>
         <Text style={{ color: c.body, fontFamily: font.regular, fontSize: 13, lineHeight: 19, textAlign: 'center' }}>For Fixzy providers only. Booking a service? Use the Fixzy customer app.</Text>
       </Animated.View>
     </View>
   </View>;
 
-  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.bg }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-    <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ flexGrow: 1, flexDirection: wide ? 'row' : 'column' }}>
-      <Hero c={c} reduced={reduced} fill={wide} />
+  return <KeyboardAvoidingView style={{ flex: 1, backgroundColor: dark ? '#16233F' : '#D9DDEE' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <GradientBackdrop dark={dark} reduced={reduced} />
+    <ScrollView keyboardShouldPersistTaps="handled" bounces={false} contentContainerStyle={{ flexGrow: 1, paddingTop: 48 }}>
+      <View style={{ alignItems: 'center' }}><Brand ink={c.ink} bg={dark ? '#0B0B0C' : '#FFFFFF'} accent={c.accent} tag={c.body} /></View>
       {form}
     </ScrollView>
   </KeyboardAvoidingView>;

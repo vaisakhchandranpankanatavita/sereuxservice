@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { unregisterPush } from './push';
-import { api, restore, signIn, signOut } from './api';
+import { api, onSessionLost, restore, signIn, signOut } from './api';
 
 export type User = { id: string; name: string; email: string; phone: string; role: string };
 type Ctx = {
@@ -19,6 +19,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     restore().then((u) => setUser(u && u.role === 'PROVIDER' ? u : null), () => setUser(null));
   }, []);
+  /* If the session can no longer be refreshed, go back to sign-in instead of showing "Sign in required" on a signed-in screen. */
+  useEffect(() => { onSessionLost(() => setUser(null)); return () => onSessionLost(null); }, []);
   const login = useCallback(async (e: string, p: string) => {
     setError('');
     const u = await signIn(e.trim().toLowerCase(), p);
