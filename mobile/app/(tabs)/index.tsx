@@ -72,7 +72,7 @@ export default function Services() {
       </View>
     </>} />
     <PageSpace />
-    <View style={{ zIndex: 10, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 10, gap: 12 }}>
+    <View style={{ zIndex: 10, paddingHorizontal: 18, paddingTop: 8, paddingBottom: 6, gap: 8 }}>
       <View style={{ zIndex: 10 }}>
         <Field label="" small value={q} placeholder="Search…"
           onChangeText={(v) => { setQ(v); setOpen(true); }}
@@ -90,11 +90,14 @@ export default function Services() {
           </Pressable>)}
         </View>}
       </View>
-      {!q.trim() && !cat && <BannerCarousel />}
       <Chips>
         <Chip title="All" on={!cat} onPress={() => setCat('')} />
         {cats.map((c) => <Chip key={c} title={c} on={cat === c} onPress={() => setCat(c)} />)}
       </Chips>
+    </View>
+    <Screen pad={false} bottomPad={100} refresh={() => { refresh(); bookings.refresh(); notes.refresh(); }} refreshing={refreshing}>
+    <View style={{ paddingHorizontal: 18, paddingTop: 4, gap: 14 }}>
+      {!q.trim() && !cat && <BannerCarousel />}
       {!!upcoming && !q.trim() && !cat && <Tap onPress={() => router.push(`/booking/${upcoming.id}`)} accessibilityRole="button" accessibilityLabel={`Upcoming booking, ${upcoming.service.name}`} scaleTo={0.98}
         style={{ backgroundColor: t.lime, borderRadius: R.lg, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, overflow: 'hidden' }}>
         <Wash />
@@ -106,9 +109,6 @@ export default function Services() {
         </View>
         <Badge v={upcoming.status} />
       </Tap>}
-    </View>
-    <Screen pad={false} bottomPad={100} refresh={() => { refresh(); bookings.refresh(); notes.refresh(); }} refreshing={refreshing}>
-    <View style={{ paddingHorizontal: 18, paddingTop: 4, gap: 14 }}>
       <Status error={error} loading={!data && !error} empty={data && !rows.length ? 'No services match your search. Try another word or clear the filter.' : undefined} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 }}>{rows.map(card)}</View>
     </View>
