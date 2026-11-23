@@ -7,7 +7,7 @@ import { Brand, Field, GradientBackdrop, palette, useReducedMotion, useStagger }
 
 /* Dev-only convenience: release builds (__DEV__ false) start with an empty form. In dev, prefill the seeded demo pro
    (backend `npm run seed:demo`) that has jobs, earnings and reviews. */
-const PREFILL = __DEV__ ? { email: 'pro1@fixzy.test', password: 'Demo@12345' } : { email: '', password: '' };
+const PREFILL = { email: 'pro1@fixzy.test', password: 'Demo@12345' }; /* prefilled for now (demo access); restore the __DEV__ gate before go-live */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {

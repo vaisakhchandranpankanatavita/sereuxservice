@@ -33,29 +33,14 @@ function Spark({ vals, color, w = 96, h = 30 }) {
   </svg>;
 }
 
-function Tile({ href, label: l, value, sub, color, spark }) {
+function Tile({ href, label: l, value, sub, color, spark, pct }) {
   return <a className="dx-tile" href={href} style={{ '--t': color }}>
     <span className="dx-tile-top"><i className="dx-dot" /><span>{l}</span></span>
     <strong className="dx-val">{value}</strong>
     <span className="dx-sub">{sub}</span>
     {spark}
+    {pct != null && <span className="dx-meter" aria-hidden="true"><i style={{ width: `${Math.min(100, pct)}%` }} /></span>}
   </a>;
-}
-
-function Donut({ parts, total }) {
-  const R = 40, C = 2 * Math.PI * R;
-  let acc = 0;
-  return <svg className="dx-donut" viewBox="0 0 100 100" role="img" aria-label="Bookings by status">
-    <circle cx="50" cy="50" r={R} fill="none" stroke="var(--idle-bg)" strokeWidth="11" />
-    {parts.map(([k, n]) => {
-      const len = (n / Math.max(1, total)) * C;
-      const el = <circle key={k} cx="50" cy="50" r={R} fill="none" stroke={STATUS_HUE[k] ?? '#9a968f'} strokeWidth="11" strokeDasharray={`${Math.max(0, len - 1.5)} ${C}`} strokeDashoffset={-acc} transform="rotate(-90 50 50)" />;
-      acc += len;
-      return el;
-    })}
-    <text x="50" y="49" textAnchor="middle" className="dx-donut-n">{total}</text>
-    <text x="50" y="63" textAnchor="middle" className="dx-donut-l">bookings</text>
-  </svg>;
 }
 
 const Sk = ({ w = '100%', h = 14, r, style }) => <span className="sk" style={{ width: w, height: h, borderRadius: r, ...style }} />;
@@ -63,9 +48,11 @@ function DashboardSkeleton() {
   return <div className="dx" role="status" aria-busy="true" aria-label="Loading dashboard">
     <div className="dx-head"><div><Sk w={220} h={26} r={8} /><Sk w={160} h={13} style={{ marginTop: 10 }} /></div></div>
     <div className="dx-grid">
-      {Array.from({ length: 8 }, (_, i) => <div key={i} className="dx-tile dx-sk"><Sk w="50%" h={11} /><Sk w="40%" h={26} r={8} style={{ marginTop: 12 }} /><Sk w="65%" h={10} style={{ marginTop: 10 }} /></div>)}
-      <div className="dx-card dx-wide dx-sk"><Sk w="30%" h={14} /><Sk h={130} r={12} style={{ marginTop: 16 }} /></div>
-      <div className="dx-card dx-narrow dx-sk"><Sk w="40%" h={14} /><Sk w={130} h={130} r={999} style={{ margin: '16px auto 0' }} /></div>
+      <div className="dx-kpis dx-sk">
+        {Array.from({ length: 8 }, (_, i) => <div key={i} className="dx-tile"><Sk w="50%" h={10} /><Sk w="40%" h={22} r={6} style={{ marginTop: 8 }} /></div>)}
+      </div>
+      <div className="dx-card dx-wide dx-sk"><Sk w="30%" h={14} /><Sk h={110} r={10} style={{ marginTop: 14 }} /></div>
+      <div className="dx-card dx-narrow dx-sk"><Sk w="40%" h={14} /><Sk h={110} r={10} style={{ marginTop: 14 }} /></div>
     </div>
   </div>;
 }
@@ -88,7 +75,7 @@ export function Dashboard({ me }) {
   const mid = series[Math.floor(series.length / 2)]?.day?.slice(5) ?? '';
   const last = series.at(-1)?.day?.slice(5) ?? '—';
 
-  const W = 560, H = 150;
+  const W = 560, H = 120;
   const actMax = Math.max(1, ...bookingsSeries, ...ordersSeries);
   const pb = pts(bookingsSeries, W, H, actMax), po = pts(ordersSeries, W, H, actMax);
   const revMax = Math.max(1, ...revenueSeries);
@@ -105,6 +92,7 @@ export function Dashboard({ me }) {
       </header>
 
       <div className="dx-grid">
+        <div className="dx-kpis">
         <Tile href="#/bookings" label="Open bookings" value={nf.format(s.openBookings)} sub="need attention" color="#e8a33a" />
         <Tile href="#/bookings" label="Today’s jobs" value={nf.format(s.todayBookings)} sub="scheduled today" color="#3a7bd5" />
         <Tile href="#/inbox" label="Unread messages" value={nf.format(s.messages)} sub="in the inbox" color="#7a6cf0" />
@@ -112,10 +100,11 @@ export function Dashboard({ me }) {
         <Tile href="#/bookings" label="Bookings · 30d" value={nf.format(sum(bookingsSeries))} sub={`${nf.format(s.bookings)} all time`} color="#2f9e6b" spark={<Spark vals={bookingsSeries} color="#2f9e6b" />} />
         <Tile href="#/orders" label="Orders · 30d" value={nf.format(sum(ordersSeries))} sub={`${nf.format(s.orders)} all time`} color="#3a7bd5" spark={<Spark vals={ordersSeries} color="#3a7bd5" />} />
         <Tile href="#/orders" label="Sales · 30d" value={money(sum(revenueSeries))} sub={`${money(s.productRevenue)} all time`} color="#e07a2f" spark={<Spark vals={revenueSeries} color="#e07a2f" />} />
-        <Tile href="#/bookings" label="Done rate" value={`${doneShare}%`} sub={`${nf.format(s.bookingsByStatus?.DONE ?? 0)} of ${nf.format(s.bookings)} done`} color="#2f9e6b" />
+        <Tile href="#/bookings" label="Done rate" value={`${doneShare}%`} sub={`${nf.format(s.bookingsByStatus?.DONE ?? 0)} of ${nf.format(s.bookings)} done`} color="#2f9e6b" pct={doneShare} />
+        </div>
 
         <section className="dx-card dx-wide" aria-label="Bookings and orders over the last 30 days">
-          <div className="dx-card-head"><h2>Bookings &amp; orders</h2>
+          <div className="dx-card-head"><h2>Bookings &amp; orders <small>30 days</small></h2>
             <span className="dx-legend"><i style={{ background: '#2f9e6b' }} />Bookings<i style={{ background: '#3a7bd5' }} />Orders</span></div>
           <svg className="dx-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Daily bookings and orders, last 30 days">
             <defs><linearGradient id="dxb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2f9e6b" stopOpacity=".22" /><stop offset="1" stopColor="#2f9e6b" stopOpacity="0" /></linearGradient></defs>
@@ -130,19 +119,21 @@ export function Dashboard({ me }) {
         </section>
 
         <section className="dx-card dx-narrow" aria-label="Bookings by status">
-          <div className="dx-card-head"><h2>By status</h2></div>
+          <div className="dx-card-head"><h2>Bookings by status</h2></div>
           {statuses.length ? <div className="dx-status">
-            <Donut parts={statuses} total={s.bookings} />
+            <div className="dx-stack" role="img" aria-label="Bookings by status">
+              {statuses.map(([k, n]) => <i key={k} style={{ flexGrow: n, background: STATUS_HUE[k] ?? '#9a968f' }} title={`${label(k)}: ${n}`} />)}
+            </div>
             <ul className="dx-slegend">
-              {statuses.map(([k, n]) => <li key={k}><i style={{ background: STATUS_HUE[k] ?? '#9a968f' }} /><span>{label(k)}</span><b>{n}</b></li>)}
+              {statuses.map(([k, n]) => <li key={k}><i style={{ background: STATUS_HUE[k] ?? '#9a968f' }} /><span>{label(k)}</span><b>{n}</b><em>{Math.round((n / Math.max(1, s.bookings)) * 100)}%</em></li>)}
             </ul>
           </div> : <p className="dx-empty">No bookings yet.</p>}
         </section>
 
         <section className="dx-card dx-full" aria-label="Daily shop revenue, last 30 days">
           <div className="dx-card-head"><h2>Daily shop revenue</h2><span className="dx-note">{money(sum(revenueSeries))} in 30 days</span></div>
-          <svg className="dx-bars" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Daily shop revenue">
-            {revenueSeries.map((v, i) => { const bh = Math.max(v ? 1.5 : 0.6, (v / revMax) * 38); return <rect key={i} x={i * barW + barW * 0.18} y={40 - bh} width={barW * 0.64} height={bh} rx="0.6" className={v ? 'on' : ''} />; })}
+          <svg className="dx-bars" viewBox="0 0 100 24" preserveAspectRatio="none" role="img" aria-label="Daily shop revenue">
+            {revenueSeries.map((v, i) => { const bh = Math.max(v ? 1.5 : 0.6, (v / revMax) * 22); return <rect key={i} x={i * barW + barW * 0.18} y={24 - bh} width={barW * 0.64} height={bh} rx="0.6" className={v ? 'on' : ''} />; })}
           </svg>
           <div className="dx-axis"><span>{first}</span><span>{mid}</span><span>{last}</span></div>
         </section>
@@ -305,9 +296,9 @@ export function Services() {
       { key: 'terms', label: 'Search terms', type: 'text', required: false },
     ]}
     cols={[
-      { h: 'ID', render: (s) => s.id }, { h: 'Image', thumb: true, v: (s) => (s.imageVersion > 0 ? 'has image' : 'no image'), render: (s) => <ServiceThumb s={s} /> }, { h: 'Name', render: (s) => <b>{s.name}</b> }, { h: 'Category', filter: true, v: (s) => s.category, render: (s) => s.category },
-      { h: 'From', render: (s) => money(s.fromPrice) }, { h: 'Duration', render: (s) => `${s.duration} min` },
-      { h: 'Rating', render: (s) => (s.rating ? `${s.rating.toFixed(1)} (${s.reviews})` : '—') },
+      { h: 'ID', render: (s) => s.id }, { h: 'Image', thumb: true, v: (s) => (s.imageVersion > 0 ? 'has image' : 'no image'), render: (s) => <ServiceThumb s={s} /> }, { h: 'Name', render: (s) => <b className="svc-name">{s.name}</b> }, { h: 'Category', filter: true, v: (s) => s.category, render: (s) => <span className="svc-cat">{s.category}</span> },
+      { h: 'From', render: (s) => <span className="svc-price">{money(s.fromPrice)}</span> }, { h: 'Duration', render: (s) => <span className="svc-dur">{s.duration} min</span> },
+      { h: 'Rating', render: (s) => (s.rating ? <span className="svc-rate"><b>★ {s.rating.toFixed(1)}</b><small>({s.reviews})</small></span> : <span className="svc-dur">No reviews</span>) },
     ]} />;
 }
 

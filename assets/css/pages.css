@@ -235,6 +235,9 @@ html.lenis { scroll-behavior: auto !important; }
   .filter-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
   .filter-row > .filter-select:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .filter-select select, .filter-select input, .price-range input { width: 100%; min-width: 0; box-sizing: border-box; }
+  .filter-row > .price-range { grid-column: 1 / -1; }
+  .filter-select { grid-template-columns: minmax(0, 1fr); }
+  .price-range > div input { flex: 1 1 0; width: 0; min-width: 0; }
 }
 .price-range > div { display: flex; align-items: center; gap: 8px; } .price-range input { width: 96px; }
 .active-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

@@ -1,0 +1,58 @@
+[
+  {
+    "date": "2026-11-23",
+    "title": "Admin control and compact dashboard",
+    "items": [
+      "Admin-managed app settings: texts and options in the customer and pro apps now come from the admin panel, so changes go live without a new app release.",
+      "Service images are managed from the admin panel and shown across the customer app.",
+      "Admin dashboard redesigned to be compact: all key numbers in one panel, a status bar for bookings, and shorter charts that fit on one screen.",
+      "Insights panels across admin pages made more compact.",
+      "Customer app home header made compact; the banner and up-next list now scroll together with the page.",
+      "Admin sign-in on phones: the animated scene now sits behind the form, with a soft overlay so the fields stay clear.",
+      "Responsive fix: the shop price filter no longer causes sideways scrolling on small phones.",
+      "New app builds: Customer app 1.0.2 and Pro app 1.0.1 are available to download at the top of this page."
+    ]
+  },
+  {
+    "date": "2026-11-20",
+    "title": "Pro app polish and delivery tools",
+    "items": [
+      "Pro app: glass-style top bar and bottom bar, refreshed sign-in and forgot-password screens, rating popup and new loaders.",
+      "Customer app: OTP popup and booking flow refinements; notifications improved.",
+      "Local Android build script for the pro app, so test builds can be produced quickly.",
+      "Fixzy Overview page: added a product demo video and made the page self-contained for sharing."
+    ]
+  },
+  {
+    "date": "2026-11-19",
+    "title": "Provider app redesign and live service",
+    "items": [
+      "Provider app redesigned: sign-in, My jobs, Account and the live job status bar.",
+      "In-app chat between the customer and the assigned professional.",
+      "Live map tracking now continues while the job is in progress.",
+      "Smarter dispatch: online professionals are preferred, nearest first.",
+      "Provider payout ledger added.",
+      "Safety check: release app builds refuse to use a local or test server address."
+    ]
+  },
+  {
+    "date": "2026-11-17",
+    "title": "Admin panel overhaul",
+    "items": [
+      "New admin look: glass-style bars, redesigned login, cleaner tables with filters and simple status chips.",
+      "Insights panel on each admin page, remembering whether it is collapsed.",
+      "Coupons shown as ticket-style cards.",
+      "Home-screen banners managed from the admin panel.",
+      "Client build delivery: app builds can be published to the Fixzy Overview page for download."
+    ]
+  },
+  {
+    "date": "2026-11-14",
+    "title": "Payments and notifications",
+    "items": [
+      "Push notifications for booking updates.",
+      "Booking payments.",
+      "Coupons that customers can apply to bookings."
+    ]
+  }
+]

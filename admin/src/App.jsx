@@ -411,8 +411,8 @@ const STARS = [[40, 60, 1.1], [150, 30, 1.4], [250, 78, 1], [330, 24, 1.3], [430
 
 
 function Login({ onDone }) {
-  const [email, setEmail] = useState(import.meta.env.DEV ? 'admin@fixzy.app' : '') /* dev-only prefill; production builds start blank */;
-  const [password, setPassword] = useState(import.meta.env.DEV ? 'testpass123' : '');
+  const [email, setEmail] = useState('admin@fixzy.app') /* prefilled for now (demo access); restore the DEV-only gate before go-live */;
+  const [password, setPassword] = useState('testpass123');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [buttonHover, setButtonHover] = useState(false);

@@ -884,3 +884,79 @@
 
 /* Service thumbnails in the list: always a true square, whatever shape the uploaded picture is. */
 img.svc-thumb, .svc-thumb { box-sizing: border-box; width: 48px !important; height: 48px !important; min-width: 48px; aspect-ratio: 1 / 1; border-radius: 12px; object-fit: cover; object-position: center; }
+
+/* Phones/tablets: the scene fills the screen behind the form; a soft overlay and a frosted card keep the fields readable.
+   The card is compact and bottom-anchored; the scene is sized to the space above it so nothing is covered or cropped. */
+@media (max-width: 860px) {
+  .lg { --card-h: 300px; position: relative; display: grid; grid-template-rows: none; grid-template-columns: minmax(0, 1fr); place-items: end center; min-height: 100svh; padding: 16px 14px calc(14px + env(safe-area-inset-bottom)); gap: 0; background: transparent; isolation: isolate; }
+  .lg-art { position: fixed; inset: 0; z-index: -1; display: block; min-height: 0; border: 0; border-radius: 0; }
+  .lg-art::after { content: ''; display: block; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background: linear-gradient(180deg, rgb(243 244 239 / calc(.18 + var(--day, 0) * .3)) 0%, rgb(243 244 239 / calc(.18 + var(--day, 0) * .3)) 40%, rgb(243 244 239 / calc(.5 + var(--day, 0) * .25)) 100%); }
+  .lg-illustration { left: 50%; top: max(100px, calc((100svh - var(--card-h)) / 2)); width: max(150px, min(112%, 480px, calc((100svh - var(--card-h) - 36px) * 1.18))); transform: translate(-50%, -50%); opacity: 1; }
+  .lg-art-copy, .lg-art-chip, .lg-float-note { display: none; }
+  .lg-form-panel { grid-row: auto; width: min(100%, 440px); min-height: 0; padding: 18px 20px 22px; border: 1px solid rgb(255 255 255 / .7); border-radius: 24px;
+    background: rgb(255 255 255 / .86); -webkit-backdrop-filter: blur(14px) saturate(1.1); backdrop-filter: blur(14px) saturate(1.1); box-shadow: 0 24px 60px -28px rgb(20 28 18 / .45); }
+  .lg-content { width: 100%; margin: 0; padding: 14px 0 0; }
+  .lg-form-panel h1, .lg-sub, .login-kicker { display: none; }
+  .lg-form-panel form { display: grid; gap: 12px; }
+  .lg-field { margin: 0; }
+  .lg-field input { min-height: 48px; font-size: 16px; }
+  .lg-btn { min-height: 50px; margin-top: 2px; }
+}
+@media (max-width: 860px) and (max-height: 620px) {
+  .lg-illustration { display: none; }
+}
+@media (max-width: 860px) and (prefers-reduced-transparency: reduce) {
+  .lg-form-panel { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* Phones: table rows become clean, evenly spaced cards (shared by every admin table, Services included). */
+@media (max-width: 640px) {
+  .page-view .tablewrap { max-height: none; overflow: visible; border: 0; background: transparent; box-shadow: none; padding: 0; cursor: auto; }
+  .page-view .tablewrap table, .page-view .tablewrap tbody { display: grid; gap: 10px; }
+  .page-view .tablewrap tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; align-items: start; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 1px 2px rgba(34, 15, 48, .04); }
+  .page-view .tablewrap tbody td { font-size: 14px !important; font-weight: 500; line-height: 1.35; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .page-view .tablewrap tbody td b { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .page-view .tablewrap tbody td[data-label]::before { margin-bottom: 3px; font-size: 10px; font-weight: 600; letter-spacing: .09em; color: var(--faint); }
+  .page-view .tablewrap tbody td.col-thumb { order: -2; display: flex; align-items: center; }
+  .page-view .tablewrap tbody td.col-thumb::before { display: none; }
+  .page-view .tablewrap tbody td.col-thumb > * { width: 56px; height: 56px; border-radius: 14px; object-fit: cover; }
+  .page-view .tablewrap tbody td.col-reference { order: -1; align-self: center; }
+  .page-view .tablewrap tbody td.col-actions { order: 99; margin-top: 2px; padding-top: 12px !important; border-top: 1px solid var(--line) !important; }
+  .page-view:not(:has(.dash)) .tablewrap tbody tr td, .page-view:not(:has(.dash)) .tablewrap tbody tr:hover td { background: transparent !important; border: 0 !important; padding: 0 !important; }
+  .page-view:not(:has(.dash)) .tablewrap tbody tr:hover { background: #fff; border-color: var(--line-strong); }
+  .page-view:not(:has(.dash)) .tablewrap tbody tr td.col-actions { padding-top: 12px !important; border-top: 1px solid var(--line) !important; }
+  .page-view .tablewrap td .row-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-width: none; }
+  .page-view .tablewrap td .row-actions .btn.sm { min-height: 40px; padding: 0 12px; font-size: 13px; font-weight: 600; justify-content: center; text-align: center; background: rgba(35, 35, 35, .06); }
+  .page-view .tablewrap td .row-actions .btn.sm.danger { background: var(--bad-bg); }
+}
+
+@media (max-width: 640px) {
+  .page-view .tbar .tchips { flex-wrap: nowrap; overflow-x: auto; margin-inline: -2px; padding: 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .page-view .tbar .tchips::-webkit-scrollbar { display: none; }
+  .page-view .tbar .tchips > * { flex: none; }
+}
+
+/* Services: calmer, more readable table. Scoped by the thumbnail column so other tables keep their look. */
+.page-view:has(.svc-thumb):not(:has(.dash)) .tablewrap thead th,
+.page-view:has(.svc-thumb):not(:has(.dash)) .tablewrap thead th.col-metric { background: #f6f1f7 !important; color: #6a5a73; font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; padding: 12px 16px; box-shadow: inset 0 -1px 0 #e6dbea !important; }
+.page-view:has(.svc-thumb):not(:has(.dash)) .tablewrap tbody td,
+.page-view:has(.svc-thumb):not(:has(.dash)) .tablewrap td.col-metric { padding: 12px 16px; font-size: 14px; color: var(--ink); vertical-align: middle; background: #fff !important; }
+.page-view:has(.svc-thumb):not(:has(.dash)) .tablewrap tbody tr:hover td { background: #faf7fb !important; }
+.page-view:has(.svc-thumb) .tablewrap td.col-reference { width: 48px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.page-view:has(.svc-thumb) .svc-thumb { box-shadow: 0 0 0 1px rgba(34, 15, 48, .08); }
+.svc-name { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+.svc-cat { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; background: #f1ecf3; color: #5a3f69; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.svc-price { font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.svc-dur { color: var(--muted); font-variant-numeric: tabular-nums; }
+.svc-rate { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.svc-rate b { color: #b2660a; font-weight: 700; }
+.svc-rate small { color: var(--faint); font-size: 12px; }
+.page-view:has(.svc-thumb) .tablewrap td .row-actions { flex-wrap: nowrap; justify-content: flex-end; gap: 6px; }
+.page-view:has(.svc-thumb) .tablewrap td .row-actions .btn.sm { padding: 7px 12px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+@media (max-width: 640px) {
+  .page-view:has(.svc-thumb) .tablewrap tbody td.col-reference { width: auto; }
+  .page-view:has(.svc-thumb) .tablewrap td .row-actions { flex-wrap: wrap; }
+  .page-view:has(.svc-thumb):not(:has(.dash)) .tablewrap tbody td { padding: 0 !important; }
+  .svc-name { font-size: 16px; }
+}
