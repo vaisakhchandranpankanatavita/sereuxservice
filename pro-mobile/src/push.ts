@@ -40,6 +40,12 @@ export async function unregisterPush() {
 
 /* Opens the right screen when an alert is tapped. Returns an unsubscribe function. */
 export function onNotificationTap(go: (path: string) => void) {
-  const sub = Notifications.addNotificationResponseReceivedListener(() => go('/jobs'));
+  const sub = Notifications.addNotificationResponseReceivedListener((r) => {
+    const href = r.notification.request.content.data?.href;
+    /* Chat pushes open the job; everything else (new requests, payouts) goes to the jobs list or account. */
+    if (typeof href === 'string' && /^\/job\/[\w-]+/.test(href)) go(href.split('?')[0]);
+    else if (href === '/account') go('/account');
+    else go('/jobs');
+  });
   return () => sub.remove();
 }

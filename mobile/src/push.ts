@@ -40,6 +40,11 @@ export async function unregisterPush() {
 
 /* Opens the right screen when an alert is tapped. Returns an unsubscribe function. */
 export function onNotificationTap(go: (path: string) => void) {
-  const sub = Notifications.addNotificationResponseReceivedListener(() => go('/activity'));
+  const sub = Notifications.addNotificationResponseReceivedListener((r) => {
+    const href = r.notification.request.content.data?.href;
+    /* Pushes carry the screen to open; order lists live on the Activity tab. Anything unexpected falls back to Activity. */
+    if (typeof href === 'string' && /^\/booking\/[\w-]+/.test(href)) go(href.split('?')[0]);
+    else go('/activity');
+  });
   return () => sub.remove();
 }
