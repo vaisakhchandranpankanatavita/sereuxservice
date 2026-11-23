@@ -58,6 +58,7 @@ export default function BookingDetail() {
   const withPhotos = !!b && (b.status === 'IN_PROGRESS' || b.status === 'DONE');
   const photos = useFetch<any[]>(withPhotos ? `/bookings/${id}/photos` : null);
   const [reason, setReason] = useState('');
+  const policy = useFetch<any>(cancelling ? `/bookings/${id}/cancellation` : null);
 
   const header = <PageHeader tone="activity" eyebrow={b ? `BOOKING #${b.id}` : 'BOOKING'} title={b ? b.service.name : 'Booking'} right={b ? <Badge v={b.status} /> : undefined}
     left={<RoundBtn size={40} icon="arrow-back" label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />} />;
@@ -162,10 +163,26 @@ ${b.address}` }).catch(() => {});
         {!!b.service.terms && <Txt size={13} color={t.body} style={{ lineHeight: 19 }}>{b.service.terms}</Txt>}
       </View>
 
+      {!!b.extras?.length && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 12 }}>
+        <Txt bold size={24}>Extra charges</Txt>
+        {b.extras.map((x: any) => <View key={x.id} style={{ gap: 8, paddingTop: 10, borderTopWidth: 1, borderColor: t.line }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+            <Txt bold size={16} style={{ flex: 1 }}>{x.label}</Txt>
+            <Txt bold size={16}>{money(x.amount)}</Txt>
+          </View>
+          {x.status === 'PENDING' && open
+            ? <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Button title="Approve" busy={busy} style={{ flex: 1 }} onPress={() => run(() => api(`/bookings/${b.id}/extras/${x.id}`, 'PATCH', { status: 'APPROVED' }), 'Extra charge approved.')} />
+              <Button title="Decline" kind="ghost" busy={busy} style={{ flex: 1 }} onPress={() => run(() => api(`/bookings/${b.id}/extras/${x.id}`, 'PATCH', { status: 'REJECTED' }), 'Extra charge declined.')} />
+            </View>
+            : <Txt size={13} color={x.status === 'APPROVED' ? t.ok : t.muted}>{x.status === 'APPROVED' ? 'Approved' : x.status === 'REJECTED' ? 'Declined' : 'Waiting for your answer'}</Txt>}
+        </View>)}
+      </View>}
+
       {/* booking summary */}
       <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 10 }}>
         <Txt bold size={24}>Booking summary</Txt>
-        {([['Booked for', b.name], ['Contact', b.phone], ['Booked on', new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })], ['Estimate', money(b.estimate)], ['Payment', paid ? 'Paid online' : refunded ? 'Refunded' : 'Not paid yet']] as const).map(([k, v]) =>
+        {([['Booked for', b.name], ['Contact', b.phone], ['Booked on', new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })], ['Estimate', money(b.estimate)], ['Payment', paid ? 'Paid online' : refunded ? 'Refunded' : 'Not paid yet'], ...(b.cancelFee > 0 ? [['Cancellation fee', money(b.cancelFee)]] : [])] as const).map(([k, v]) =>
           <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}><Txt size={15} color={t.body}>{k}</Txt><Txt bold size={15} style={{ flexShrink: 1, textAlign: 'right' }}>{v}</Txt></View>)}
       </View>
 
@@ -227,6 +244,9 @@ ${b.address}` }).catch(() => {});
         <View style={{ flex: 1, backgroundColor: 'rgba(20,20,20,0.45)', justifyContent: 'center', padding: 18 }}>
           <Card style={{ borderRadius: 26, padding: 18, gap: 14 }}>
             <Txt bold size={24}>Cancel booking #{b.id}?</Txt>
+            {policy.data && (policy.data.fee > 0
+              ? <Banner kind="bad">{`A cancellation fee of ${money(policy.data.fee)} (${policy.data.percent}%) applies, because it is less than ${policy.data.freeHours} hours to your slot or your pro is already on the way.${policy.data.paid ? ` You will be refunded ${money(policy.data.refund)}.` : ' It will be settled with Fixzy.'}`}</Banner>
+              : <Txt size={14} color={t.body}>{policy.data.paid ? `Free cancellation. You will be refunded ${money(policy.data.paid)}.` : 'Free cancellation.'}</Txt>)}
             <Field onCard label="Reason (optional)" placeholder="Tell us why you're cancelling" value={reason} onChangeText={setReason} multiline maxLength={300} />
             <Button title="Yes, cancel booking" busy={busy} onPress={() => run(async () => { const r = reason.trim(); await api(`/bookings/${b.id}`, 'PATCH', { status: 'CANCELLED', ...(r ? { reason: r } : {}) }); setCancelling(false); setReason(''); }, 'Booking cancelled.')} />
             <Button title="Keep it" kind="ghost" onPress={() => { setCancelling(false); setReason(''); }} />

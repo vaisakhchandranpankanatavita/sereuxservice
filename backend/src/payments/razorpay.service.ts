@@ -10,6 +10,8 @@ export class RazorpayService {
 
   private get keyId() { return process.env.RAZORPAY_KEY_ID; }
   private get keySecret() { return process.env.RAZORPAY_KEY_SECRET; }
+  /* Overridable so tests can point refunds at a local mock instead of the live API. */
+  private get base() { return process.env.RAZORPAY_API_BASE || 'https://api.razorpay.com/v1'; }
   get configured() { return !!(this.keyId && this.keySecret); }
 
   private assertConfigured() {
@@ -23,7 +25,7 @@ export class RazorpayService {
   /* amount is in the smallest currency unit (paise for INR). */
   async createOrder(amount: number, receipt: string) {
     this.assertConfigured();
-    const res = await fetch('https://api.razorpay.com/v1/orders', {
+    const res = await fetch(`${this.base}/orders`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: this.auth() },
       body: JSON.stringify({ amount, currency: 'INR', receipt }),
@@ -55,7 +57,7 @@ export class RazorpayService {
   async refund(paymentId: string, amount: number) {
     if (!this.configured) { this.log.warn(`Skipped refund for ${paymentId}: Razorpay isn’t configured.`); return null; }
     try {
-      const res = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
+      const res = await fetch(`${this.base}/payments/${paymentId}/refund`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: this.auth() },
         body: JSON.stringify({ amount }),

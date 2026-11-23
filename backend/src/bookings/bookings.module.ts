@@ -1,6 +1,6 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Injectable, Module, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { BookingStatus, Prisma, Role } from '@prisma/client';
-import { IsIn, IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, MinLength, Min } from 'class-validator';
 import { randomBytes, randomInt } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
@@ -39,6 +39,12 @@ class UpdateBookingDto {
   @IsOptional() @IsIn(['CANCELLED']) status?: 'CANCELLED';
   @IsOptional() @IsString() @MaxLength(300) reason?: string;
 }
+
+class ExtraDto {
+  @IsString() @MinLength(3) @MaxLength(80) label: string;
+  @IsInt() @Min(1) @Max(100000) amount: number;
+}
+class DecideExtraDto { @IsIn(['APPROVED', 'REJECTED']) status: 'APPROVED' | 'REJECTED'; }
 
 class SetStatusDto {
   @IsIn(Object.keys(STATUS_TEXT)) status: BookingStatus;
@@ -123,12 +129,12 @@ class BookingsService {
   }
 
   async list(user: AuthUser) {
-    const rows = await this.prisma.booking.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, include: { service: true, provider: true, review: true, payment: { select: { status: true, amount: true } } } });
+    const rows = await this.prisma.booking.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, include: { service: true, provider: true, review: true, extras: { orderBy: { createdAt: 'asc' } }, payment: { select: { status: true, amount: true } } } });
     return Promise.all(rows.map((b) => this.ensureOtp(b)));
   }
 
   async get(user: AuthUser, id: string) {
-    const b = await this.prisma.booking.findUnique({ where: { id }, include: { service: true, provider: true, review: true, payment: { select: { status: true, amount: true } } } });
+    const b = await this.prisma.booking.findUnique({ where: { id }, include: { service: true, provider: true, review: true, extras: { orderBy: { createdAt: 'asc' } }, payment: { select: { status: true, amount: true } } } });
     if (!b) throw new NotFoundException();
     if (user.role === 'CUSTOMER' && b.userId !== user.id) throw new NotFoundException();
     if (user.role === 'PROVIDER' && b.provider?.userId !== user.id) throw new NotFoundException();
@@ -144,17 +150,38 @@ class BookingsService {
     return this.prisma.jobPhoto.findMany({ where: { bookingId: id }, orderBy: { createdAt: 'asc' } });
   }
 
+  /* Late-cancellation policy (admin settings). No fee while no pro is confirmed or while more than
+     rules.cancelFreeHours remain before the slot; otherwise rules.cancelFeePercent of the total. */
+  private async policy(b: { status: BookingStatus; day: string; slot: string; estimate: number }) {
+    const [freeHours, percent] = await Promise.all([this.config.get<number>('rules.cancelFreeHours'), this.config.get<number>('rules.cancelFeePercent')]);
+    const start = new Date(`${b.day}T${b.slot}:00+05:30`).getTime();
+    const hoursLeft = (start - Date.now()) / 36e5;
+    const free = b.status === 'REQUESTED' || (b.status === 'CONFIRMED' && hoursLeft >= freeHours);
+    return { freeHours, percent, hoursLeft, fee: free ? 0 : Math.round(b.estimate * percent / 100) };
+  }
+
+  /* What cancelling would cost, so the customer sees it before confirming. */
+  async cancellation(user: AuthUser, id: string) {
+    const b = await this.prisma.booking.findUnique({ where: { id }, include: { payment: { select: { status: true, amount: true } } } });
+    if (!b || b.userId !== user.id) throw new NotFoundException();
+    if (b.status === 'DONE' || b.status === 'CANCELLED') throw new BadRequestException('This booking can no longer be changed.');
+    const p = await this.policy(b);
+    const paid = b.payment?.status === 'PAID' ? Math.round(b.payment.amount / 100) : 0;
+    return { fee: p.fee, freeHours: p.freeHours, percent: p.percent, paid, refund: Math.max(0, paid - p.fee) };
+  }
+
   async update(user: AuthUser, id: string, dto: UpdateBookingDto) {
     const b = await this.prisma.booking.findUnique({ where: { id } });
     if (!b || b.userId !== user.id) throw new NotFoundException();
     if (b.status === 'DONE' || b.status === 'CANCELLED') throw new BadRequestException('This booking can no longer be changed.');
     if (dto.status === 'CANCELLED') {
+      const { fee } = await this.policy(b);
       return this.prisma.$transaction(async (tx) => {
-        const out = await tx.booking.update({ where: { id }, data: { status: 'CANCELLED', cancelReason: dto.reason?.trim() || null } });
-        await tx.notification.create({ data: { userId: user.id, text: `#${id}: ${STATUS_TEXT.CANCELLED}`, href: '/orders' } });
+        const out = await tx.booking.update({ where: { id }, data: { status: 'CANCELLED', cancelReason: dto.reason?.trim() || null, cancelFee: fee } });
+        await tx.notification.create({ data: { userId: user.id, text: `#${id}: ${STATUS_TEXT.CANCELLED}${fee ? ` A cancellation fee of ₹${fee} applies.` : ''}`, href: '/orders' } });
         return out;
       }).then(async (out) => {
-        await this.payments.refundBookingIfPaid(id);
+        await this.payments.refundBookingIfPaid(id, fee);
         await this.push.send(user.id, `#${id}: ${STATUS_TEXT.CANCELLED}`, 'Fixzy', { href: '/orders' });
         if (b.providerId) {
           const p = await this.prisma.provider.findUnique({ where: { id: b.providerId }, select: { userId: true } });
@@ -174,6 +201,35 @@ class BookingsService {
     }, { isolationLevel: 'Serializable' });
   }
 
+  /* A pro proposes extra work or parts while the job is under way; nothing is charged until the customer approves. */
+  async proposeExtra(user: AuthUser, id: string, dto: ExtraDto) {
+    const b = await this.prisma.booking.findUnique({ where: { id }, include: { provider: { select: { userId: true } } } });
+    if (!b || b.provider?.userId !== user.id) throw new NotFoundException();
+    if (b.status !== 'ON_THE_WAY' && b.status !== 'IN_PROGRESS') throw new BadRequestException('Extra charges can be added while the job is under way.');
+    if (await this.prisma.bookingExtra.count({ where: { bookingId: id, status: 'PENDING' } }) >= 3) throw new BadRequestException('Wait for the customer to answer the pending charges first.');
+    const extra = await this.prisma.bookingExtra.create({ data: { bookingId: id, label: dto.label.trim(), amount: dto.amount } });
+    const text = `#${id}: Your pro added "${extra.label}" for ₹${extra.amount}. Open the booking to approve or decline.`;
+    await this.prisma.notification.create({ data: { userId: b.userId, text, href: `/booking/${id}` } });
+    await this.push.alert(b.userId, text, 'Extra charge to approve', `/booking/${id}`);
+    return extra;
+  }
+
+  /* The customer answers. Approval adds the amount to the booking total (so commission and earnings follow). */
+  async decideExtra(user: AuthUser, id: string, extraId: string, status: 'APPROVED' | 'REJECTED') {
+    const b = await this.prisma.booking.findUnique({ where: { id }, include: { provider: { select: { userId: true } } } });
+    if (!b || b.userId !== user.id) throw new NotFoundException();
+    if (b.status === 'DONE' || b.status === 'CANCELLED') throw new BadRequestException('This booking is closed.');
+    const out = await this.prisma.$transaction(async (tx) => {
+      const r = await tx.bookingExtra.updateMany({ where: { id: extraId, bookingId: id, status: 'PENDING' }, data: { status, decidedAt: new Date() } });
+      if (r.count !== 1) throw new ConflictException('That charge was already answered.');
+      const extra = await tx.bookingExtra.findUniqueOrThrow({ where: { id: extraId } });
+      if (status === 'APPROVED') await tx.booking.update({ where: { id }, data: { estimate: { increment: extra.amount } } });
+      return extra;
+    });
+    if (b.provider?.userId) await this.push.alert(b.provider.userId, `#${id}: Customer ${status === 'APPROVED' ? 'approved' : 'declined'} "${out.label}" (₹${out.amount}).`, 'Extra charge answered');
+    return out;
+  }
+
   async setStatus(user: AuthUser, id: string, status: BookingStatus, otp?: string) {
     const b = await this.prisma.booking.findUnique({ where: { id } });
     if (!b) throw new NotFoundException();
@@ -184,6 +240,9 @@ class BookingsService {
     if (b.status === 'DONE' || b.status === 'CANCELLED') throw new BadRequestException('Booking is already closed.');
     if (status !== 'CANCELLED' && FLOW.indexOf(status) !== FLOW.indexOf(b.status) + 1) {
       throw new BadRequestException(`Status must move from ${b.status} to ${FLOW[FLOW.indexOf(b.status) + 1]}.`);
+    }
+    if (status === 'DONE' && await this.prisma.bookingExtra.count({ where: { bookingId: id, status: 'PENDING' } })) {
+      throw new BadRequestException('The customer still has an extra charge to approve or decline.');
     }
     // Pros must prove they are with the customer: the customer reads out the code shown in their app to start and to finish the job. Admins can override.
     if (user.role === 'PROVIDER') {
@@ -210,9 +269,14 @@ class BookingsController {
   constructor(private svc: BookingsService) {}
   @Post() create(@CurrentUser() u: AuthUser, @Body() dto: CreateBookingDto) { return this.svc.create(u, dto); }
   @Get() list(@CurrentUser() u: AuthUser) { return this.svc.list(u); }
+  @Get(':id/cancellation') cancellation(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.cancellation(u, id); }
   @Get(':id/photos') photos(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.photos(u, id); }
   @Get(':id') get(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.get(u, id); }
   @Patch(':id') update(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: UpdateBookingDto) { return this.svc.update(u, id, dto); }
+  @Post(':id/extras') @Roles(Role.PROVIDER)
+  propose(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: ExtraDto) { return this.svc.proposeExtra(u, id, dto); }
+  @Patch(':id/extras/:extraId') @Roles(Role.CUSTOMER)
+  decide(@CurrentUser() u: AuthUser, @Param('id') id: string, @Param('extraId') extraId: string, @Body() dto: DecideExtraDto) { return this.svc.decideExtra(u, id, extraId, dto.status); }
   @Patch(':id/status') @Roles(Role.PROVIDER, Role.ADMIN)
   setStatus(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: SetStatusDto) { return this.svc.setStatus(u, id, dto.status, dto.otp); }
 }

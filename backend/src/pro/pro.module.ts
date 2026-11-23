@@ -117,7 +117,7 @@ class ProService {
     const rows = await this.prisma.booking.findMany({
       where: { providerId: p.id, status: { not: 'REQUESTED' } },
       orderBy: { createdAt: 'desc' },
-      include: { service: true },
+      include: { service: true, extras: { orderBy: { createdAt: 'asc' } } },
     });
     return rows.map(omitOtp);
   }

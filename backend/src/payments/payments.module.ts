@@ -70,12 +70,17 @@ export class PaymentsService {
     return { paid: true };
   }
 
-  /* Called when a paid booking is cancelled; never throws. */
-  async refundBookingIfPaid(bookingId: string) {
+  /* Called when a paid booking is cancelled; never throws. A cancellation fee (rupees) is kept back and
+     the rest is refunded. Returns the rupees refunded (0 when nothing was paid or the refund failed). */
+  async refundBookingIfPaid(bookingId: string, feeRupees = 0) {
     const payment = await this.prisma.payment.findUnique({ where: { bookingId } });
-    if (!payment || payment.status !== 'PAID' || !payment.providerPaymentId) return;
-    const refunded = await this.razorpay.refund(payment.providerPaymentId, payment.amount);
-    if (refunded) await this.prisma.payment.update({ where: { bookingId }, data: { status: 'REFUNDED' } });
+    if (!payment || payment.status !== 'PAID' || !payment.providerPaymentId) return 0;
+    const amount = Math.max(0, payment.amount - feeRupees * 100); // paise
+    if (amount <= 0) return 0;
+    const refunded = await this.razorpay.refund(payment.providerPaymentId, amount);
+    if (!refunded) return 0;
+    await this.prisma.payment.update({ where: { bookingId }, data: { status: 'REFUNDED', refundedAmount: amount } });
+    return Math.round(amount / 100);
   }
 
   /* Client-side confirmation right after Checkout succeeds. The webhook is the source of truth if this never arrives. */

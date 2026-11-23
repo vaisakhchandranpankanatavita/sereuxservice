@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixzy: feature updates</title>
+<style>
+  :root { --ink:#141B34; --muted:#5b6275; --line:#e4e6ee; --bg:#f6f7fb; --ok:#14804a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.6 Inter, system-ui, sans-serif; color:var(--ink); background:var(--bg); }
+  main { max-width: 880px; margin: 0 auto; padding: 40px 20px 80px; }
+  h1 { font-size: 32px; letter-spacing:-.02em; margin:0 0 6px; }
+  h2 { font-size: 24px; letter-spacing:-.01em; margin:0 0 4px; }
+  h3 { font-size: 15px; text-transform: uppercase; letter-spacing:.06em; color:var(--muted); margin:26px 0 8px; }
+  .sub { color:var(--muted); margin:0 0 28px; }
+  section.item { background:#fff; border-radius:20px; padding:28px; margin:0 0 28px; border:1px solid var(--line); }
+  .tag { display:inline-block; font-size:12px; font-weight:600; padding:3px 10px; border-radius:99px; background:#e7f6ee; color:var(--ok); margin-bottom:10px; }
+  .tag.next { background:#eef0f8; color:var(--muted); }
+  ul, ol { padding-left: 22px; margin: 6px 0; }
+  li { margin: 4px 0; }
+  table { border-collapse: collapse; width:100%; font-size:14px; margin: 8px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align: top; }
+  th { color:var(--muted); font-weight:600; }
+  code { background:#eef0f8; padding:1px 6px; border-radius:6px; font-size:13px; }
+  .shots { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:14px; margin-top:10px; }
+  figure { margin:0; }
+  figure img { width:100%; border-radius:16px; border:1px solid var(--line); display:block; }
+  figcaption { font-size:13px; color:var(--muted); margin-top:6px; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:14px; }
+  .flow span { background:#eef0f8; border-radius:10px; padding:6px 10px; }
+  .flow i { color:var(--muted); font-style:normal; }
+  .note { background:#fff8e6; border:1px solid #f2e2b0; border-radius:12px; padding:10px 14px; font-size:14px; }
+  @media print { body { background:#fff; } section.item { break-inside: avoid-page; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fixzy: feature updates</h1>
+  <p class="sub">What was added, how it is used, how it was tested, and how it reaches your phones. Latest first. Last updated 24 Nov 2026.</p>
+
+  <!-- ===================== ITEM 1 ===================== -->
+  <section class="item" id="extras">
+    <span class="tag">Built and tested</span>
+    <h2>1. Extra charges during a job</h2>
+    <p class="sub" style="margin-bottom:0">The pro can add parts or extra work mid-job. The customer approves or declines it in the app before any money is added.</p>
+
+    <h3>Why</h3>
+    <p>Until now every job was fixed at the starting price. Real jobs often need an extra part or more time, and pros had to settle it in cash with no record. Now the extra is written down, approved by the customer, and counted in the total and in the pro's earnings.</p>
+
+    <h3>How it is used</h3>
+    <p><b>Pro app:</b> on an active job (on the way, or in progress), tap the <b>+</b> button beside the slider. Enter what it is for and the amount, then <b>Send to customer</b>. The job card lists every extra and its status (awaiting customer, approved, declined).</p>
+    <p><b>Customer app:</b> the customer gets a push notification, opens the booking, and sees an <b>Extra charges</b> card with <b>Approve</b> and <b>Decline</b>. The booking total updates as soon as they approve.</p>
+
+    <h3>Workflow</h3>
+    <div class="flow">
+      <span>Pro taps +</span><i>→</i><span>Customer notified</span><i>→</i><span>Customer approves or declines</span><i>→</i><span>Total updates (approved only)</span><i>→</i><span>Pro finishes the job with the completion code</span>
+    </div>
+
+    <h3>Rules built in</h3>
+    <ul>
+      <li>Only the assigned pro can propose, and only while the job is on the way or in progress.</li>
+      <li>Only the customer who owns the booking can approve or decline. A pro cannot approve their own charge.</li>
+      <li>Up to 3 charges can wait for an answer at once. Amount must be ₹1 to ₹1,00,000.</li>
+      <li>A job cannot be marked complete while a charge is still waiting for the customer.</li>
+      <li>An answered charge cannot be changed. Nothing can be added after the job is done.</li>
+      <li>Approved extras add to the booking total, so the platform commission and the pro's earnings include them automatically. Declined and pending extras add nothing.</li>
+    </ul>
+    <p class="note">Online payment is still taken for the original estimate only. An approved extra is paid to the pro directly (cash or UPI) at the end of the job. Charging extras online is a possible later step.</p>
+
+    <h3>What changed (technical)</h3>
+    <table>
+      <tr><th>Area</th><th>Change</th></tr>
+      <tr><td>Database</td><td>New <code>BookingExtra</code> table (label, amount, status, timestamps) and migration <code>20261124000000_booking_extras</code>. Existing data is untouched.</td></tr>
+      <tr><td>API</td><td><code>POST /bookings/:id/extras</code> (pro), <code>PATCH /bookings/:id/extras/:extraId</code> (customer). Booking and pro job responses now include <code>extras</code>.</td></tr>
+      <tr><td>Pro app</td><td>"+" button, extra-charge form, per-job list of extras with status, "Estimate + extras" label.</td></tr>
+      <tr><td>Customer app</td><td>"Extra charges" card on the booking page with Approve / Decline.</td></tr>
+    </table>
+
+    <h3>Testing</h3>
+    <p>Automated end-to-end test <code>backend/test/extras.ts</code> runs against a real database: <b>25 of 25 checks passed</b>. It covers: KYC-approved pro assigned to a booking; extras rejected before the job starts; customer cannot propose; validation of text and amount; both pending extras visible to the customer with the total unchanged; job completion blocked while pending; other customers and the pro blocked from answering; approve and decline; answered charge locked; total equals estimate plus approved extras only; pro job list includes extras; completion works once all are answered; nothing can be added after completion; pro earnings include the approved extra after the 20% commission.</p>
+    <p>Typechecks pass for the backend, the customer app and the pro app. Manual walkthrough on the web builds of both apps against the test server is shown below.</p>
+
+    <h3>Screenshots</h3>
+    <div class="shots">
+      <figure><img src="img/extras-1-pro-job.jpg" alt=""><figcaption>Pro: active job with the new "+" button</figcaption></figure>
+      <figure><img src="img/extras-2-pro-form.jpg" alt=""><figcaption>Pro: add an extra charge</figcaption></figure>
+      <figure><img src="img/extras-3-pro-sent.jpg" alt=""><figcaption>Pro: extra shows "awaiting customer"</figcaption></figure>
+      <figure><img src="img/extras-4-customer-pending.jpg" alt=""><figcaption>Customer: approve or decline</figcaption></figure>
+      <figure><img src="img/extras-5-customer-approved.jpg" alt=""><figcaption>Customer: approved, total now ₹850 (was ₹500)</figcaption></figure>
+    </div>
+
+    <h3>Delivery</h3>
+    <ol>
+      <li>Apply the database migration to the live database (<code>prisma migrate deploy</code>).</li>
+      <li>Deploy the backend.</li>
+      <li>New app builds: Customer app and Pro app (both needed, since both screens changed).</li>
+      <li>Add to the changelog page and publish the builds on the Overview page.</li>
+    </ol>
+  </section>
+
+  <!-- ===================== ITEM 2 ===================== -->
+  <section class="item" id="refunds">
+    <span class="tag">Built and tested</span>
+    <h2>2. Cancellation policy and automatic refunds</h2>
+    <p class="sub" style="margin-bottom:0">Clear cancellation rules, a fee shown before the customer confirms, and automatic partial refunds of online payments.</p>
+
+    <h3>Why</h3>
+    <p>Before, cancelling a paid booking refunded the full amount whenever it happened, even with the pro already on the way, and the customer was never told about any rule. Now late cancellations carry a fee that protects pros' time, the customer sees exactly what will happen before they confirm, and the refund is processed automatically for the right amount.</p>
+
+    <h3>How it is used</h3>
+    <p><b>Customer app:</b> tap <b>Cancel booking</b>. The dialog now states the result up front: either "Free cancellation" (with the refund amount if they paid online), or the fee and the amount they will be refunded. After cancelling, the booking summary shows the cancellation fee.</p>
+    <p><b>Admin panel:</b> under Settings &rarr; Rules, two new values: <b>free cancellation window</b> (hours before the slot, default 24) and <b>late cancellation fee</b> (% of the booking total, default 10). Changes apply immediately, with no app release.</p>
+
+    <h3>Workflow</h3>
+    <div class="flow">
+      <span>Customer taps Cancel</span><i>→</i><span>App shows fee and refund</span><i>→</i><span>Customer confirms</span><i>→</i><span>Fee saved on booking</span><i>→</i><span>Razorpay refunds the rest automatically</span><i>→</i><span>Customer and pro notified</span>
+    </div>
+
+    <h3>The rules</h3>
+    <table>
+      <tr><th>Situation</th><th>Fee</th></tr>
+      <tr><td>No pro confirmed yet (request still open)</td><td>None</td></tr>
+      <tr><td>Pro confirmed, more than the free window before the slot</td><td>None</td></tr>
+      <tr><td>Pro confirmed, inside the free window</td><td>Fee % of the booking total</td></tr>
+      <tr><td>Pro already on the way or working</td><td>Fee % of the booking total</td></tr>
+      <tr><td>Cancelled by admin or the pro's side</td><td>None, always a full refund</td></tr>
+    </table>
+    <ul>
+      <li>If the customer paid online, the fee is held back and only the remainder is refunded. The refunded amount is recorded on the payment.</li>
+      <li>If they have not paid online, the fee is recorded on the booking and shown to them; it is settled outside the app for now.</li>
+      <li>Setting the fee to 0% turns the policy off. Values outside 0 to 100% are rejected.</li>
+    </ul>
+    <p class="note">The fee is kept by the platform in this version. Passing part of it to the pro who lost the slot is a possible later step.</p>
+
+    <h3>What changed (technical)</h3>
+    <table>
+      <tr><th>Area</th><th>Change</th></tr>
+      <tr><td>Database</td><td>Migration <code>20261124010000_cancellation_policy</code>: <code>Booking.cancelFee</code> and <code>Payment.refundedAmount</code>. Existing data is untouched.</td></tr>
+      <tr><td>API</td><td>New <code>GET /bookings/:id/cancellation</code> (fee and refund preview). Cancelling now saves the fee and issues a partial refund. Two new admin settings, <code>rules.cancelFreeHours</code> and <code>rules.cancelFeePercent</code>.</td></tr>
+      <tr><td>Customer app</td><td>Cancel dialog shows the fee and refund; booking summary shows the fee.</td></tr>
+    </table>
+
+    <h3>Testing</h3>
+    <p>Automated end-to-end test <code>backend/test/refunds.ts</code> against a real database and a mock Razorpay server that records every refund request: <b>18 of 18 checks passed</b>. It covers: no fee in the free window with a full refund of the exact paid amount; preview matches the real outcome; another customer cannot see the preview; unconfirmed requests are free; late cancel keeps 10% and refunds exactly the rest, recorded on the payment; late cancel of an unpaid booking records the fee and makes no refund call; the fee applies once the pro is on the way; an admin changing the percentage takes effect immediately; 0% means free; invalid values are rejected; admin cancellation always refunds in full. The earlier extra-charges test was re-run afterwards and still passes (25 of 25). Typechecks pass for the backend and customer app.</p>
+    <p>Real refunds through Razorpay itself need your live Razorpay keys, so that last step is verified against a mock and should be confirmed with one small test payment once released.</p>
+
+    <h3>Screenshots</h3>
+    <div class="shots">
+      <figure><img src="img/refunds-1-cancel-fee.jpg" alt=""><figcaption>Customer: cancel dialog showing the ₹50 fee (10%) and the ₹450 refund</figcaption></figure>
+    </div>
+
+    <h3>Delivery</h3>
+    <ol>
+      <li>Apply the database migration to the live database (<code>prisma migrate deploy</code>).</li>
+      <li>Deploy the backend. Optionally set the policy values in Admin &rarr; Settings (defaults: 24 hours, 10%).</li>
+      <li>New Customer app build (the cancel screen changed). The Pro app is unchanged for this item.</li>
+      <li>Do one small real payment and cancel to confirm the Razorpay refund end to end.</li>
+    </ol>
+  </section>
+
+  <h2 style="margin-top:36px">How updates reach you</h2>
+  <ol>
+    <li><b>Built and tested</b> on our test server with an automated test and a manual walkthrough (as above).</li>
+    <li><b>Shared with you</b> as this page plus the changelog entry, so you can review what changed.</li>
+    <li><b>Released</b> in this order: database migration, backend deploy, then new Customer and Pro app builds, which appear for download at the top of the Overview page.</li>
+    <li><b>Changes to texts, services and options</b> made in the admin panel go live without a new app build.</li>
+  </ol>
+</main>
+</body>
+</html>

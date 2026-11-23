@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Linking, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { Linking, Modal, Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/api';
@@ -36,6 +36,20 @@ export default function Jobs() {
   const [thumbs, setThumbs] = useState<string[]>([]);
   const [sheetErr, setSheetErr] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
+
+  /* Extra work or parts: the customer must approve before it counts. */
+  const [extraFor, setExtraFor] = useState<any | null>(null);
+  const [exLabel, setExLabel] = useState('');
+  const [exAmt, setExAmt] = useState('');
+  const [exErr, setExErr] = useState('');
+  const submitExtra = async () => {
+    const amount = parseInt(exAmt, 10);
+    if (exLabel.trim().length < 3 || !amount || amount < 1) { setExErr('Enter what it is for and an amount.'); return; }
+    setBusy(extraFor.id); setExErr('');
+    try { await api(`/bookings/${extraFor.id}/extras`, 'POST', { label: exLabel.trim(), amount }); setExtraFor(null); setExLabel(''); setExAmt(''); await jobs.reload(); }
+    catch (e: any) { setExErr(e.message); }
+    finally { setBusy(null); }
+  };
 
   const send = async (j: any, otp?: string) => {
     const step = NEXT[j.status];
@@ -76,6 +90,7 @@ export default function Jobs() {
   const actions = (j: any) => {
     const step = NEXT[j.status];
     return <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+      {(j.status === 'ON_THE_WAY' || j.status === 'IN_PROGRESS') && <Pressable onPress={() => { setExtraFor(j); setExErr(''); }} accessibilityRole="button" accessibilityLabel="Add extra charge" style={({ pressed }: any) => ({ minHeight: 52, minWidth: 52, borderRadius: 26, backgroundColor: pressed ? t.accentBg : t.card, borderWidth: 1, borderColor: t.line, alignItems: 'center', justifyContent: 'center' })}><Ionicons name="add" size={22} color={t.ink} /></Pressable>}
       {step ? <SlideToConfirm label={step[1]} icon={step[0] === 'DONE' ? 'checkmark' : 'chevron-forward'} busy={busy === j.id} onConfirm={() => advance(j)} style={{ flex: 1 }} /> : null}
     </View>;
   };
@@ -106,11 +121,12 @@ export default function Jobs() {
       <View style={{ height: 1, backgroundColor: t.line }} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44 }}>
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ ...overline, color: t.muted }}>Estimate</Text>
+          <Text style={{ ...overline, color: t.muted }}>{(j.extras ?? []).some((x: any) => x.status === 'APPROVED') ? 'Estimate + extras' : 'Estimate'}</Text>
           <Money amount={net(j)} size={17} />
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}><Pressable onPress={() => router.push(`/job/${j.id}`)} accessibilityRole="link" accessibilityLabel="Job details" style={({ pressed }: any) => ({ minHeight: 44, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 10, backgroundColor: pressed ? t.accentBg : 'transparent' })}><Text style={mono(13, { color: t.accent })}>Details</Text></Pressable>{j.phone ? <Pressable onPress={() => Linking.openURL(`tel:${j.phone}`)} accessibilityRole="link" accessibilityLabel={`Call ${j.name}`} style={({ pressed }: any) => ({ minHeight: 44, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 10, backgroundColor: pressed ? t.accentBg : 'transparent' })}><Text style={mono(13, { color: t.accent })}>Call customer</Text></Pressable> : null}</View>
       </View>
+      {(j.extras ?? []).length > 0 && <View style={{ gap: 4 }}>{j.extras.map((x: any) => <Text key={x.id} style={{ color: x.status === 'REJECTED' ? t.muted : t.body, fontFamily: font.regular, fontSize: 13 }}>+ {x.label} · ₹{x.amount} · {x.status === 'PENDING' ? 'awaiting customer' : x.status === 'APPROVED' ? 'approved' : 'declined'}</Text>)}</View>}
       {!!j.notes && <Text style={{ color: t.body, fontFamily: font.regular, fontSize: 13, lineHeight: 19, borderTopWidth: 1, borderTopColor: t.line, paddingTop: 12 }} numberOfLines={3}>{j.notes}</Text>}
       {actions(j)}
     </View>;
@@ -173,6 +189,19 @@ export default function Jobs() {
 
   return <Screen refresh={jobs.refresh} refreshing={jobs.refreshing} header={<PageTitle title="My jobs" sub="Active work and job history" />}>
     {codeSheet}
+    <Modal visible={!!extraFor} transparent animationType="fade" onRequestClose={() => setExtraFor(null)}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(20,20,20,0.45)', justifyContent: 'center', padding: 18 }}>
+        <View style={{ backgroundColor: t.card, borderRadius: R.lg, padding: 18, gap: 12 }}>
+          <Text style={title(20, { color: t.ink })}>Add an extra charge</Text>
+          <Text style={{ color: t.muted, fontFamily: font.regular, fontSize: 13 }}>The customer approves it in their app before it is added to the job total.</Text>
+          <TextInput value={exLabel} onChangeText={setExLabel} placeholder="e.g. New tap cartridge" maxLength={80} placeholderTextColor={t.muted} accessibilityLabel="What is it for" style={{ borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 12, color: t.ink, fontFamily: font.regular, fontSize: 15 }} />
+          <TextInput value={exAmt} onChangeText={(v) => setExAmt(v.replace(/\D/g, ''))} placeholder="Amount (₹)" keyboardType="number-pad" maxLength={6} placeholderTextColor={t.muted} accessibilityLabel="Amount in rupees" style={{ borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 12, color: t.ink, fontFamily: font.regular, fontSize: 15 }} />
+          {!!exErr && <Text style={{ color: t.bad, fontFamily: font.medium, fontSize: 13 }}>{exErr}</Text>}
+          <Button title="Send to customer" busy={busy === extraFor?.id} onPress={submitExtra} />
+          <Button title="Cancel" kind="ghost" onPress={() => setExtraFor(null)} />
+        </View>
+      </View>
+    </Modal>
     <View style={{ width: '100%', gap: 16 }}>
       <View style={{ flexDirection: 'row', gap: 12 }}>
         {pick('active', 'Active jobs', active.length, 'flash-outline', t.peri)}{pick('done', 'Completed', past.length, 'checkmark-done-outline', t.mint)}

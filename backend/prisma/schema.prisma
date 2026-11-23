@@ -37,6 +37,12 @@ enum KycStatus {
   REJECTED
 }
 
+enum ExtraStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum PaymentMethod {
   COD
   ONLINE
@@ -197,6 +203,7 @@ model Booking {
   discount   Int           @default(0)
   status     BookingStatus @default(REQUESTED)
   cancelReason String?
+  cancelFee  Int           @default(0)
   otp        String?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
@@ -208,6 +215,7 @@ model Booking {
   payment  Payment?
   chat     ChatMessage[]
   photos   JobPhoto[]
+  extras   BookingExtra[]
 
   @@index([userId, createdAt])
   @@index([providerId, day, slot])
@@ -244,6 +252,7 @@ model Payment {
   providerOrderId   String
   providerPaymentId String?
   amount            Int
+  refundedAmount    Int           @default(0)
   status            PaymentStatus @default(CREATED)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -380,4 +389,19 @@ model ProviderKyc {
   submittedAt DateTime @default(now())
 
   provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+}
+
+/* Extra work or parts a pro proposes mid-job. Only APPROVED extras add to the booking total. */
+model BookingExtra {
+  id        String      @id @default(cuid())
+  bookingId String
+  label     String
+  amount    Int
+  status    ExtraStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  decidedAt DateTime?
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
 }

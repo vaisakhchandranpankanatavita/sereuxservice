@@ -35,6 +35,8 @@ export const SETTINGS: SettingDef[] = [
   { key: 'rules.dispatchRadiusKm', group: 'rules', type: 'number', default: 0, min: 0, max: 500, label: 'Job dispatch radius in km (0 = unlimited)', public: true },
   { key: 'rules.minPayout', group: 'rules', type: 'number', default: 0, min: 0, max: 1_000_000, label: 'Minimum payout amount', public: true },
   { key: 'rules.defaultCommissionPercent', group: 'rules', type: 'number', default: 20, min: 0, max: 100, label: 'Default commission % for new providers', public: false },
+  { key: 'rules.cancelFreeHours', group: 'rules', type: 'number', default: 24, min: 0, max: 720, label: 'Free cancellation until this many hours before the slot', public: true },
+  { key: 'rules.cancelFeePercent', group: 'rules', type: 'number', default: 10, min: 0, max: 100, label: 'Late cancellation fee (% of the booking total)', public: true },
   { key: 'rules.kycRequired', group: 'rules', type: 'boolean', default: true, label: 'Require KYC before accepting jobs', public: true },
   { key: 'flags.maintenanceMode', group: 'flags', type: 'boolean', default: false, label: 'Maintenance mode (apps show a downtime screen)', public: true },
   { key: 'flags.maintenanceMessage', group: 'flags', type: 'string', default: '', label: 'Maintenance message', public: true },
