@@ -1,8 +1,9 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, Injectable, Module, NotFoundException, Param, ParseIntPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { BookingStatus, OrderStatus, Prisma, Role } from '@prisma/client';
-import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
+import { couponUses } from '../common/coupons';
 import { PushService } from '../common/push';
 import { ConfigService } from '../config/config.module';
 import { PaymentsModule, PaymentsService } from '../payments/payments.module';
@@ -54,6 +55,13 @@ class KycDecisionDto {
   @IsOptional() @IsString() @MaxLength(300) note?: string;
 }
 
+class ResolvePayoutRequestDto {
+  @IsIn(['PAID', 'REJECTED']) decision: 'PAID' | 'REJECTED';
+  @IsOptional() @IsString() @MaxLength(200) note?: string;
+}
+
+class HideReviewDto { @IsBoolean() hidden: boolean; }
+
 class RecordPayoutDto {
   @IsInt() providerId: number;
   @IsInt() @Min(1) amount: number;
@@ -79,14 +87,32 @@ class PatchProductDto {
   @IsOptional() @IsString() @MaxLength(500) blurb?: string;
 }
 
+/* Optional coupon rules. null clears a rule; undefined leaves it alone. */
+function couponRules(d: PatchCouponDto) {
+  const out: Record<string, unknown> = {};
+  for (const k of ['maxDiscount', 'minOrder', 'usageLimit', 'perUserLimit'] as const) if (d[k] !== undefined) out[k] = d[k];
+  if (d.expiresAt !== undefined) out.expiresAt = d.expiresAt ? new Date(d.expiresAt) : null;
+  return out;
+}
+
 class CouponDto {
   @Matches(/^[A-Z0-9_-]{3,32}$/) code: string;
   @IsInt() @Min(1) @Max(100) percent: number;
   @IsOptional() @IsBoolean() active?: boolean;
+  @IsOptional() @IsInt() @Min(1) maxDiscount?: number | null;
+  @IsOptional() @IsInt() @Min(1) minOrder?: number | null;
+  @IsOptional() @IsDateString() expiresAt?: string | null;
+  @IsOptional() @IsInt() @Min(1) usageLimit?: number | null;
+  @IsOptional() @IsInt() @Min(1) perUserLimit?: number | null;
 }
 class PatchCouponDto {
   @IsOptional() @IsInt() @Min(1) @Max(100) percent?: number;
   @IsOptional() @IsBoolean() active?: boolean;
+  @IsOptional() @IsInt() @Min(1) maxDiscount?: number | null;
+  @IsOptional() @IsInt() @Min(1) minOrder?: number | null;
+  @IsOptional() @IsDateString() expiresAt?: string | null;
+  @IsOptional() @IsInt() @Min(1) usageLimit?: number | null;
+  @IsOptional() @IsInt() @Min(1) perUserLimit?: number | null;
 }
 
 class BannerDto {
@@ -389,6 +415,37 @@ class AdminService {
     return { provider, due: Math.max(0, netEarned - paid) };
   }
 
+  /* Requests waiting first, then the latest resolved ones. Each carries the pro's name and current balance due. */
+  async listPayoutRequests() {
+    const rows = await this.prisma.payoutRequest.findMany({ orderBy: [{ createdAt: 'desc' }], take: 100, include: { provider: { select: { name: true, userId: true } } } });
+    return rows.sort((a, b) => Number(b.status === 'REQUESTED') - Number(a.status === 'REQUESTED')).map(({ provider, ...r }) => ({ ...r, name: provider.name }));
+  }
+
+  /* PAID records the money in the payout ledger and settles the request together; REJECTED needs a reason. */
+  async resolvePayoutRequest(me: AuthUser, id: string, dto: ResolvePayoutRequestDto) {
+    const req = await this.must(this.prisma.payoutRequest.findUnique({ where: { id }, include: { provider: { select: { name: true, userId: true } } } }));
+    if (req.status !== 'REQUESTED') throw new ConflictException('That request was already handled.');
+    if (dto.decision === 'REJECTED' && !dto.note?.trim()) throw new BadRequestException('Tell the pro why it was declined.');
+    const note = dto.note?.trim() ?? '';
+    if (dto.decision === 'PAID') {
+      const { due } = await this.providerBalance(req.providerId);
+      if (req.amount > due) throw new BadRequestException(`Balance due is only ${due}.`);
+      await this.prisma.$transaction([
+        this.prisma.payout.create({ data: { providerId: req.providerId, amount: req.amount, note: note || `Request ${req.details}`.slice(0, 200), createdBy: me.email } }),
+        this.prisma.payoutRequest.update({ where: { id }, data: { status: 'PAID', note, resolvedAt: new Date() } }),
+      ]);
+    } else {
+      await this.prisma.payoutRequest.update({ where: { id }, data: { status: 'REJECTED', note, resolvedAt: new Date() } });
+    }
+    await this.audit(me, `payoutRequest.${dto.decision.toLowerCase()}`, `provider:${req.providerId}`, { amount: req.amount, note });
+    if (req.provider.userId) {
+      const text = dto.decision === 'PAID' ? `Your payout of ₹${req.amount} has been sent.` : `Your payout request of ₹${req.amount} was declined: ${note}`;
+      await this.prisma.notification.create({ data: { userId: req.provider.userId, text, href: '/account' } }).catch(() => {});
+      await this.push.send(req.provider.userId, text, 'Fixzy Pro', { href: '/account' }).catch(() => {});
+    }
+    return this.prisma.payoutRequest.findUnique({ where: { id } });
+  }
+
   async recordPayout(me: AuthUser, dto: RecordPayoutDto) {
     const { provider, due } = await this.providerBalance(dto.providerId);
     if (dto.amount > due) throw new BadRequestException(`Balance due is only ${due}.`);
@@ -448,16 +505,19 @@ class AdminService {
   }
 
   /* Coupons, reviews, messages */
-  listCoupons() { return this.prisma.coupon.findMany({ orderBy: { code: 'asc' } }); }
+  async listCoupons() {
+    const rows = await this.prisma.coupon.findMany({ orderBy: { code: 'asc' } });
+    return Promise.all(rows.map(async (c) => ({ ...c, uses: await couponUses(this.prisma, c.code) })));
+  }
   async createCoupon(me: AuthUser, dto: CouponDto) {
     if (await this.prisma.coupon.findUnique({ where: { code: dto.code } })) throw new ConflictException('That code already exists.');
-    const out = await this.prisma.coupon.create({ data: { code: dto.code, percent: dto.percent, active: dto.active ?? true } });
+    const out = await this.prisma.coupon.create({ data: { code: dto.code, percent: dto.percent, active: dto.active ?? true, ...couponRules(dto) } });
     await this.audit(me, 'coupon.create', `coupon:${dto.code}`, { percent: dto.percent });
     return out;
   }
   async updateCoupon(me: AuthUser, code: string, dto: PatchCouponDto) {
     await this.must(this.prisma.coupon.findUnique({ where: { code } }));
-    const out = await this.prisma.coupon.update({ where: { code }, data: dto });
+    const out = await this.prisma.coupon.update({ where: { code }, data: { ...(dto.percent !== undefined && { percent: dto.percent }), ...(dto.active !== undefined && { active: dto.active }), ...couponRules(dto) } });
     await this.audit(me, 'coupon.update', `coupon:${code}`, dto);
     return out;
   }
@@ -468,6 +528,12 @@ class AdminService {
   }
 
   listReviews(skip?: string) { return this.prisma.review.findMany({ orderBy: { createdAt: 'desc' }, ...page(skip), include: { user: { select: { name: true, email: true } } } }); }
+  async setReviewHidden(me: AuthUser, id: string, hidden: boolean) {
+    await this.must(this.prisma.review.findUnique({ where: { id } }));
+    const out = await this.prisma.review.update({ where: { id }, data: { hidden } });
+    await this.audit(me, hidden ? 'review.hide' : 'review.unhide', `review:${id}`);
+    return out;
+  }
   async deleteReview(me: AuthUser, id: string) {
     await this.must(this.prisma.review.findUnique({ where: { id } }));
     await this.prisma.review.delete({ where: { id } });
@@ -549,6 +615,8 @@ class AdminController {
 
   @Get('payouts') payouts() { return this.svc.listPayouts(); }
   @Get('payouts/:providerId') providerPayouts(@Param('providerId', ParseIntPipe) id: number) { return this.svc.providerPayouts(id); }
+  @Get('payout-requests') payoutRequests() { return this.svc.listPayoutRequests(); }
+  @Patch('payout-requests/:id') resolvePayoutRequest(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() dto: ResolvePayoutRequestDto) { return this.svc.resolvePayoutRequest(me, id, dto); }
   @Post('payouts') recordPayout(@CurrentUser() me: AuthUser, @Body() dto: RecordPayoutDto) { return this.svc.recordPayout(me, dto); }
 
   @Post('products') createProduct(@CurrentUser() me: AuthUser, @Body() dto: ProductDto) { return this.svc.createProduct(me, dto); }
@@ -566,6 +634,7 @@ class AdminController {
   @Delete('coupons/:code') @HttpCode(204) deleteCoupon(@CurrentUser() me: AuthUser, @Param('code') code: string) { return this.svc.deleteCoupon(me, code); }
 
   @Get('reviews') reviews(@Query('skip') skip?: string) { return this.svc.listReviews(skip); }
+  @Patch('reviews/:id') setReviewHidden(@CurrentUser() me: AuthUser, @Param('id') id: string, @Body() dto: HideReviewDto) { return this.svc.setReviewHidden(me, id, dto.hidden); }
   @Delete('reviews/:id') @HttpCode(204) deleteReview(@CurrentUser() me: AuthUser, @Param('id') id: string) { return this.svc.deleteReview(me, id); }
 
   @Get('messages') messages(@Query('skip') skip?: string) { return this.svc.listMessages(skip); }

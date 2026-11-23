@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { api } from '../src/api';
-import CouponBox, { type AppliedCoupon } from '../src/CouponBox';
+import CouponBox, { couponOff, type AppliedCoupon } from '../src/CouponBox';
 import { useAddresses, type SavedAddress } from '../src/addresses';
 import { useCart } from '../src/cart';
 import { usePayment } from '../src/payment';
@@ -19,7 +19,7 @@ export default function Checkout() {
   const { list: addrs, add: saveAddr, remove: removeAddr } = useAddresses();
   const [f, setF] = useState({ name: user?.name ?? '', phone: user?.phone ?? '', address: '', city: '', pin: '' });
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
-  const off = coupon ? Math.round(subtotal * coupon.percent / 100) : 0;
+  const off = couponOff(coupon, subtotal);
   const [pay, setPay] = useState<'COD' | 'ONLINE'>('COD');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -69,7 +69,7 @@ export default function Checkout() {
     <Field label="Address" value={f.address} onChangeText={set('address')} multiline />
     <Field label="City" value={f.city} onChangeText={set('city')} />
     <Field label="PIN code (6 digits)" value={f.pin} onChangeText={set('pin')} keyboardType="number-pad" maxLength={6} />
-    <CouponBox applied={coupon} onChange={setCoupon} />
+    <CouponBox applied={coupon} onChange={setCoupon} amount={subtotal} />
     <H>Payment</H>
     <Row style={{ alignItems: 'stretch' }}>
       {([['COD', 'Cash on delivery', 'cash-outline'], ['ONLINE', 'Pay online', 'card-outline']] as const).map(([k, label, icon]) => <Tap key={k} onPress={() => setPay(k)} accessibilityRole="button" accessibilityState={{ selected: pay === k }} scaleTo={0.96}

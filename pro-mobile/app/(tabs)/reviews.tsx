@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { api } from '../../src/api';
 import {
   Avatar,
+  Button,
   Card,
   Chip,
   PageTitle,
@@ -22,6 +24,7 @@ type Review = {
   id: string;
   rating: number;
   text: string;
+  reply?: string | null;
   createdAt: string;
   customer: string;
   service: string | null;
@@ -69,6 +72,34 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 /* Crisp 5-star row with vector star glyphs */
+/* The pro's public reply under a review: shows it, or offers a small box to write (or edit) one. */
+function ReplyBox({ review, onDone }: { review: Review; onDone: () => void }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(review.reply ?? '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const save = async () => {
+    setBusy(true); setErr('');
+    try { await api(`/pro/reviews/${review.id}/reply`, 'POST', { text }); setOpen(false); onDone(); }
+    catch (e: any) { setErr(e.message); }
+    setBusy(false);
+  };
+  if (!open) return <View style={{ gap: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: t.line }}>
+    {!!review.reply && <Txt size={13} muted>Your reply: {review.reply}</Txt>}
+    <Button title={review.reply ? 'Edit reply' : 'Reply'} kind="ghost" onPress={() => setOpen(true)} style={{ alignSelf: 'flex-start' }} />
+  </View>;
+  return <View style={{ gap: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: t.line }}>
+    <TextInput value={text} onChangeText={setText} multiline maxLength={500} placeholder="Reply publicly to this review" placeholderTextColor={t.muted}
+      style={{ color: t.ink, borderWidth: 1, borderColor: t.line, borderRadius: 10, padding: 10, minHeight: 70, textAlignVertical: 'top' }} />
+    {!!err && <Txt size={13} style={{ color: t.bad }}>{err}</Txt>}
+    <Row>
+      <Button title="Post reply" onPress={save} busy={busy} style={{ flex: 1 }} />
+      <Button title="Cancel" kind="ghost" onPress={() => setOpen(false)} disabled={busy} />
+    </Row>
+  </View>;
+}
+
 function StarGlyphs({ value, size = 18 }: { value: number; size?: number }) {
   const t = useTheme();
   return (
@@ -774,6 +805,8 @@ export default function Reviews() {
                     </Text>
                   </View>
                 )}
+
+                <ReplyBox review={x} onDone={r.reload} />
               </Card>
             ))
           )}

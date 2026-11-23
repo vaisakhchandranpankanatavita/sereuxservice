@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, Get, Injectable, Module, NotFoundException, Param, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Injectable, Module, NotFoundException, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
+import { applyCoupon } from '../common/coupons';
 import { PushService } from '../common/push';
 
 class ItemDto {
@@ -26,10 +27,8 @@ class PlaceOrderDto {
 class OrdersService {
   constructor(private prisma: PrismaService, private push: PushService) {}
 
-  async findCoupon(code: string) {
-    const c = await this.prisma.coupon.findUnique({ where: { code: code.trim().toUpperCase() } });
-    if (!c?.active) throw new BadRequestException('That code isn’t valid.');
-    return c;
+  async findCoupon(userId: string, code: string, amount?: number) {
+    return applyCoupon(this.prisma, code, userId, amount);
   }
 
   async place(user: AuthUser, dto: PlaceOrderDto) {
@@ -82,9 +81,10 @@ class OrdersController {
   constructor(private svc: OrdersService) {}
   @Post() place(@CurrentUser() u: AuthUser, @Body() dto: PlaceOrderDto) { return this.svc.place(u, dto); }
   /* Preview a code before checkout; the same rule is re-checked when the order or booking is placed. */
-  @Get('coupon/:code') async coupon(@Param('code') code: string) {
-    const c = await this.svc.findCoupon(code);
-    return { code: c.code, percent: c.percent };
+  @Get('coupon/:code') async coupon(@CurrentUser() u: AuthUser, @Param('code') code: string, @Query('amount') amount?: string) {
+    const amt = amount !== undefined && amount !== '' && Number.isFinite(Number(amount)) ? Number(amount) : undefined;
+    const { coupon: c, discount } = await this.svc.findCoupon(u.id, code, amt);
+    return { code: c.code, percent: c.percent, maxDiscount: c.maxDiscount, minOrder: c.minOrder, expiresAt: c.expiresAt, discount: amt === undefined ? null : discount };
   }
   @Get() list(@CurrentUser() u: AuthUser) { return this.svc.list(u); }
   @Get(':id') get(@CurrentUser() u: AuthUser, @Param('id') id: string) { return this.svc.get(u, id); }

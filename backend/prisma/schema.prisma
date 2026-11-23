@@ -154,7 +154,27 @@ model Provider {
   services          Service[]
   bookings          Booking[]
   payouts           Payout[]
+  payoutRequests    PayoutRequest[]
   user              User?     @relation(fields: [userId], references: [id])
+}
+
+/// A pro asks to be paid. Admin marks it PAID (which records a Payout) or REJECTED.
+model PayoutRequest {
+  id         String    @id @default(cuid())
+  providerId Int
+  amount     Int
+  /// Where to send the money (UPI id or bank details), typed by the pro.
+  details    String
+  status     String    @default("REQUESTED")
+  /// Admin's note: payment reference when paid, reason when rejected.
+  note       String    @default("")
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  provider Provider @relation(fields: [providerId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([providerId, createdAt])
 }
 
 model Payout {
@@ -283,6 +303,11 @@ model Review {
   rating    Int
   text      String   @default("")
   createdAt DateTime @default(now())
+  /// Hidden by admin: kept for the record but excluded from lists and averages.
+  hidden    Boolean  @default(false)
+  /// The pro's public reply.
+  reply     String?
+  repliedAt DateTime?
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   booking Booking? @relation(fields: [bookingId], references: [id])
@@ -323,6 +348,16 @@ model Coupon {
   code    String  @id
   percent Int
   active  Boolean @default(true)
+  /// Cap on the rupee discount (null = no cap).
+  maxDiscount Int?
+  /// Smallest subtotal/estimate the code applies to (null = any).
+  minOrder    Int?
+  /// Code stops working after this moment (null = never).
+  expiresAt   DateTime?
+  /// Total redemptions allowed across all customers (null = unlimited).
+  usageLimit  Int?
+  /// Redemptions allowed per customer (null = unlimited).
+  perUserLimit Int?
 }
 
 model PushToken {

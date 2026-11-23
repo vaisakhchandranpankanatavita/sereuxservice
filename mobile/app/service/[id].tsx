@@ -50,6 +50,7 @@ export default function ServiceDetail() {
         {(reviews.data ?? []).map((r) => <Card key={r.id} style={{ gap: 8 }}>
           <Row between><Txt bold>{r.user.name}</Txt><Stars value={r.rating} /></Row>
           {!!r.text && <Txt color={t.body}>{r.text}</Txt>}
+          {!!r.reply && <Txt muted size={13}>Reply from the pro: {r.reply}</Txt>}
         </Card>)}
       </View>
     </Screen>

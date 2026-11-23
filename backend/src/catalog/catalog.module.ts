@@ -21,7 +21,7 @@ class CatalogController {
   @Get('services')
   async services(@Query('category') category?: string) {
     const rows = await this.prisma.service.findMany({ where: category ? { category } : undefined, orderBy: { id: 'asc' } });
-    const ratings = await this.prisma.review.groupBy({ by: ['target'], where: { kind: 'service' }, _avg: { rating: true }, _count: true });
+    const ratings = await this.prisma.review.groupBy({ by: ['target'], where: { kind: 'service', hidden: false }, _avg: { rating: true }, _count: true });
     return rows.map((s) => {
       const r = ratings.find((x) => x.target === s.id);
       return { ...s, rating: r?._avg.rating ?? null, reviews: r?._count ?? 0 };

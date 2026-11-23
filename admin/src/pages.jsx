@@ -350,6 +350,14 @@ export function Products() {
     ]} />;
 }
 
+/* Status label for a coupon card: disabled, expired, used up, or active. */
+function couponState(c) {
+  if (!c.active) return 'Disabled';
+  if (c.expiresAt && new Date(c.expiresAt) < new Date()) return 'Expired';
+  if (c.usageLimit && (c.uses ?? 0) >= c.usageLimit) return 'Used up';
+  return 'Active';
+}
+
 export function Coupons() {
   const { rows, error, reload } = useList('/admin/coupons');
   const [form, setForm] = useState(null);
@@ -363,7 +371,7 @@ export function Coupons() {
         <span className="coupon-main">
           <small>Discount coupon</small>
           <b className="coupon-pct">{c.percent}<sup>%</sup> <i>OFF</i></b>
-          <span className="coupon-state">{c.active ? 'Active' : 'Disabled'}</span>
+          <span className="coupon-state">{couponState(c)}</span>
         </span>
         <span className="coupon-cut" aria-hidden="true" />
         <span className="coupon-stub">
@@ -377,11 +385,18 @@ export function Coupons() {
         <span className="coupon-main">
           <small>Discount coupon</small>
           <b className="coupon-pct">{view.percent}<sup>%</sup> <i>OFF</i></b>
-          <span className="coupon-state">{view.active ? 'Active' : 'Disabled'}</span>
+          <span className="coupon-state">{couponState(view)}</span>
         </span>
         <span className="coupon-cut" aria-hidden="true" />
         <span className="coupon-stub"><small>Code</small><b className="coupon-code">{view.code}</b></span>
       </div>
+      <ul className="muted" style={{ margin: '14px 0 0', paddingLeft: 18, fontSize: 13 }}>
+        <li>Used {view.uses ?? 0}{view.usageLimit ? ` of ${view.usageLimit}` : ''} times</li>
+        {view.perUserLimit && <li>{view.perUserLimit} use{view.perUserLimit > 1 ? 's' : ''} per customer</li>}
+        {view.minOrder && <li>Minimum order ₹{view.minOrder}</li>}
+        {view.maxDiscount && <li>Discount capped at ₹{view.maxDiscount}</li>}
+        {view.expiresAt && <li>Expires {new Date(view.expiresAt).toLocaleDateString()}</li>}
+      </ul>
       <div className="row-actions" style={{ marginTop: 16, justifyContent: 'flex-end' }}>
         <button className="btn sm" onClick={() => act(() => api(`/admin/coupons/${view.code}`, { method: 'PATCH', body: { active: !view.active } }), view.active ? 'Coupon disabled' : 'Coupon enabled', reload).then(() => setView(null))}>{view.active ? 'Disable' : 'Enable'}</button>
         <button className="btn sm" onClick={() => { setForm({ row: view }); setView(null); }}>Edit</button>
@@ -389,8 +404,8 @@ export function Coupons() {
       </div>
     </Modal>}
     {form && <CouponEditor row={form.row} onClose={() => setForm(null)} onSave={async (v) => {
-      if (form.row) await api(`/admin/coupons/${form.row.code}`, { method: 'PATCH', body: { percent: v.percent, active: v.active } });
-      else await api('/admin/coupons', { method: 'POST', body: { code: v.code.trim().toUpperCase(), percent: v.percent, active: v.active } });
+      if (form.row) await api(`/admin/coupons/${form.row.code}`, { method: 'PATCH', body: { percent: v.percent, active: v.active, ...v.rules } });
+      else await api('/admin/coupons', { method: 'POST', body: { code: v.code.trim().toUpperCase(), percent: v.percent, active: v.active, ...v.rules } });
       await reload();
     }} />}
   </Page>;
@@ -399,12 +414,17 @@ export function Coupons() {
 /* Add/edit popup drawn as a coupon: the discount and code are typed straight onto the ticket. */
 function CouponEditor({ row, onClose, onSave }) {
   const [v, setV] = useState({ code: row?.code ?? '', percent: row?.percent ?? 10, active: row?.active ?? true });
+  const [r, setR] = useState({
+    maxDiscount: row?.maxDiscount ?? '', minOrder: row?.minOrder ?? '', usageLimit: row?.usageLimit ?? '', perUserLimit: row?.perUserLimit ?? '',
+    expiresAt: row?.expiresAt ? row.expiresAt.slice(0, 10) : '',
+  });
+  const n = (x) => (x === '' ? null : Number(x));
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true); setErr('');
-    try { await onSave({ ...v, percent: Number(v.percent) }); onClose(); } catch (e2) { setErr(e2.message); setBusy(false); }
+    try { await onSave({ ...v, percent: Number(v.percent), rules: { maxDiscount: n(r.maxDiscount), minOrder: n(r.minOrder), usageLimit: n(r.usageLimit), perUserLimit: n(r.perUserLimit), expiresAt: r.expiresAt ? new Date(`${r.expiresAt}T23:59:59`).toISOString() : null } }); onClose(); } catch (e2) { setErr(e2.message); setBusy(false); }
   };
   return <Modal title={row ? 'Edit coupon' : 'New coupon'} onClose={onClose}>
     <form onSubmit={submit}>
@@ -422,6 +442,13 @@ function CouponEditor({ row, onClose, onSave }) {
           <input className="coupon-code" required disabled={!!row} pattern="[A-Za-z0-9_\-]+" placeholder="SAVE10" value={v.code}
             onChange={(e) => setV({ ...v, code: e.target.value.toUpperCase() })} aria-label="Coupon code" />
         </label>
+      </div>
+      <div className="grid2" style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <label className="field">Max discount (₹)<input type="number" min="1" placeholder="No cap" value={r.maxDiscount} onChange={(e) => setR({ ...r, maxDiscount: e.target.value })} /></label>
+        <label className="field">Minimum order (₹)<input type="number" min="1" placeholder="None" value={r.minOrder} onChange={(e) => setR({ ...r, minOrder: e.target.value })} /></label>
+        <label className="field">Total uses<input type="number" min="1" placeholder="Unlimited" value={r.usageLimit} onChange={(e) => setR({ ...r, usageLimit: e.target.value })} /></label>
+        <label className="field">Uses per customer<input type="number" min="1" placeholder="Unlimited" value={r.perUserLimit} onChange={(e) => setR({ ...r, perUserLimit: e.target.value })} /></label>
+        <label className="field">Expires on<input type="date" value={r.expiresAt} onChange={(e) => setR({ ...r, expiresAt: e.target.value })} /></label>
       </div>
       <label className="check field" style={{ marginTop: 14 }}>
         <input type="checkbox" checked={v.active} onChange={(e) => setV({ ...v, active: e.target.checked })} /> Active
@@ -531,6 +558,9 @@ export function Payouts() {
   const { rows, error, reload } = useList('/admin/payouts');
   const [pay, setPay] = useState(null); // { row }
   const [history, setHistory] = useState(null); // { row, list, error? }
+  const reqs = useList('/admin/payout-requests');
+  const [resolve, setResolve] = useState(null); // { req, decision }
+  const waiting = (reqs.rows ?? []).filter((r) => r.status === 'REQUESTED');
 
   const openHistory = async (row) => {
     setHistory({ row, list: null });
@@ -540,6 +570,25 @@ export function Payouts() {
 
   return <Page title="Payouts">
     <PayoutsInsights rows={rows} />
+    {waiting.length > 0 && <div style={{ marginBottom: 18 }}>
+      <h3 style={{ margin: '0 0 8px' }}>Payout requests <span className="muted">({waiting.length} waiting)</span></h3>
+      <Table rows={waiting} empty="" cols={[
+        { h: 'Pro', render: (r) => <b>{r.name}</b> },
+        { h: 'Amount', num: true, render: (r) => <b>{money(r.amount)}</b> },
+        { h: 'Pay to', render: (r) => r.details },
+        { h: 'Requested', render: (r) => when(r.createdAt) },
+        { h: '', render: (r) => <div className="row-actions">
+          <button className="btn sm danger" onClick={() => setResolve({ req: r, decision: 'REJECTED' })}>Decline</button>
+          <button className="btn sm primary" onClick={() => setResolve({ req: r, decision: 'PAID' })}>Mark paid</button>
+        </div> },
+      ]} />
+    </div>}
+    {resolve && <FormModal title={`${resolve.decision === 'PAID' ? 'Mark paid' : 'Decline'} — ${resolve.req.name}, ${money(resolve.req.amount)}`} initial={{ note: '' }} onClose={() => setResolve(null)}
+      fields={[{ key: 'note', label: resolve.decision === 'PAID' ? `Payment reference (optional) — paid to ${resolve.req.details}` : 'Reason (shown to the pro)', type: 'text', required: resolve.decision === 'REJECTED' }]}
+      onSubmit={async (v) => {
+        await api(`/admin/payout-requests/${resolve.req.id}`, { method: 'PATCH', body: { decision: resolve.decision, note: v.note || undefined } });
+        await Promise.all([reqs.reload(), reload()]);
+      }} />}
     <Table error={error} rows={rows} empty="No pros yet." cols={[
       { h: 'Pro', render: (r) => <b>{r.name}</b> },
       { h: 'Commission', render: (r) => `${r.commissionPercent}%` },
@@ -647,8 +696,12 @@ export function Inbox() {
     <Table error={reviews.error} rows={reviews.rows} empty="No reviews." cols={[
       { h: 'Date', render: (r) => when(r.createdAt) }, { h: 'By', render: (r) => r.user.name },
       { h: 'For', render: (r) => `${r.kind} #${r.target}` }, { h: 'Rating', filter: true, v: (r) => `${r.rating} star${r.rating === 1 ? '' : 's'}`, render: (r) => '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) },
-      { h: 'Text', wrap: true, render: (r) => r.text || '—' },
-      { h: '', render: (r) => <button className="btn sm danger" onClick={() => confirm('Delete this review?') && act(() => api(`/admin/reviews/${r.id}`, { method: 'DELETE' }), 'Review removed', reviews.reload)}>Delete</button> },
+      { h: 'Text', wrap: true, render: (r) => <>{r.text || '—'}{r.reply && <small className="muted" style={{ display: 'block' }}>Pro replied: {r.reply}</small>}</> },
+      { h: 'Shown', filter: true, v: (r) => (r.hidden ? 'Hidden' : 'Visible'), render: (r) => (r.hidden ? 'Hidden' : 'Visible') },
+      { h: '', render: (r) => <div className="row-actions">
+        <button className="btn sm" onClick={() => act(() => api(`/admin/reviews/${r.id}`, { method: 'PATCH', body: { hidden: !r.hidden } }), r.hidden ? 'Review shown' : 'Review hidden', reviews.reload)}>{r.hidden ? 'Show' : 'Hide'}</button>
+        <button className="btn sm danger" onClick={() => confirm('Delete this review?') && act(() => api(`/admin/reviews/${r.id}`, { method: 'DELETE' }), 'Review removed', reviews.reload)}>Delete</button>
+      </div> },
     ]} />
   </Page>;
 }

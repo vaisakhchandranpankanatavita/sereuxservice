@@ -5,6 +5,7 @@ import { randomBytes, randomInt } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
 import { PaymentsModule, PaymentsService } from '../payments/payments.module';
+import { applyCoupon } from '../common/coupons';
 import { PushService } from '../common/push';
 import { ConfigService } from '../config/config.module';
 

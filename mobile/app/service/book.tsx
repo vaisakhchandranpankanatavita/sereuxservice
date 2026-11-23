@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api';
-import CouponBox, { type AppliedCoupon } from '../../src/CouponBox';
+import CouponBox, { couponOff, type AppliedCoupon } from '../../src/CouponBox';
 import { useAddresses } from '../../src/addresses';
 import { usePlaceSuggestions, type Place } from '../../src/places';
 import { useSession } from '../../src/session';
@@ -256,7 +256,7 @@ export default function Book() {
 
       {/* Price & Summary */}
       <Card style={{ padding: 18, gap: 12 }}>
-        <CouponBox onCard applied={coupon} onChange={setCoupon} />
+        <CouponBox onCard applied={coupon} onChange={setCoupon} amount={svc.data?.fromPrice} />
         <View style={{ paddingTop: 8, borderTopWidth: 1, borderTopColor: t.line, gap: 8 }}>
           <Row between>
             <Txt muted size={14}>Estimated starting price</Txt>
@@ -265,7 +265,7 @@ export default function Book() {
           {coupon ? (
             <Row between>
               <Txt size={13} color={t.ok}>Coupon discount ({coupon.code})</Txt>
-              <Txt size={13} color={t.ok}>−{money(Math.round(svc.data.fromPrice * coupon.percent / 100))}</Txt>
+              <Txt size={13} color={t.ok}>−{money(couponOff(coupon, svc.data.fromPrice))}</Txt>
             </Row>
           ) : null}
           <Row between style={{ marginTop: 2 }}>
@@ -273,7 +273,7 @@ export default function Book() {
               <Txt bold size={16}>Estimated total</Txt>
               <Txt muted size={11}>Final rate confirmed on site</Txt>
             </View>
-            <Txt bold size={22}>from {money(svc.data.fromPrice - (coupon ? Math.round(svc.data.fromPrice * coupon.percent / 100) : 0))}</Txt>
+            <Txt bold size={22}>from {money(svc.data.fromPrice - couponOff(coupon, svc.data.fromPrice))}</Txt>
           </Row>
         </View>
 

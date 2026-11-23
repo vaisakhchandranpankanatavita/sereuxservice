@@ -1,14 +1,24 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Injectable, Module, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { randomInt } from 'crypto';
-import { IsBoolean, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
 import { PushService } from '../common/push';
+import { ConfigService } from '../config/config.module';
 import { distanceKm } from '../common/geo';
 import { STATUS_TEXT, omitOtp } from '../bookings/bookings.module';
 
 class OnlineDto { @IsBoolean() online: boolean; }
+class PayoutRequestDto {
+  @IsInt() @Min(1) @Max(10_000_000) amount: number;
+  @IsString() @MinLength(3) @MaxLength(200) details: string;
+}
+
+class ReviewReplyDto {
+  @IsString() @MaxLength(500) text: string;
+}
+
 class ProfileDto {
   @IsOptional() @IsString() @MaxLength(500) bio?: string;
   @IsOptional() @IsString() @MinLength(2) @MaxLength(40) response?: string;
@@ -28,7 +38,7 @@ class LocationDto { @IsOptional() lat?: number; @IsOptional() lng?: number; }
 
 @Injectable()
 class ProService {
-  constructor(private prisma: PrismaService, private push: PushService) {}
+  constructor(private prisma: PrismaService, private push: PushService, private config: ConfigService) {}
 
   private async mine(userId: string) {
     const p = await this.prisma.provider.findUnique({ where: { userId } });
@@ -41,7 +51,7 @@ class ProService {
     const [done, earnings, rating] = await Promise.all([
       this.prisma.booking.count({ where: { providerId: p.id, status: 'DONE' } }),
       this.prisma.booking.aggregate({ _sum: { estimate: true }, where: { providerId: p.id, status: 'DONE' } }),
-      this.prisma.review.aggregate({ _avg: { rating: true }, where: { kind: 'service', booking: { providerId: p.id } } }),
+      this.prisma.review.aggregate({ _avg: { rating: true }, where: { kind: 'service', hidden: false, booking: { providerId: p.id } } }),
     ]);
     const earned = Math.round((earnings._sum.estimate ?? 0) * (100 - p.commissionPercent) / 100);
     return { ...p, done, earned, rating: rating._avg.rating ?? null };
@@ -183,11 +193,40 @@ class ProService {
     return this.prisma.payout.findMany({ where: { providerId: p.id }, orderBy: { createdAt: 'desc' } });
   }
 
+  /* Payout requests: the pro's history, and a new request for up to the balance that isn't already requested. */
+  async payoutRequests(userId: string) {
+    const p = await this.mine(userId);
+    return this.prisma.payoutRequest.findMany({ where: { providerId: p.id }, orderBy: { createdAt: 'desc' }, take: 20 });
+  }
+
+  async requestPayout(userId: string, dto: PayoutRequestDto) {
+    const p = await this.mine(userId);
+    const [min, e, open] = await Promise.all([
+      this.config.get<number>('rules.minPayout'),
+      this.earnings(userId),
+      this.prisma.payoutRequest.findFirst({ where: { providerId: p.id, status: 'REQUESTED' } }),
+    ]);
+    if (open) throw new ConflictException('You already have a payout request waiting for review.');
+    if (dto.amount > e.balanceDue) throw new BadRequestException(`Your balance due is only ₹${e.balanceDue}.`);
+    if (dto.amount < (min || 0)) throw new BadRequestException(`The minimum payout is ₹${min}.`);
+    return this.prisma.payoutRequest.create({ data: { providerId: p.id, amount: dto.amount, details: dto.details.trim() } });
+  }
+
+  /* Public reply to a review left on one of this pro's bookings; an empty reply removes it. */
+  async replyToReview(userId: string, id: string, text: string) {
+    const p = await this.mine(userId);
+    const r = await this.prisma.review.findFirst({ where: { id, kind: 'service', hidden: false, booking: { providerId: p.id } } });
+    if (!r) throw new NotFoundException('Review not found.');
+    const reply = text.trim();
+    const out = await this.prisma.review.update({ where: { id }, data: { reply: reply || null, repliedAt: reply ? new Date() : null } });
+    return { id: out.id, reply: out.reply, repliedAt: out.repliedAt };
+  }
+
   /* Reviews customers left for this pro: summary (average, count, 1-5 breakdown) plus the latest 50. Customers appear by first name only. */
   async reviews(userId: string) {
     const p = await this.mine(userId);
     // Customers review the service on a completed booking, so a pro's reviews are the ones left on their bookings.
-    const where = { kind: 'service', booking: { providerId: p.id } };
+    const where = { kind: 'service', hidden: false, booking: { providerId: p.id } };
     const [rows, agg, groups] = await Promise.all([
       this.prisma.review.findMany({
         where, orderBy: { createdAt: 'desc' }, take: 50,
@@ -201,7 +240,7 @@ class ProService {
       average: agg._avg.rating ?? null,
       count: agg._count,
       breakdown,
-      items: rows.map((r) => ({ id: r.id, rating: r.rating, text: r.text, createdAt: r.createdAt, customer: r.user.name.split(' ')[0], service: r.booking?.service.name ?? null })),
+      items: rows.map((r) => ({ id: r.id, rating: r.rating, text: r.text, createdAt: r.createdAt, reply: r.reply, repliedAt: r.repliedAt, customer: r.user.name.split(' ')[0], service: r.booking?.service.name ?? null })),
     };
   }
 
@@ -258,6 +297,9 @@ class ProController {
   @Post('bookings/:id/photos') addPhoto(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: PhotoDto) { return this.svc.addPhoto(u.id, id, dto); }
   @Get('earnings') earnings(@CurrentUser() u: AuthUser) { return this.svc.earnings(u.id); }
   @Get('payouts') payouts(@CurrentUser() u: AuthUser) { return this.svc.payouts(u.id); }
+  @Get('payout-requests') payoutRequests(@CurrentUser() u: AuthUser) { return this.svc.payoutRequests(u.id); }
+  @Post('payout-requests') requestPayout(@CurrentUser() u: AuthUser, @Body() dto: PayoutRequestDto) { return this.svc.requestPayout(u.id, dto); }
+  @Post('reviews/:id/reply') replyToReview(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: ReviewReplyDto) { return this.svc.replyToReview(u.id, id, dto.text); }
   @Get('reviews') reviews(@CurrentUser() u: AuthUser) { return this.svc.reviews(u.id); }
   @Patch('profile') profile(@CurrentUser() u: AuthUser, @Body() dto: ProfileDto) { return this.svc.updateProfile(u.id, dto); }
   @Post('bookings/:id/release') release(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: ReleaseDto) { return this.svc.release(u.id, id, dto.reason); }

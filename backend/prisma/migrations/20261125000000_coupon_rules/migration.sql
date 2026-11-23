@@ -1,0 +1,5 @@
+ALTER TABLE "Coupon" ADD COLUMN "maxDiscount" INTEGER,
+ADD COLUMN "minOrder" INTEGER,
+ADD COLUMN "expiresAt" TIMESTAMP(3),
+ADD COLUMN "usageLimit" INTEGER,
+ADD COLUMN "perUserLimit" INTEGER;

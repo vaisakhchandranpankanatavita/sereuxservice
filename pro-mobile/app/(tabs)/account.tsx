@@ -65,7 +65,24 @@ function Payouts() {
   const t = useTheme();
   const e = useFetch<any>('/pro/earnings');
   const h = useFetch<any>('/pro/payouts');
+  const r = useFetch<any[]>('/pro/payout-requests');
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [details, setDetails] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
   if (!e.data) return null;
+  const waiting = r.data?.find((x) => x.status === 'REQUESTED');
+  const last = r.data?.find((x) => x.status !== 'REQUESTED');
+  const send = async () => {
+    setBusy(true); setErr('');
+    try {
+      await api('/pro/payout-requests', 'POST', { amount: Number(amount), details: details.trim() });
+      setOpen(false); setAmount('');
+      await Promise.all([r.reload(), e.reload()]);
+    } catch (x: any) { setErr(x.message); }
+    setBusy(false);
+  };
   const paid = e.data.paidOut || 0, due = e.data.balanceDue || 0, total = Math.max(1, paid + due);
   return <Section title="Payouts" hint="What we've paid you and what's still owed">
     <View style={{ flexDirection: 'row', height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: t.line }}>
@@ -76,6 +93,20 @@ function Payouts() {
       <Tile label="Paid out" amount={paid} sub={`${Math.round((paid / total) * 100)}% of earnings`} bg={t.okBg} fg={t.ok} />
       <Tile label="Balance due" amount={due} sub="Waiting to be paid" bg={t.warnBg} fg={t.warn} />
     </View>
+    {waiting
+      ? <Txt muted size={13}>Request for {money(waiting.amount)} is waiting for review.</Txt>
+      : open
+        ? <View style={{ gap: 8 }}>
+          <Field label={`Amount (up to ${money(due)})`} value={amount} onChangeText={setAmount} keyboardType="number-pad" />
+          <Field label="UPI id or bank details" value={details} onChangeText={setDetails} autoCapitalize="none" />
+          {!!err && <Txt size={13} style={{ color: t.bad }}>{err}</Txt>}
+          <Row>
+            <Button title="Send request" onPress={send} busy={busy} disabled={!Number(amount) || details.trim().length < 3} style={{ flex: 1 }} />
+            <Button title="Cancel" kind="ghost" onPress={() => setOpen(false)} disabled={busy} />
+          </Row>
+        </View>
+        : <Button title="Request payout" kind="ghost" disabled={due <= 0} onPress={() => { setAmount(String(due)); setOpen(true); }} />}
+    {!waiting && last?.status === 'REJECTED' && <Txt size={13} style={{ color: t.bad }}>Last request declined: {last.note}</Txt>}
     {!!h.data?.length && <View style={{ gap: 2 }}>
       <Text style={[overline, { color: t.muted, marginBottom: 4 }]}>Recent payouts</Text>
       {h.data.slice(0, 5).map((x: any) => <Row key={x.id} between>

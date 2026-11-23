@@ -68,8 +68,8 @@ class AccountController {
   @Get('reviews')
   reviews(@Query('kind') kind: string, @Query('target', ParseIntPipe) target: number) {
     return this.prisma.review.findMany({
-      where: { kind, target }, orderBy: { createdAt: 'desc' }, take: 50,
-      select: { id: true, rating: true, text: true, createdAt: true, user: { select: { name: true } } },
+      where: { kind, target, hidden: false }, orderBy: { createdAt: 'desc' }, take: 50,
+      select: { id: true, rating: true, text: true, createdAt: true, reply: true, user: { select: { name: true } } },
     });
   }
 
@@ -81,12 +81,22 @@ class AccountController {
       if (!b) throw new BadRequestException('You can only review a completed booking.');
       if (await this.prisma.review.findUnique({ where: { bookingId: b.id } })) throw new ConflictException('You already reviewed this booking.');
     } else {
-      const bought = await this.prisma.orderItem.findFirst({ where: { productId: dto.target, order: { userId: u.id, status: { not: 'CANCELLED' } } } });
-      if (!bought) throw new BadRequestException('You can only review products you ordered.');
+      const bought = await this.prisma.orderItem.findFirst({ where: { productId: dto.target, order: { userId: u.id, status: 'DELIVERED' } } });
+      if (!bought) throw new BadRequestException('You can review a product once it has been delivered.');
+      if (await this.prisma.review.findFirst({ where: { userId: u.id, kind: 'product', target: dto.target } })) throw new ConflictException('You already reviewed this product.');
     }
-    return this.prisma.review.create({
+    const review = await this.prisma.review.create({
       data: { userId: u.id, kind: dto.kind, target: dto.target, bookingId: dto.bookingId ?? null, rating: dto.rating, text: dto.text?.trim() ?? '' },
     });
+    if (dto.kind === 'service' && dto.bookingId) {
+      const b = await this.prisma.booking.findUnique({ where: { id: dto.bookingId }, include: { provider: { select: { userId: true } } } });
+      if (b?.provider?.userId) {
+        const text = `New ${dto.rating}-star review from ${b.name.split(' ')[0]}.`;
+        await this.prisma.notification.create({ data: { userId: b.provider.userId, text, href: '/reviews' } }).catch(() => {});
+        await this.push.send(b.provider.userId, text, 'Fixzy Pro', { href: '/reviews' }).catch(() => {});
+      }
+    }
+    return review;
   }
 
   @Post('contact') @HttpCode(201) @Throttle({ default: { limit: 5, ttl: 60_000 } })
