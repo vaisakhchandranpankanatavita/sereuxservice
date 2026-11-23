@@ -6,10 +6,9 @@ import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
 import { PaymentsModule, PaymentsService } from '../payments/payments.module';
 import { PushService } from '../common/push';
-import { SLOTS } from '../catalog/catalog.module';
+import { ConfigService } from '../config/config.module';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const MAX_DAYS_AHEAD = 60;
 export const FLOW: BookingStatus[] = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
 export const STATUS_TEXT: Record<BookingStatus, string> = {
   REQUESTED: 'Your booking was received.',
@@ -24,7 +23,7 @@ class CreateBookingDto {
   @IsInt() serviceId: number;
   @IsOptional() @IsInt() providerId?: number;
   @Matches(DAY) day: string;
-  @IsIn(SLOTS) slot: string;
+  @Matches(/^\d{2}:\d{2}$/) slot: string;
   @IsString() @MaxLength(80) name: string;
   @Matches(/^[0-9+\s-]{8,15}$/) phone: string;
   @IsString() @MaxLength(300) address: string;
@@ -36,7 +35,7 @@ class CreateBookingDto {
 
 class UpdateBookingDto {
   @IsOptional() @Matches(DAY) day?: string;
-  @IsOptional() @IsIn(SLOTS) slot?: string;
+  @IsOptional() @Matches(/^\d{2}:\d{2}$/) slot?: string;
   @IsOptional() @IsIn(['CANCELLED']) status?: 'CANCELLED';
   @IsOptional() @IsString() @MaxLength(300) reason?: string;
 }
@@ -56,10 +55,13 @@ const newId = () => 'FX' + randomBytes(4).toString('hex').toUpperCase();
 
 @Injectable()
 class BookingsService {
-  constructor(private prisma: PrismaService, private push: PushService, private payments: PaymentsService) {}
+  constructor(private prisma: PrismaService, private push: PushService, private payments: PaymentsService, private config: ConfigService) {}
 
-  private assertWindow(day: string) {
-    if (day <= isoToday() || day > addDays(MAX_DAYS_AHEAD)) throw new BadRequestException('Pick a day within the next 60 days.');
+  /* The bookable window and slot times are admin settings (rules.maxDaysAhead / rules.bookingSlots). */
+  private async assertWindow(day: string, slot?: string) {
+    const [max, slots] = await Promise.all([this.config.get<number>('rules.maxDaysAhead'), this.config.get<string[]>('rules.bookingSlots')]);
+    if (day <= isoToday() || day > addDays(max)) throw new BadRequestException(`Pick a day within the next ${max} days.`);
+    if (slot && !slots.includes(slot)) throw new BadRequestException('Pick one of the available time slots.');
   }
 
   private async assertFree(tx: Prisma.TransactionClient, where: { providerId?: number | null; serviceId: number }, day: string, slot: string, ignoreId?: string) {
@@ -70,7 +72,7 @@ class BookingsService {
   }
 
   async create(user: AuthUser, dto: CreateBookingDto) {
-    this.assertWindow(dto.day);
+    await this.assertWindow(dto.day, dto.slot);
     const service = await this.prisma.service.findUnique({ where: { id: dto.serviceId }, include: { providers: { select: { id: true } } } });
     if (!service) throw new NotFoundException('Service not found.');
     if (dto.providerId && !service.providers.some((p) => p.id === dto.providerId)) throw new BadRequestException('That pro does not offer this service.');
@@ -165,7 +167,7 @@ class BookingsService {
     const slot = dto.slot ?? b.slot;
     if (day === b.day && slot === b.slot) return b;
     if (b.status !== 'REQUESTED' && b.status !== 'CONFIRMED') throw new BadRequestException('Too late to reschedule.');
-    this.assertWindow(day);
+    await this.assertWindow(day, slot);
     return this.prisma.$transaction(async (tx) => {
       await this.assertFree(tx, { providerId: b.providerId, serviceId: b.serviceId }, day, slot, id);
       return tx.booking.update({ where: { id }, data: { day, slot } });

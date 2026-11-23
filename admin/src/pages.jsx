@@ -3,182 +3,151 @@ import { api } from './api.js';
 import { AuditInsights, BannersInsights, BookingsInsights, CouponsInsights, InboxInsights, OrdersInsights, PayoutsInsights, ProductsInsights, ProsInsights, ServicesInsights, UsersInsights } from './insights.jsx';
 import { LordIcon } from './LordIcon.jsx';
 import { ICONS } from './icons.js';
-import { Badge, FormModal, Modal, Page, Table, act, distanceKm, money, useList, when } from './ui.jsx';
+import { Badge, FormModal, Modal, Page, Table, act, distanceKm, money, toast, useList, when } from './ui.jsx';
 
 const FLOW = ['REQUESTED', 'CONFIRMED', 'ON_THE_WAY', 'IN_PROGRESS', 'DONE'];
 const ORDER_FLOW = ['PLACED', 'SHIPPED', 'DELIVERED'];
 const label = (s) => s.replace(/_/g, ' ').toLowerCase();
 
 /* ---------- Dashboard ---------- */
-/* Loading state: the real dashboard layout drawn as ghost blocks, each filled with slowly
-   drifting, blurred "smoke" (see .sk in styles.css). */
-const Sk = ({ w = '100%', h = 14, r, style }) => <span className="sk" style={{ width: w, height: h, borderRadius: r, ...style }} />;
-function DashboardSkeleton() {
-  return <div className="dash dash-sk" role="status" aria-busy="true" aria-label="Loading dashboard">
-    <section className="dash-hero">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Sk w={28} h={28} r={9} /><Sk w={54} h={14} /></div>
-      <Sk w="72%" h={40} r={12} style={{ marginTop: 22 }} />
-      <Sk w="48%" h={40} r={12} style={{ marginTop: 10 }} />
-      <Sk w="62%" h={14} style={{ marginTop: 18 }} />
-      <div style={{ display: 'flex', gap: 30, marginTop: 28 }}>
-        {[0, 1, 2].map((i) => <div key={i}><Sk w={54} h={38} r={10} /><Sk w={70} h={10} style={{ marginTop: 10 }} /></div>)}
-      </div>
-      <Sk w="40%" h={11} style={{ marginTop: 34 }} />
-      <Sk h={14} r={999} style={{ marginTop: 14 }} />
-      <div style={{ display: 'flex', gap: 14, marginTop: 16 }}>{[0, 1, 2, 3].map((i) => <Sk key={i} w={44} h={30} r={8} />)}</div>
-      <Sk w="28%" h={11} style={{ marginTop: 'auto' }} />
-    </section>
-    <div className="glow glow-lg sk-card">
-      <Sk w={130} h={14} /><Sk w={120} h={56} r={14} style={{ marginTop: 18 }} />
-      <Sk h="38%" r={16} style={{ marginTop: 'auto' }} />
-    </div>
-    {[0, 1, 2, 3].map((i) => <div key={i} className="glow glow-sm sk-card">
-      <Sk w="55%" h={13} /><Sk w="42%" h={34} r={10} style={{ marginTop: 14 }} /><Sk w="70%" h={10} style={{ marginTop: 'auto' }} />
-    </div>)}
-  </div>;
+const nf = new Intl.NumberFormat('en-IN');
+const STATUS_HUE = { DONE: '#2f9e6b', REQUESTED: '#e8a33a', CONFIRMED: '#7a6cf0', ON_THE_WAY: '#3a7bd5', IN_PROGRESS: '#f07a3a', CANCELLED: '#d9534f' };
+
+/* Points for a line through `vals`, scaled into a w×h box (a little headroom top and bottom). */
+const pts = (vals, w, h, max) => {
+  const m = max || Math.max(1, ...vals);
+  const step = w / Math.max(1, vals.length - 1);
+  return vals.map((v, i) => [i * step, h - 3 - (v / m) * (h - 6)]);
+};
+const linePath = (p) => p.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+const areaPath = (p, w, h) => `${linePath(p)} L${w},${h} L0,${h} Z`;
+
+function Spark({ vals, color, w = 96, h = 30 }) {
+  if (vals.length < 2) return null;
+  const p = pts(vals, w, h);
+  const id = `sp${color.replace('#', '')}`;
+  return <svg className="dx-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={color} stopOpacity=".28" /><stop offset="1" stopColor={color} stopOpacity="0" /></linearGradient></defs>
+    <path d={areaPath(p, w, h)} fill={`url(#${id})`} />
+    <path d={linePath(p)} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+  </svg>;
 }
 
-/* Parallax: writes scroll progress (--sy) and pointer position (--mx/--my, -1..1) onto the
-   dashboard root as CSS variables; layers read them with different depths (see .dash[data-px]).
-   One rAF-throttled write per frame, no React re-renders. Skipped for reduced-motion. */
-function useParallax(ref, ready) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!ready || !el || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    let raf = 0, mx = 0, my = 0, cx = 0, cy = 0;
-    const setScroll = () => document.documentElement.style.setProperty('--sy', String(window.scrollY));
-    const loop = () => { // ease the pointer toward its target for a floaty, weighted feel
-      cx += (mx - cx) * 0.08; cy += (my - cy) * 0.08;
-      el.style.setProperty('--mx', cx.toFixed(3)); el.style.setProperty('--my', cy.toFixed(3));
-      raf = requestAnimationFrame(loop);
-    };
-    const move = (e) => { mx = (e.clientX / innerWidth) * 2 - 1; my = (e.clientY / innerHeight) * 2 - 1; };
-    addEventListener('pointermove', move, { passive: true });
-    addEventListener('scroll', setScroll, { passive: true });
-    setScroll(); raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); removeEventListener('pointermove', move); removeEventListener('scroll', setScroll); };
-  }, [ref, ready]);
+function Tile({ href, label: l, value, sub, color, spark }) {
+  return <a className="dx-tile" href={href} style={{ '--t': color }}>
+    <span className="dx-tile-top"><i className="dx-dot" /><span>{l}</span></span>
+    <strong className="dx-val">{value}</strong>
+    <span className="dx-sub">{sub}</span>
+    {spark}
+  </a>;
+}
+
+function Donut({ parts, total }) {
+  const R = 40, C = 2 * Math.PI * R;
+  let acc = 0;
+  return <svg className="dx-donut" viewBox="0 0 100 100" role="img" aria-label="Bookings by status">
+    <circle cx="50" cy="50" r={R} fill="none" stroke="var(--idle-bg)" strokeWidth="11" />
+    {parts.map(([k, n]) => {
+      const len = (n / Math.max(1, total)) * C;
+      const el = <circle key={k} cx="50" cy="50" r={R} fill="none" stroke={STATUS_HUE[k] ?? '#9a968f'} strokeWidth="11" strokeDasharray={`${Math.max(0, len - 1.5)} ${C}`} strokeDashoffset={-acc} transform="rotate(-90 50 50)" />;
+      acc += len;
+      return el;
+    })}
+    <text x="50" y="49" textAnchor="middle" className="dx-donut-n">{total}</text>
+    <text x="50" y="63" textAnchor="middle" className="dx-donut-l">bookings</text>
+  </svg>;
+}
+
+const Sk = ({ w = '100%', h = 14, r, style }) => <span className="sk" style={{ width: w, height: h, borderRadius: r, ...style }} />;
+function DashboardSkeleton() {
+  return <div className="dx" role="status" aria-busy="true" aria-label="Loading dashboard">
+    <div className="dx-head"><div><Sk w={220} h={26} r={8} /><Sk w={160} h={13} style={{ marginTop: 10 }} /></div></div>
+    <div className="dx-grid">
+      {Array.from({ length: 8 }, (_, i) => <div key={i} className="dx-tile dx-sk"><Sk w="50%" h={11} /><Sk w="40%" h={26} r={8} style={{ marginTop: 12 }} /><Sk w="65%" h={10} style={{ marginTop: 10 }} /></div>)}
+      <div className="dx-card dx-wide dx-sk"><Sk w="30%" h={14} /><Sk h={130} r={12} style={{ marginTop: 16 }} /></div>
+      <div className="dx-card dx-narrow dx-sk"><Sk w="40%" h={14} /><Sk w={130} h={130} r={999} style={{ margin: '16px auto 0' }} /></div>
+    </div>
+  </div>;
 }
 
 export function Dashboard({ me }) {
   const { rows: s, error } = useList('/admin/stats');
-  const dashRef = useRef(null);
-  useParallax(dashRef, !!s);
   if (error) return <Page><div className="card err">{error}</div></Page>;
   if (!s) return <Page><DashboardSkeleton /></Page>;
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const doneShare = Math.round(((s.bookingsByStatus?.DONE ?? 0) / Math.max(1, s.bookings)) * 100);
   const series = Array.isArray(s.series) ? s.series : [];
-  const week = series.slice(-7);
-  const STATUS_HUE = { DONE: '#2f9e6b', REQUESTED: '#e8a33a', CONFIRMED: '#7a6cf0', ON_THE_WAY: '#3a7bd5', IN_PROGRESS: '#f07a3a', CANCELLED: '#d9534f' };
+  const bookingsSeries = series.map((d) => d.bookings || 0);
+  const ordersSeries = series.map((d) => d.orders || 0);
+  const revenueSeries = series.map((d) => d.revenue || 0);
+  const sum = (a) => a.reduce((t, v) => t + v, 0);
   const statuses = Object.entries(s.bookingsByStatus ?? {}).sort((x, y) => y[1] - x[1]);
-  const bookings30d = series.reduce((total, day) => total + (day.bookings || 0), 0);
-  const orders30d = series.reduce((total, day) => total + (day.orders || 0), 0);
-  const revenue30d = series.reduce((total, day) => total + (day.revenue || 0), 0);
-  const activityMax = Math.max(1, ...series.flatMap((day) => [day.bookings || 0, day.orders || 0]));
-  const revenueMax = Math.max(1, ...series.map((day) => day.revenue || 0));
+  const doneShare = Math.round(((s.bookingsByStatus?.DONE ?? 0) / Math.max(1, s.bookings)) * 100);
+  const first = series[0]?.day?.slice(5) ?? '—';
+  const mid = series[Math.floor(series.length / 2)]?.day?.slice(5) ?? '';
+  const last = series.at(-1)?.day?.slice(5) ?? '—';
 
-  /* A simple SVG sine-ish path through a value series, normalized into a w×h viewBox —
-     the "glowing line" read of a chart, not a bar grid. */
-  const wave = (vals, w, h, ceiling) => {
-    const m = ceiling || Math.max(1, ...vals);
-    const step = w / Math.max(1, vals.length - 1);
-    return vals.map((v, i) => `${i ? 'L' : 'M'} ${(i * step).toFixed(1)},${(h - (v / m) * h * 0.82 - h * 0.09).toFixed(1)}`).join(' ');
-  };
+  const W = 560, H = 150;
+  const actMax = Math.max(1, ...bookingsSeries, ...ordersSeries);
+  const pb = pts(bookingsSeries, W, H, actMax), po = pts(ordersSeries, W, H, actMax);
+  const revMax = Math.max(1, ...revenueSeries);
+  const barW = 100 / Math.max(1, revenueSeries.length);
 
   return <Page>
-    {/* Two-panel layout mirroring the reference: a white "overview" panel on the left (brand,
-        headline, two floating stat call-outs, a this-week strip) and a halo-glow card grid
-        on the right (one big feature card, two stacked, three equal below). */}
-    <div className="dash" data-px ref={dashRef}>
-      <section className="dash-hero">
-        <div className="dh-top"><div className="dh-badge"><LordIcon icon={ICONS.dashboard} size={16} colors="primary:#232323,secondary:#232323" /></div><span>fixzy.</span></div>
-        <h1 className="dh-title">{greeting},<br />{(me?.name || 'Admin').split(' ')[0]}.</h1>
-        <p className="dh-sub">{s.openBookings ? `${s.openBookings} bookings need attention today.` : "You're all caught up."}</p>
-
-        <div className="dh-stats">
-          <div className="dh-stat"><span className="dh-dot" /><div className="n">{s.openBookings}</div><div className="l">open bookings</div></div>
-          <div className="dh-stat"><span className="dh-dot" /><div className="n">{s.todayBookings}</div><div className="l">today's jobs</div></div>
-          <div className="dh-stat"><span className="dh-dot" /><div className="n">{s.messages}</div><div className="l">unread messages</div></div>
+    <div className="dx">
+      <header className="dx-head">
+        <div>
+          <h1 className="dx-title">{greeting}, {(me?.name || 'Admin').split(' ')[0]}</h1>
+          <p className="dx-lead">{s.openBookings ? `${s.openBookings} booking${s.openBookings === 1 ? '' : 's'} need attention` : 'You’re all caught up'} · {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}</p>
         </div>
+        {s.openBookings > 0 && <a className="dx-cta" href="#/bookings">Review bookings →</a>}
+      </header>
 
-        <div className="dh-status">
-          <h2>Bookings by status</h2>
-          {statuses.length ? <>
-            <div className="seg" role="img" aria-label="Bookings by status">
-              {statuses.map(([k, n]) => <i key={k} style={{ flexGrow: n, '--c': STATUS_HUE[k] ?? '#9a968f' }} title={`${label(k)}: ${n}`} />)}
-            </div>
-            <ul className="seg-legend">
-              {statuses.map(([k, n]) => <li key={k} style={{ '--c': STATUS_HUE[k] ?? '#9a968f' }}>
-                <span className="n">{n}</span>
-                <span className="l"><i />{label(k)}</span>
-              </li>)}
+      <div className="dx-grid">
+        <Tile href="#/bookings" label="Open bookings" value={nf.format(s.openBookings)} sub="need attention" color="#e8a33a" />
+        <Tile href="#/bookings" label="Today’s jobs" value={nf.format(s.todayBookings)} sub="scheduled today" color="#3a7bd5" />
+        <Tile href="#/inbox" label="Unread messages" value={nf.format(s.messages)} sub="in the inbox" color="#7a6cf0" />
+        <Tile href="#/users" label="Customers" value={nf.format(s.users)} sub="registered" color="#c0489a" />
+        <Tile href="#/bookings" label="Bookings · 30d" value={nf.format(sum(bookingsSeries))} sub={`${nf.format(s.bookings)} all time`} color="#2f9e6b" spark={<Spark vals={bookingsSeries} color="#2f9e6b" />} />
+        <Tile href="#/orders" label="Orders · 30d" value={nf.format(sum(ordersSeries))} sub={`${nf.format(s.orders)} all time`} color="#3a7bd5" spark={<Spark vals={ordersSeries} color="#3a7bd5" />} />
+        <Tile href="#/orders" label="Sales · 30d" value={money(sum(revenueSeries))} sub={`${money(s.productRevenue)} all time`} color="#e07a2f" spark={<Spark vals={revenueSeries} color="#e07a2f" />} />
+        <Tile href="#/bookings" label="Done rate" value={`${doneShare}%`} sub={`${nf.format(s.bookingsByStatus?.DONE ?? 0)} of ${nf.format(s.bookings)} done`} color="#2f9e6b" />
+
+        <section className="dx-card dx-wide" aria-label="Bookings and orders over the last 30 days">
+          <div className="dx-card-head"><h2>Bookings &amp; orders</h2>
+            <span className="dx-legend"><i style={{ background: '#2f9e6b' }} />Bookings<i style={{ background: '#3a7bd5' }} />Orders</span></div>
+          <svg className="dx-chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Daily bookings and orders, last 30 days">
+            <defs><linearGradient id="dxb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2f9e6b" stopOpacity=".22" /><stop offset="1" stopColor="#2f9e6b" stopOpacity="0" /></linearGradient></defs>
+            {[0.25, 0.5, 0.75].map((f) => <path key={f} d={`M0 ${H * f}H${W}`} className="dx-grid-line" />)}
+            {series.length > 1 && <>
+              <path d={areaPath(pb, W, H)} fill="url(#dxb)" />
+              <path d={linePath(pb)} fill="none" stroke="#2f9e6b" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              <path d={linePath(po)} fill="none" stroke="#3a7bd5" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            </>}
+          </svg>
+          <div className="dx-axis"><span>{first}</span><span>{mid}</span><span>{last}</span></div>
+        </section>
+
+        <section className="dx-card dx-narrow" aria-label="Bookings by status">
+          <div className="dx-card-head"><h2>By status</h2></div>
+          {statuses.length ? <div className="dx-status">
+            <Donut parts={statuses} total={s.bookings} />
+            <ul className="dx-slegend">
+              {statuses.map(([k, n]) => <li key={k}><i style={{ background: STATUS_HUE[k] ?? '#9a968f' }} /><span>{label(k)}</span><b>{n}</b></li>)}
             </ul>
-          </> : <div className="glow-l" style={{ color: 'var(--muted)' }}>No bookings yet.</div>}
-        </div>
+          </div> : <p className="dx-empty">No bookings yet.</p>}
+        </section>
 
-        <div className="dh-scrub">
-          <span className="dh-scrub-label">This week</span>
-          <div className="dh-scrub-track">{week.map((d, i) => <span key={d.day} className={`dh-tick${i === week.length - 1 ? ' on' : ''}`}>{d.day.slice(8)}</span>)}</div>
-        </div>
-      </section>
-
-      <div className="glow glow-lg" style={{ '--hue': 'var(--c3)', '--hue2': '#d9e84a' }}>
-        <div className="glow-head"><h2>Total bookings</h2><span className="glow-chip">last 30 days</span></div>
-        <div className="glow-n big">{s.bookings}<small>{s.orders} orders</small></div>
-        <svg className="glow-wave" viewBox="0 0 200 60" preserveAspectRatio="none"><path d={wave(series.map((d) => d.bookings || 0), 200, 60)} /></svg>
-        <div className="axis light"><span>{series[0]?.day?.slice(5) ?? '—'}</span><span>{series.at(-1)?.day?.slice(5) ?? '—'} · daily trend</span></div>
-      </div>
-
-      <div className="glow glow-sm" style={{ '--hue': 'var(--c6)', '--hue2': '#f08a4b' }}>
-        <h2>Total shop revenue</h2>
-        <div className="glow-n">{money(s.productRevenue)}</div>
-        <svg className="glow-wave sm" viewBox="0 0 120 36" preserveAspectRatio="none"><path d={wave(series.map((d) => d.revenue || 0), 120, 36)} /></svg>
-      </div>
-      <div className="glow glow-sm" style={{ '--hue': 'var(--c5)', '--hue2': '#e9d44c' }}>
-        <h2>Done rate</h2>
-        <div className="glow-n">{doneShare}<small>%</small></div>
-        <svg className="glow-arc" viewBox="0 0 100 52">
-          <path d="M6,50 A44,44 0 0,1 94,50" />
-          <path d="M6,50 A44,44 0 0,1 94,50" style={{ strokeDasharray: `${doneShare * 1.38} 200` }} />
-        </svg>
-      </div>
-      <div className="glow glow-sm" style={{ '--hue': 'var(--c4)', '--hue2': '#f5a65b' }}>
-        <h2>Users</h2><div className="glow-n">{s.users}</div><div className="glow-l">registered customers</div>
-      </div>
-      <div className="glow glow-sm" style={{ '--hue': 'var(--c9)', '--hue2': '#6fb6d8' }}>
-        <h2>Messages</h2><div className="glow-n">{s.messages}</div><div className="glow-l">in the inbox</div>
+        <section className="dx-card dx-full" aria-label="Daily shop revenue, last 30 days">
+          <div className="dx-card-head"><h2>Daily shop revenue</h2><span className="dx-note">{money(sum(revenueSeries))} in 30 days</span></div>
+          <svg className="dx-bars" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label="Daily shop revenue">
+            {revenueSeries.map((v, i) => { const bh = Math.max(v ? 1.5 : 0.6, (v / revMax) * 38); return <rect key={i} x={i * barW + barW * 0.18} y={40 - bh} width={barW * 0.64} height={bh} rx="0.6" className={v ? 'on' : ''} />; })}
+          </svg>
+          <div className="dx-axis"><span>{first}</span><span>{mid}</span><span>{last}</span></div>
+        </section>
       </div>
     </div>
-    <section className="dash-analytics" aria-label="Last 30 days analytics">
-      <article className="analytics-card analytics-volume">
-        <div className="analytics-head"><div><span className="analytics-kicker">Activity</span><h2>Bookings &amp; orders</h2></div><span className="analytics-range">Last 30 days</span></div>
-        <div className="analytics-legend"><span><i className="legend-bookings" />Bookings</span><span><i className="legend-orders" />Orders</span></div>
-        <svg className="analytics-chart" viewBox="0 0 640 168" preserveAspectRatio="none" role="img" aria-label="Daily booking and order counts over the last 30 days">
-          {[28, 76, 124].map((y) => <path key={y} className="chart-gridline" d={`M0 ${y}H640`} />)}
-          {series.length > 1 && <>
-            <path className="chart-line chart-line-bookings" d={wave(series.map((day) => day.bookings || 0), 640, 168, activityMax)} />
-            <path className="chart-line chart-line-orders" d={wave(series.map((day) => day.orders || 0), 640, 168, activityMax)} />
-          </>}
-        </svg>
-        <div className="analytics-axis"><span>{series[0]?.day?.slice(5) ?? '—'}</span><span>{series[Math.floor(series.length / 2)]?.day?.slice(5) ?? '—'}</span><span>{series.at(-1)?.day?.slice(5) ?? '—'}</span></div>
-      </article>
-      <article className="analytics-card analytics-revenue">
-        <div className="analytics-head"><div><span className="analytics-kicker">Sales</span><h2>Daily shop revenue</h2></div><span className="analytics-range">Last 30 days</span></div>
-        <div className="analytics-revenue-total">{money(revenue30d)}</div>
-        <svg className="analytics-chart" viewBox="0 0 420 168" preserveAspectRatio="none" role="img" aria-label="Daily shop revenue over the last 30 days">
-          {[28, 76, 124].map((y) => <path key={y} className="chart-gridline" d={`M0 ${y}H420`} />)}
-          {series.length > 1 && <path className="chart-line chart-line-revenue" d={wave(series.map((day) => day.revenue || 0), 420, 168, revenueMax)} />}
-        </svg>
-        <div className="analytics-axis"><span>{series[0]?.day?.slice(5) ?? '—'}</span><span>{series.at(-1)?.day?.slice(5) ?? '—'}</span></div>
-      </article>
-    </section>
-    <section className="dash-period-cards" aria-label="30 day totals">
-      <article className="period-card"><span>Bookings · 30 days</span><strong>{bookings30d}</strong><small>of {s.bookings} total bookings</small></article>
-      <article className="period-card"><span>Orders · 30 days</span><strong>{orders30d}</strong><small>{s.orders} total orders</small></article>
-      <article className="period-card"><span>Sales · 30 days</span><strong>{money(revenue30d)}</strong><small>{money(s.productRevenue)} all time</small></article>
-    </section>
   </Page>;
 }
 
@@ -266,13 +235,14 @@ export function Users({ me }) {
 }
 
 /* ---------- Generic catalog CRUD ---------- */
-function Crud({ title, path, listPath = path, noun, fields, cols, idKey = 'id', createExtra, Analysis }) {
+function Crud({ title, path, listPath = path, noun, fields, cols, idKey = 'id', createExtra, Analysis, rowExtra }) {
   const { rows, error, reload } = useList(listPath);
   const [form, setForm] = useState(null); // { row? }
   const key = (r) => r[idKey];
   return <Page title={title} actions={<button className="btn primary" onClick={() => setForm({})}>Add {noun}</button>}>
     {Analysis && <Analysis rows={rows} />}
     <Table error={error} rows={rows} cols={[...cols, { h: '', render: (r) => <div className="row-actions">
+      {rowExtra?.(r, reload)}
       <button className="btn sm" onClick={() => setForm({ row: r })}>Edit</button>
       <button className="btn sm danger" onClick={() => confirm(`Delete this ${noun}?`) && act(() => api(`${path}/${key(r)}`, { method: 'DELETE' }), `${noun} deleted`, reload)}>Delete</button>
     </div> }]} />
@@ -282,8 +252,52 @@ function Crud({ title, path, listPath = path, noun, fields, cols, idKey = 'id', 
   </Page>;
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const serviceImgUrl = (s) => (s.imageVersion > 0 ? `${API_BASE}/services/${s.id}/image?v=${s.imageVersion}` : null);
+
+/* Resize in the browser so uploads stay small (the API caps images at 400 KB); WebP keeps logo transparency. */
+async function shrinkImage(file, max = 640) {
+  if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(file.type)) throw new Error('Choose a PNG, JPG or WebP image.');
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  for (const q of [0.88, 0.72, 0.55]) {
+    const url = c.toDataURL('image/webp', q);
+    if (url.length < 520_000) return url;
+  }
+  throw new Error('That image is too detailed to shrink under 400 KB.');
+}
+
+function ServiceThumb({ s }) {
+  const src = serviceImgUrl(s);
+  return src ? <img className="svc-thumb" src={src} alt={`${s.name} image`} loading="lazy" /> : <span className="svc-thumb noimg" aria-label="No image">—</span>;
+}
+
+function ServiceImageActions({ s, reload }) {
+  const input = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const pick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true);
+    try {
+      const dataUrl = await shrinkImage(file);
+      await act(() => api(`/admin/services/${s.id}/image`, { method: 'PUT', body: { dataUrl } }), 'Image saved', reload);
+    } catch (err) { toast(err.message); }
+    setBusy(false);
+  };
+  return <>
+    <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={pick} />
+    <button className="btn sm" disabled={busy} onClick={() => input.current?.click()}>{busy ? 'Uploading…' : s.imageVersion > 0 ? 'Change image' : 'Add image'}</button>
+    {s.imageVersion > 0 && <button className="btn sm" disabled={busy} onClick={() => confirm('Remove this image?') && act(() => api(`/admin/services/${s.id}/image`, { method: 'DELETE' }), 'Image removed', reload)}>Remove image</button>}
+  </>;
+}
+
 export function Services() {
-  return <Crud title="Services" path="/admin/services" listPath="/services" noun="service" Analysis={ServicesInsights}
+  return <Crud title="Services" path="/admin/services" listPath="/services" noun="service" Analysis={ServicesInsights} rowExtra={(s, reload) => <ServiceImageActions s={s} reload={reload} />}
     fields={[
       { key: 'name', label: 'Name', type: 'text' }, { key: 'category', label: 'Category', type: 'text' },
       { key: 'description', label: 'Description', type: 'textarea' },
@@ -291,7 +305,7 @@ export function Services() {
       { key: 'terms', label: 'Search terms', type: 'text', required: false },
     ]}
     cols={[
-      { h: 'ID', render: (s) => s.id }, { h: 'Name', render: (s) => <b>{s.name}</b> }, { h: 'Category', filter: true, v: (s) => s.category, render: (s) => s.category },
+      { h: 'ID', render: (s) => s.id }, { h: 'Image', thumb: true, v: (s) => (s.imageVersion > 0 ? 'has image' : 'no image'), render: (s) => <ServiceThumb s={s} /> }, { h: 'Name', render: (s) => <b>{s.name}</b> }, { h: 'Category', filter: true, v: (s) => s.category, render: (s) => s.category },
       { h: 'From', render: (s) => money(s.fromPrice) }, { h: 'Duration', render: (s) => `${s.duration} min` },
       { h: 'Rating', render: (s) => (s.rating ? `${s.rating.toFixed(1)} (${s.reviews})` : '—') },
     ]} />;
@@ -300,10 +314,12 @@ export function Services() {
 export function Providers() {
   const services = useList('/services').rows ?? [];
   const { rows, reload } = useList('/admin/providers');
+  const settings = useList('/admin/settings').rows ?? [];
+  const defaultCommission = settings.find((d) => d.key === 'rules.defaultCommissionPercent')?.value ?? 20;
   const [link, setLink] = useState(null); // { provider }
   return <>
     <Crud title="Pros" path="/admin/providers" noun="pro" Analysis={ProsInsights}
-      createExtra={{ verified: true, years: 1, response: '30 min', commissionPercent: 20 }}
+      createExtra={{ verified: true, years: 1, response: '30 min', commissionPercent: defaultCommission }}
       fields={[
         { key: 'name', label: 'Name', type: 'text' }, { key: 'years', label: 'Years of experience', type: 'number' },
         { key: 'response', label: 'Typical response (e.g. 30 min)', type: 'text' },

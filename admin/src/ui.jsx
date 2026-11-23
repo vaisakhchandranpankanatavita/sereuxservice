@@ -164,7 +164,7 @@ export function Table({ cols, rows, error, empty = 'Nothing here yet.' }) {
     <div className="tablewrap" ref={wrapRef} onPointerDown={panStart}>
       <table>
         <thead><tr>{cols.map((c, j) => <th key={j} className={[c.num && 'num', tableColumnTone(c)].filter(Boolean).join(' ') || undefined}>{c.h}</th>)}</tr></thead>
-        <tbody>{shown.map((r, i) => <tr key={r.id ?? r.code ?? i}>{cols.map((c, j) => <td key={j} className={[c.wrap && 'wrap', c.num && 'num', tableColumnTone(c)].filter(Boolean).join(' ') || undefined}>{c.render(r)}</td>)}</tr>)}</tbody>
+        <tbody>{shown.map((r, i) => <tr key={r.id ?? r.code ?? i}>{cols.map((c, j) => <td key={j} data-label={c.h || undefined} className={[c.wrap && 'wrap', c.num && 'num', tableColumnTone(c)].filter(Boolean).join(' ') || undefined}>{c.render(r)}</td>)}</tr>)}</tbody>
       </table>
       {!rows.length && <div className="empty">{empty}</div>}
       {!!rows.length && !shown.length && <div className="empty">No results match your filters. <button type="button" className="tclear" onClick={clear}>Clear filters</button></div>}

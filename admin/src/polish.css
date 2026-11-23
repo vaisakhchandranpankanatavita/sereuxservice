@@ -615,39 +615,31 @@
 /* Scene sits low in the panel, leaving the sky above it (stars, then the info chips). */
 @media (min-width: 861px) { .lg-illustration { top: auto; bottom: 11%; transform: translateX(-50%); } }
 
-/* ---- Page insights: a compact bar docked above the bottom nav; collapsible, remembers its state. Numbers count up and charts draw in once. ---- */
-.ins { --nav-clear: 92px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; box-sizing: border-box; padding: 54px max(16px, calc((100vw - 1120px) / 2)) var(--nav-clear); background: radial-gradient(ellipse 60% 70% at 50% 100%, rgba(214,226,190,.55), rgba(214,226,190,0) 70%), linear-gradient(to top, #eaf0df 0%, rgba(238,243,228,.95) 46%, rgba(244,247,238,0) 100%); pointer-events: none; opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .7s cubic-bezier(.2,.8,.2,1), padding .4s cubic-bezier(.2,.8,.2,1); }
-.ins.on { opacity: 1; transform: none; }
-.ins.shut { padding-top: 16px; }
-.ins-toggle { pointer-events: auto; }
-.ins-head { display: flex; align-items: center; gap: 10px; min-height: 26px; }
-.ins-head > i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #a8b978; box-shadow: 0 0 0 4px rgba(168,185,120,.2); }
-.ins-head h2 { flex: none; margin: 0; color: #2f372b; font: 600 14.5px/1.2 var(--font-display); letter-spacing: -.02em; }
-.ins-tick { flex: 1; min-width: 0; overflow: hidden; color: #75806c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.ins-tick span { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; animation: ins-tick .6s cubic-bezier(.2,.8,.2,1) both; }
-.ins-mini { display: none; align-items: center; gap: 14px; margin-left: auto; color: #5b6652; font-size: 12px; white-space: nowrap; }
-.ins-mini b { color: #2a3326; font-variant-numeric: tabular-nums; }
-.ins-toggle { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid #e1e7d6; border-radius: 50%; background: #fff; color: #5b6652; cursor: pointer; transition: background .2s ease, transform .35s cubic-bezier(.2,.8,.2,1); }
-.ins-toggle:hover { background: #f1f5ea; }
-.ins-toggle:focus-visible { outline: 2px solid #8fa874; outline-offset: 2px; }
-.ins-toggle svg { transition: transform .35s cubic-bezier(.2,.8,.2,1); }
-.ins.shut .ins-toggle svg { transform: rotate(180deg); }
-.ins.shut .ins-tick { display: none; }
-.ins.shut .ins-mini { display: flex; }
-.ins-fold { pointer-events: auto; display: grid; grid-template-rows: 1fr; transition: grid-template-rows .45s cubic-bezier(.2,.8,.2,1), opacity .35s ease; }
-.ins-fold > div { min-height: 0; overflow: hidden; }
-.ins.shut .ins-fold { grid-template-rows: 0fr; opacity: 0; }
-.ins-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); margin-top: 8px; border-block: 1px solid #e6eadd; }
-.ins-kpi { display: grid; align-content: start; gap: 1px; padding: 8px 14px 8px 0; opacity: 0; transform: translateY(6px); transition: opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); transition-delay: calc(var(--i) * 60ms + .15s); }
-.ins-kpi + .ins-kpi { padding-left: 14px; border-left: 1px solid #e6eadd; }
-.ins-kpi small { color: #75806c; font-size: 11px; }
-.ins-kpi strong { color: #2a3326; font: 560 21px/1.1 var(--font-display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-.ins-kpi span { display: none; }
-.ins-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 10px; }
-.ins-card { min-width: 0; padding: 0 18px 0 0; opacity: 0; transform: translateY(8px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.8,.2,1); transition-delay: calc(var(--i) * 100ms + .3s); }
-.ins-card + .ins-card { padding-left: 18px; border-left: 1px solid #e6eadd; }
-.ins-card h3 { margin: 0 0 7px; color: #5b6652; font: 600 11.5px/1.2 var(--font-sans); }
-.ins.on .ins-kpi, .ins.on .ins-card { opacity: 1; transform: none; }
+/* ---- Page insights: a slim pill docked just above the bottom nav (collapsed by default, numbers scroll sideways); tapping opens the charts as a popup. ---- */
+.ins { --nav-clear: 88px; position: fixed; left: 50%; bottom: var(--nav-clear); z-index: 21; width: min(1120px, calc(100vw - 32px)); transform: translate(-50%, 10px); opacity: 0; pointer-events: none; transition: opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+.ins.on { opacity: 1; transform: translate(-50%, 0); }
+.ins-scrim { position: fixed; inset: 0; z-index: 20; background: rgba(28, 32, 60, .12); animation: ins-fade .25s ease both; }
+.ins-bar { pointer-events: auto; display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 10px; border: 1px solid rgba(255,255,255,.55); border-radius: 99px; background: rgba(255,255,255,.28); backdrop-filter: blur(18px) saturate(180%); -webkit-backdrop-filter: blur(18px) saturate(180%); box-shadow: 0 6px 18px -12px rgba(30,34,96,.4), inset 0 1px 0 rgba(255,255,255,.7); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ins-bar:hover { background: rgba(255,255,255,.42); }
+.ins-bar:focus-visible { outline: 2px solid #8fa874; outline-offset: 2px; }
+.ins-title { flex: none; display: inline-flex; align-items: center; gap: 6px; color: #2f372b; font: 600 11.5px/1 var(--font-display); letter-spacing: -.01em; }
+.ins-title i { width: 7px; height: 7px; border-radius: 50%; background: #a8b978; box-shadow: 0 0 0 3px rgba(168,185,120,.22); }
+.ins-chips { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent); }
+.ins-chips::-webkit-scrollbar { display: none; }
+.ins-chip { flex: none; padding: 3px 8px; border-radius: 99px; background: rgba(255,255,255,.4); color: #4f5a47; font-size: 11px; white-space: nowrap; }
+.ins-chip b { color: #2a3326; font-weight: 650; font-variant-numeric: tabular-nums; }
+.ins-chev { flex: none; color: #5b6652; transition: transform .3s cubic-bezier(.2,.8,.2,1); }
+.ins.open .ins-chev { transform: rotate(180deg); }
+.ins-pop { pointer-events: auto; position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); max-height: min(52vh, calc(100vh - var(--nav-clear) - 120px)); overflow-y: auto; padding: 12px 14px 14px; border: 1px solid rgba(255,255,255,.6); border-radius: 18px; background: rgba(250,252,246,.55); backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%); box-shadow: 0 24px 48px -18px rgba(30,34,96,.5); transform-origin: bottom center; animation: ins-pop .32s cubic-bezier(.2,.8,.2,1) both; }
+.ins-pophead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ins-pophead h2 { margin: 0; color: #2f372b; font: 600 15px/1.2 var(--font-display); letter-spacing: -.02em; }
+.ins-x { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid #e1e7d6; border-radius: 50%; background: #fff; color: #5b6652; cursor: pointer; }
+.ins-x:hover { background: #f1f5ea; }
+.ins-notes { margin: 8px 0 0; color: #75806c; font-size: 12px; }
+.ins-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 0; margin-top: 14px; }
+.ins-card { min-width: 0; padding: 0 16px 0 0; }
+.ins-card + .ins-card { padding-left: 16px; border-left: 1px solid #e6eadd; }
+.ins-card h3 { margin: 0 0 8px; color: #5b6652; font: 600 11.5px/1.2 var(--font-sans); }
 .ins-empty { margin: 6px 0; color: #9aa291; font-size: 12px; }
 .ins-donutwrap { display: flex; align-items: center; gap: 12px; }
 .ins-donut { flex: none; width: 68px; height: 68px; }
@@ -668,17 +660,13 @@
 .ins-ax { fill: #9aa291; font-size: 9px; }
 .ins-pulse { transform-box: fill-box; transform-origin: center; opacity: 0; animation: ins-pulse 2.2s ease-out 1.6s infinite; }
 @keyframes ins-pulse { 0% { opacity: .7; transform: scale(1); } 100% { opacity: 0; transform: scale(3); } }
-@keyframes ins-tick { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-/* Keep page content clear of the docked bar. */
+@keyframes ins-pop { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes ins-fade { from { opacity: 0; } to { opacity: 1; } }
+/* Keep page content clear of the docked pill. */
 .page-view { padding-bottom: var(--ins-h, 0px); }
-@media (max-width: 760px) {
-  .ins { padding: 10px 14px 11px; }
-  .ins-charts { display: none; }
-  .ins-kpis { grid-template-columns: repeat(3, 1fr); }
-  .ins-kpi:nth-child(n+4) { display: none; }
-  .ins-mini { gap: 10px; }
-  .ins-mini span:nth-child(n+3) { display: none; }
-}
+@media (max-width: 760px) { .ins { width: calc(100vw - 24px); } .ins-charts { grid-template-columns: 1fr; } .ins-card + .ins-card { padding-left: 0; border-left: 0; } .ins-card { padding-right: 0; } }
+@media (prefers-reduced-motion: reduce) { .ins, .ins-chev { transition: none; } .ins-pop, .ins-scrim, .ins-pulse { animation: none; } }
+
 
 /* ---------- Glass chrome (replaces the dark bars) + subtle per-page colour ---------- */
 .topbar, .side {
@@ -871,3 +859,28 @@
 /* Dynamic table columns: thumbnails hug the image, long text columns wrap instead of stretching the table. */
 .page-view:not(:has(.dash)) .tablewrap th.col-thumb, .page-view:not(:has(.dash)) .tablewrap td.col-thumb { width: 1%; min-width: 0; padding-inline: 12px 4px; }
 .page-view:not(:has(.dash)) .tablewrap td.wrap { white-space: normal; min-width: 130px; max-width: 300px; overflow-wrap: anywhere; }
+
+/* Semi-transparent glass bars: the page shows (blurred) through the top and bottom bars as it scrolls under them. */
+.topbar, .side {
+  background-color: rgba(34, 15, 48, 0.58);
+  background-image: linear-gradient(135deg, rgba(120, 76, 156, 0.2), rgba(20, 8, 32, 0.1));
+  background-size: auto;
+  backdrop-filter: blur(16px) saturate(165%);
+  -webkit-backdrop-filter: blur(16px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 14px 30px -16px rgba(26, 11, 38, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .topbar, .side { background-color: #220F30; background-image: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .topbar, .side { background-color: rgba(34, 15, 48, 0.9); }
+}
+
+/* Settings: FAQ editor rows */
+.set-qa { display: grid; gap: 10px; width: 100%; }
+.set-qa-row { display: grid; gap: 6px; padding: 10px; border: 1px solid #e3e8da; border-radius: 12px; }
+.set-qa-row .btn { justify-self: end; }
+
+/* Service thumbnails in the list: always a true square, whatever shape the uploaded picture is. */
+img.svc-thumb, .svc-thumb { box-sizing: border-box; width: 48px !important; height: 48px !important; min-width: 48px; aspect-ratio: 1 / 1; border-radius: 12px; object-fit: cover; object-position: center; }

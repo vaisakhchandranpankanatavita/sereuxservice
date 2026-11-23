@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { font } from './ui';
+import { useConfig } from './config';
 
 /* Mirrors the web splash (src/Intro.jsx): five slides that auto-advance, a masked word reveal,
    Skip, a loading percentage with a progress bar, tap/swipe to advance, and a wipe-up exit. */
@@ -16,6 +17,7 @@ const LOCK = 450;
 const EASE = Easing.bezier(0.16, 1, 0.3, 1);
 
 export default function Intro({ onDone }: { onDone: () => void }) {
+  const welcome = String(useConfig().get('content.customer.welcomeTitle') || '').trim(); /* admin-set headline for the first slide; blank keeps the default */
   const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const [percent, setPercent] = useState(0);
@@ -99,7 +101,7 @@ export default function Intro({ onDone }: { onDone: () => void }) {
         const noteOpacity = st.interpolate({ inputRange: [0, 0.9, 1, 1.1, 2], outputRange: [0, 0, 1, 0, 0] });
         const noteY = st.interpolate({ inputRange: [0, 1, 2], outputRange: [14, 0, -14] });
         return <View key={i} style={s.slide} importantForAccessibility={i === index ? 'yes' : 'no-hide-descendants'}>
-          {sl.lines.map((line) => <View key={line} style={{ height: lineH, overflow: 'hidden' }}>
+          {(i === 0 && welcome ? [welcome] : sl.lines).map((line) => <View key={line} style={{ height: lineH, overflow: 'hidden' }}>
             <Animated.View style={{ transform: [{ translateY: lineY }] }}>
               <Animated.Text style={{ color: fgColor, fontFamily: font.heavy, fontSize: size, lineHeight: lineH, letterSpacing: -size * 0.055 }}>{line}</Animated.Text>
             </Animated.View>

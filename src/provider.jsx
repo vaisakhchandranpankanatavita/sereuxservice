@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { providers, rupee, services } from './data.js';
+import { rupee, services } from './data.js';
 import { LiveMap } from './map.jsx';
 import { Icon } from './shared.jsx';
-import { DEMO_PRO_START, demoRequests, incomingRequest, useTrip } from './tracking.js';
+import { DEMO_PRO_START, demoProviders, demoRequests, incomingRequest, useTrip } from './tracking.js';
 import { EmptyState, Tag, useToast } from './ui.jsx';
 
 /* Fixzy Pro: the professional's side. Demo state only, persisted locally; accept/decline/progress will call the API later. */
 const KEY = 'fixzy:pro';
-const me = providers[0];
+const me = demoProviders[0];
 const NEXT = { accepted: ['on_the_way', 'Start trip'], on_the_way: ['arrived', 'I’ve arrived'], arrived: ['in_progress', 'Start work'], in_progress: ['done', 'Mark complete'] };
 const LABEL = { accepted: 'Accepted', on_the_way: 'On the way', arrived: 'Arrived', in_progress: 'In progress', done: 'Completed' };
 

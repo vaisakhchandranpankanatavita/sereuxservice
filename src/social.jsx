@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { seedReviews } from './data.js';
 import { Icon } from './shared.jsx';
 import { actions, useStore } from './store.js';
 import { useToast } from './ui.jsx';
@@ -53,10 +52,7 @@ export function useReviews(kind, target) {
   useEffect(() => {
     actions.loadReviews(kind, target).catch(() => {});
   }, [kind, target]);
-  const samples = seedReviews
-    .filter((r) => r.kind === kind && r.target === target)
-    .map((r) => ({ ...r, sample: true }));
-  return [...(real || []), ...samples].sort((a, b) => b.at - a.at);
+  return [...(real || [])].sort((a, b) => b.at - a.at);
 }
 
 export function ReviewForm({ kind, target, label, bookingId, onDone }) {
@@ -267,11 +263,6 @@ export function Reviews({ kind, target, form = true }) {
         ))}
       </ul>
 
-      {list.some((r) => r.sample) && (
-        <p className="rv-sample-notice muted">
-          Includes verified sample reviews shown while community ratings gather.
-        </p>
-      )}
 
       {form && <ReviewForm kind={kind} target={target} />}
     </section>

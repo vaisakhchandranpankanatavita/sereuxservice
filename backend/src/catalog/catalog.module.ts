@@ -1,11 +1,11 @@
-import { Controller, Get, Module, NotFoundException, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Module, NotFoundException, Param, ParseIntPipe, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { PrismaService } from '../common/prisma.module';
-
-export const SLOTS = ['09:00', '11:00', '13:00', '15:00', '17:00'];
+import { ConfigService } from '../config/config.module';
 
 @Controller()
 class CatalogController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private config: ConfigService) {}
 
   /* Home-screen ads. Only banners whose coupon (if any) is still active are shown, with the discount so the app can label them. */
   @Get('banners')
@@ -28,6 +28,17 @@ class CatalogController {
     });
   }
 
+  /* Admin-uploaded service art. The URL carries imageVersion, so it caches forever and busts on every change. */
+  @Get('services/:id/image')
+  async serviceImage(@Param('id', ParseIntPipe) id: number, @Res() res: Response) {
+    const img = await this.prisma.serviceImage.findUnique({ where: { serviceId: id } });
+    if (!img) throw new NotFoundException();
+    res.setHeader('content-type', img.type);
+    res.setHeader('cross-origin-resource-policy', 'cross-origin');
+    res.setHeader('cache-control', 'public, max-age=31536000, immutable');
+    res.send(Buffer.from(img.data));
+  }
+
   @Get('services/:id')
   async service(@Param('id', ParseIntPipe) id: number) {
     const s = await this.prisma.service.findUnique({ where: { id }, include: { providers: true } });
@@ -43,7 +54,8 @@ class CatalogController {
       select: { slot: true },
     });
     const busy = new Set(taken.map((b) => b.slot));
-    return { day, slots: SLOTS.map((slot) => ({ slot, available: !busy.has(slot) })) };
+    const slots = await this.config.get<string[]>('rules.bookingSlots');
+    return { day, slots: slots.map((slot) => ({ slot, available: !busy.has(slot) })) };
   }
 
   @Get('providers')

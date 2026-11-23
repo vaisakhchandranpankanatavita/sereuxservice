@@ -7,8 +7,8 @@ import { Banner, Button, Field, Txt, useTheme } from '../../src/ui';
 export default function Login() {
   const { login } = useSession();
   const t = useTheme();
-  const [email, setEmail] = useState('test@fixzy.app'); // TODO: remove demo prefill before real release
-  const [password, setPassword] = useState('testpass123');
+  const [email, setEmail] = useState(__DEV__ ? 'test@fixzy.app' : ''); /* dev-only prefill; release builds start blank */
+  const [password, setPassword] = useState(__DEV__ ? 'testpass123' : '');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 

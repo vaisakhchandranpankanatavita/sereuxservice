@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SessionProvider, useSession } from '../src/session';
+import { ConfigGate, ConfigProvider, useConfig } from '../src/config';
 import { onNotificationTap, registerPush } from '../src/push';
 import { CartProvider } from '../src/cart';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
@@ -15,6 +16,7 @@ import { RatePopup } from '../src/RatePopup';
 
 function Gate() {
   const { user } = useSession();
+  const { ready } = useConfig();
   const t = useTheme();
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_700Bold, Inter_800ExtraBold, ComingSoon_400Regular });
   const segments = useSegments();
@@ -32,7 +34,7 @@ function Gate() {
   }, [user, inAuth, router]);
 
   // Dark splash colour until Inter is ready, then the intro takes over while the session restores.
-  if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: '#1d201c' }} />;
+  if ((!fontsLoaded && !fontError) || !ready) return <View style={{ flex: 1, backgroundColor: '#1d201c' }} />;
 
   return <View style={{ flex: 1, backgroundColor: t.bg }}>
     <StatusBar style={introDone ? "dark" : "light"} />
@@ -61,5 +63,5 @@ function Gate() {
 }
 
 export default function Root() {
-  return <SessionProvider><CartProvider><Gate /></CartProvider></SessionProvider>;
+  return <ConfigProvider><ConfigGate><SessionProvider><CartProvider><Gate /></CartProvider></SessionProvider></ConfigGate></ConfigProvider>;
 }

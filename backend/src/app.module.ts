@@ -14,12 +14,13 @@ import { ProModule } from './pro/pro.module';
 import { PushModule } from './common/push';
 import { PaymentsModule } from './payments/payments.module';
 import { ChatModule } from './chat/chat.module';
+import { AppConfigModule } from './config/config.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
-    PrismaModule, MailerModule, PushModule, AuthModule, CatalogModule, BookingsModule, OrdersModule, AccountModule, AdminModule, ProModule, PaymentsModule, ChatModule,
+    PrismaModule, MailerModule, PushModule, AuthModule, CatalogModule, BookingsModule, OrdersModule, AccountModule, AdminModule, ProModule, PaymentsModule, ChatModule, AppConfigModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -6,8 +6,9 @@ import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from './cart';
 import { Txt, useTheme } from './ui';
+import { useConfig } from './config';
 
-const TABS = [
+const ALL_TABS = [
   { href: '/', match: ['/'], label: 'Services', on: 'home', off: 'home-outline' },
   { href: '/shop', match: ['/shop'], label: 'Shop', on: 'bag-handle', off: 'bag-handle-outline' },
   { href: '/activity', match: ['/activity'], label: 'Activity', on: 'calendar', off: 'calendar-outline' },
@@ -22,6 +23,8 @@ export default function BottomBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { count } = useCart();
+  const { get } = useConfig();
+  const TABS = ALL_TABS.filter((tab) => tab.href !== '/shop' || get('flags.shopEnabled'));
   const [w, setW] = useState(0);
   const idx = Math.max(0, TABS.findIndex((tab) => (tab.match as readonly string[]).includes(pathname)));
   const x = useRef(new Animated.Value(0)).current;

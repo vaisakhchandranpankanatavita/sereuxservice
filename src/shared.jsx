@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { products, rupee } from './data.js';
+import { products, rupee, siteConfig } from './data.js';
 import { actions, useStore } from './store.js';
 import { Drawer, useToast } from './ui.jsx';
 
@@ -287,7 +287,7 @@ export function Header({ current = '' }) {
         <span className="brand-rule" aria-hidden="true" />
         <nav className="main-nav" id="main-nav" aria-label="Main navigation">
           <a href={current === 'home' ? '#services' : '/services'} onClick={closeMenu} aria-current={current === 'services' ? 'page' : undefined}>Services</a>
-          <a href="/shop" onClick={closeMenu} aria-current={current === 'shop' ? 'page' : undefined}>Marketplace</a>
+          {siteConfig['flags.shopEnabled'] !== false && <a href="/shop" onClick={closeMenu} aria-current={current === 'shop' ? 'page' : undefined}>Marketplace</a>}
           <a href="/orders" onClick={closeMenu} aria-current={current === 'orders' ? 'page' : undefined}>Bookings</a>
           {!user && <a className="nav-mobile-only" href="/login">Sign in</a>}
         </nav>
@@ -333,9 +333,9 @@ export function Footer() {
           <Reveal delay={250}><a className="pill pill-light" href={user ? '/services' : '/register'}>{user ? 'Book a service' : 'Create an account'} <Icon name="arrow-right" size={16} /></a></Reveal>
         </div>
         <div className="footer-main">
-          <nav className="footer-column" aria-label="Explore"><h2>Explore</h2><a href="/services">Services</a><a href="/shop">Marketplace</a><a href="/orders">Bookings</a></nav>
+          <nav className="footer-column" aria-label="Explore"><h2>Explore</h2><a href="/services">Services</a>{siteConfig['flags.shopEnabled'] !== false && <a href="/shop">Marketplace</a>}<a href="/orders">Bookings</a></nav>
           <nav className="footer-column" aria-label="Your account"><h2>Account</h2>{!user && <><a href="/login">Sign in</a><a href="/register">Create an account</a></>}<a href="/dashboard">Dashboard</a></nav>
-          <nav className="footer-column" aria-label="Support"><h2>Support</h2><a href="/help">Help Center</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a></nav>
+          <nav className="footer-column" aria-label="Support"><h2>Support</h2><a href="/help">Help Center</a><a href="/contact">Contact</a>{siteConfig['content.supportEmail'] && <a href={`mailto:${siteConfig['content.supportEmail']}`}>{siteConfig['content.supportEmail']}</a>}{siteConfig['content.supportPhone'] && <a href={`tel:${siteConfig['content.supportPhone']}`}>{siteConfig['content.supportPhone']}</a>}<a href={siteConfig['content.privacyUrl'] || '/privacy'}>Privacy</a>{siteConfig['content.termsUrl'] && <a href={siteConfig['content.termsUrl']}>Terms</a>}</nav>
         </div>
         <div className="footer-bottom"><span>© 2026 Fixzy</span><span>Home services, sorted.</span></div>
       </div>

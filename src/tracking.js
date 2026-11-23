@@ -3,6 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 /* Live-tracking seam. Until the API streams real GPS, the professional's position is simulated along a route;
    swap `useTrip` for a poll of the booking's location endpoint and the pages keep working unchanged. */
 
+/* Demo-only professionals for the Fixzy Pro preview and the ?demo=1 tracking page; real pros are served by the API. */
+export const demoProviders = [
+  { id: 1, name: 'Anil Kumar', serviceIds: [1], rating: 4.8, jobs: 412, response: '15 min', years: 9, verified: true },
+  { id: 2, name: 'Rahul Menon', serviceIds: [2, 7], rating: 4.9, jobs: 530, response: '10 min', years: 11, verified: true },
+];
 export const DEMO_HOME = [9.9816, 76.2999]; // customer (bookings don't carry coordinates yet)
 export const DEMO_PRO_START = [9.9425, 76.2615]; // professional, ~5 km away
 

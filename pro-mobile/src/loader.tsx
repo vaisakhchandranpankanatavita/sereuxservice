@@ -3,12 +3,14 @@ import { AccessibilityInfo, Animated, Easing, Platform, StyleSheet, Text, View }
 import { LinearGradient } from 'expo-linear-gradient';
 import { font } from './ui';
 import { useReducedMotion } from './authkit';
+import { useConfig } from './config';
 
 const native = Platform.OS !== 'web';
 const TRACK = 148;
 
 /* Calm full-screen welcome loader: crisp brand, orbiting rings and one quiet progress sweep. */
 export function SignInLoader({ name }: { name?: string }) {
+  const custom = String(useConfig().get('content.pro.welcomeTitle') || '').trim(); /* admin-set greeting; blank keeps the default */
   const reduced = useReducedMotion();
   const enter = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
@@ -55,7 +57,7 @@ export function SignInLoader({ name }: { name?: string }) {
         <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#60A5FA', opacity: coreOpacity, transform: [{ scale: coreScale }] }} />
       </View>
       <View style={{ alignItems: 'center', gap: 5 }}>
-        <Text style={{ color: '#FAFAFA', fontFamily: font.semibold, fontSize: 18, letterSpacing: -0.35 }}>{name ? `Welcome, ${name.split(' ')[0]}` : 'Welcome back'}</Text>
+        <Text style={{ color: '#FAFAFA', fontFamily: font.semibold, fontSize: 18, letterSpacing: -0.35 }}>{custom ? custom.replace('{name}', name ? name.split(' ')[0] : '').replace(/\s+([,!.])/g, '$1').trim() : name ? `Welcome, ${name.split(' ')[0]}` : 'Welcome back'}</Text>
         <Text style={{ color: 'rgba(250,250,250,0.68)', fontFamily: font.regular, fontSize: 14 }}>Preparing your workspace</Text>
       </View>
       <View style={{ width: TRACK, height: 3, borderRadius: 2, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.14)' }}>

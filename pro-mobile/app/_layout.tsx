@@ -6,12 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
 import { SessionProvider, useSession } from '../src/session';
+import { ConfigGate, ConfigProvider, useConfig } from '../src/config';
 import { onNotificationTap, registerPush } from '../src/push';
 import { font, useTheme } from '../src/ui';
 import { LiveTimer } from '../src/live';
 
 function Gate() {
   const { user } = useSession();
+  const { ready } = useConfig();
   const t = useTheme();
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Fraunces_600SemiBold });
   const segments = useSegments();
@@ -60,7 +62,7 @@ function Gate() {
     else if (user && inAuth) router.replace('/');
   }, [user, inAuth, router]);
 
-  if ((!fontsLoaded && !fontError) || user === undefined) return <SignInLoader name={user?.name} />;
+  if ((!fontsLoaded && !fontError) || user === undefined || !ready) return <SignInLoader name={user?.name} />;
 
   return <View style={{ flex: 1, backgroundColor: t.bg }}>
     <StatusBar style="dark" />
@@ -74,5 +76,5 @@ function Gate() {
 }
 
 export default function Root() {
-  return <SessionProvider><Gate /></SessionProvider>;
+  return <ConfigProvider><ConfigGate><SessionProvider><Gate /></SessionProvider></ConfigGate></ConfigProvider>;
 }

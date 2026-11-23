@@ -1,25 +1,27 @@
 import { useMemo, useState } from 'react';
-import { Share, View } from 'react-native';
+import { Linking, Share, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import { api } from '../../src/api';
 import { useSession } from '../../src/session';
+import { useConfig } from '../../src/config';
 import { Avatar, Badge, Banner, Button, Card, Field, H, Row, Screen, Tap, Txt, Wash, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 import { ServiceArt } from '../../src/serviceArt';
 import PageHeader, { PageSpace } from '../../src/PageHeader';
-
-const FAQ = [
-  { q: 'How do I reschedule a booking?', a: 'Open the booking from Activity and choose a new day and slot. You can move it until the pro is confirmed.' },
-  { q: 'When do I pay for a service?', a: 'You see the price before you book. Pay once the job is done, using the method you picked at checkout.' },
-  { q: 'Can I cancel an order or booking?', a: 'Bookings can be cancelled from their page while still open. Shop orders can be cancelled before they ship.' },
-  { q: 'How are pros verified?', a: 'Every pro is identity-checked and reviewed before they can take jobs. Ratings from past customers are shown on each service.' },
-];
 
 export default function Account() {
   const { user, logout, updateProfile } = useSession();
   const router = useRouter();
   const t = useTheme();
+  const { get } = useConfig();
+  const faqList = get<{ q: string; a: string }[]>('content.faq') ?? [];
+  const links: { label: string; url: string; icon: any }[] = [
+    get('content.supportEmail') && { label: `Email ${get('content.supportEmail')}`, url: `mailto:${get('content.supportEmail')}`, icon: 'mail-outline' },
+    get('content.supportPhone') && { label: `Call ${get('content.supportPhone')}`, url: `tel:${get('content.supportPhone')}`, icon: 'call-outline' },
+    get('content.termsUrl') && { label: 'Terms of service', url: get('content.termsUrl'), icon: 'document-text-outline' },
+    get('content.privacyUrl') && { label: 'Privacy policy', url: get('content.privacyUrl'), icon: 'shield-checkmark-outline' },
+  ].filter(Boolean) as any;
   const notes = useFetch<any[]>('/notifications');
   const bookings = useFetch<any[]>('/bookings');
   const orders = useFetch<any[]>('/orders');
@@ -39,7 +41,7 @@ export default function Account() {
     .sort((a, b) => `${a.day} ${a.slot}`.localeCompare(`${b.day} ${b.slot}`))[0], [bookings.data]);
   const spent = useMemo(() => (orders.data ?? []).filter((o) => o.status !== 'CANCELLED').reduce((s, o) => s + Number(o.total || 0), 0), [orders.data]);
   const recent = useMemo(() => [
-    ...(bookings.data ?? []).map((b) => ({ key: `b${b.id}`, kind: 'b', title: b.service.name, sub: `${dayLabel(b.day)} · ${b.slot}`, status: b.status, ts: String(b.createdAt ?? b.day), href: `/booking/${b.id}`, service: b.service.name })),
+    ...(bookings.data ?? []).map((b) => ({ key: `b${b.id}`, kind: 'b', svc: b.service, title: b.service.name, sub: `${dayLabel(b.day)} · ${b.slot}`, status: b.status, ts: String(b.createdAt ?? b.day), href: `/booking/${b.id}`, service: b.service.name })),
     ...(orders.data ?? []).map((o) => ({ key: `o${o.id}`, kind: 'o', title: `Order #${o.id}`, sub: `${o.items.length} item${o.items.length === 1 ? '' : 's'} · ${money(o.total)}`, status: o.status, ts: String(o.createdAt ?? ''), href: `/order/${o.id}`, service: '' })),
   ].sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 4), [bookings.data, orders.data]);
 
@@ -115,7 +117,7 @@ export default function Account() {
       ? <Tap onPress={() => router.push(`/booking/${next.id}`)} accessibilityRole="button" accessibilityLabel={`Next appointment, ${next.service.name}`} scaleTo={0.98}
         style={{ backgroundColor: t.lime, borderRadius: 24, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, overflow: 'hidden' }}>
         <Wash />
-        <View style={{ width: 52, height: 52, borderRadius: 18, overflow: 'hidden', backgroundColor: '#fff' }}><ServiceArt name={next.service.name} /></View>
+        <View style={{ width: 52, height: 52, borderRadius: 18, overflow: 'hidden', backgroundColor: '#fff' }}><ServiceArt name={next.service.name} service={next.service} /></View>
         <View style={{ flex: 1, gap: 1 }}>
           <Txt size={12} color={t.body}>Next appointment</Txt>
           <Txt bold size={17} numberOfLines={1}>{next.service.name}</Txt>
@@ -137,7 +139,7 @@ export default function Account() {
         {recent.map((r, i) => <Tap key={r.key} onPress={() => router.push(r.href as any)} accessibilityRole="button" accessibilityLabel={`${r.title}, ${r.sub}`} scaleTo={0.99}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderTopWidth: i ? 1 : 0, borderColor: t.line }}>
           <View style={{ width: 44, height: 44, borderRadius: 16, overflow: 'hidden', backgroundColor: t.peach, alignItems: 'center', justifyContent: 'center' }}>
-            {r.kind === 'b' ? <ServiceArt name={r.service} /> : <Ionicons name="bag-handle" size={20} color={t.ink} />}
+            {r.kind === 'b' ? <ServiceArt name={r.service} service={(r as any).svc} /> : <Ionicons name="bag-handle" size={20} color={t.ink} />}
           </View>
           <View style={{ flex: 1 }}><Txt bold size={15} numberOfLines={1}>{r.title}</Txt><Txt size={13} color={t.body} numberOfLines={1}>{r.sub}</Txt></View>
           <Badge v={r.status} />
@@ -168,7 +170,7 @@ export default function Account() {
     {/* help: short answers first, then a way to write to us */}
     <H>Help</H>
     <View style={{ backgroundColor: t.card, borderRadius: 24, overflow: 'hidden' }}>
-      {FAQ.map((f, i) => <View key={f.q} style={{ borderTopWidth: i ? 1 : 0, borderColor: t.line }}>
+      {faqList.map((f, i) => <View key={f.q} style={{ borderTopWidth: i ? 1 : 0, borderColor: t.line }}>
         <Tap onPress={() => setFaq(faq === i ? null : i)} accessibilityRole="button" accessibilityState={{ expanded: faq === i }} scaleTo={0.995}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 }}>
           <Txt bold size={15} style={{ flex: 1 }}>{f.q}</Txt>
@@ -188,6 +190,15 @@ export default function Account() {
       <Field onCard label="How can we help? (10+ characters)" value={help.text} onChangeText={(text) => setHelp((h) => ({ ...h, text }))} multiline />
       {!!help.err && <Banner kind="bad">{help.err}</Banner>}
       <Row><Button title="Send" onPress={send} disabled={help.text.trim().length < 10} style={{ flex: 1 }} /><Button title="Cancel" kind="ghost" onPress={() => setHelp((h) => ({ ...h, open: false }))} style={{ flex: 1 }} /></Row>
+    </Card>}
+
+    {links.length > 0 && <Card style={{ gap: 4 }}>
+      {links.map((l) => <Tap key={l.label} onPress={() => Linking.openURL(l.url)} accessibilityRole="link" accessibilityLabel={l.label}
+        style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 }}>
+        <Ionicons name={l.icon} size={18} color={t.muted} />
+        <Txt size={15} style={{ flex: 1 }}>{l.label}</Txt>
+        <Ionicons name="open-outline" size={16} color={t.muted} />
+      </Tap>)}
     </Card>}
 
     <Tap onPress={logout} accessibilityRole="button" accessibilityLabel="Sign out" scaleTo={0.97}

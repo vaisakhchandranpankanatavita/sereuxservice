@@ -1,9 +1,10 @@
-import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, Injectable, Module, NotFoundException, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, Injectable, Module, NotFoundException, Param, ParseIntPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { BookingStatus, OrderStatus, Prisma, Role } from '@prisma/client';
 import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard, Roles } from '../common/auth';
 import { PushService } from '../common/push';
+import { ConfigService } from '../config/config.module';
 import { PaymentsModule, PaymentsService } from '../payments/payments.module';
 
 const BOOKING_STATUSES = Object.values(BookingStatus);
@@ -42,6 +43,10 @@ class PatchProviderDto {
   @IsOptional() @IsBoolean() verified?: boolean;
   @IsOptional() @IsArray() @IsInt({ each: true }) serviceIds?: number[];
   @IsOptional() @IsInt() @Min(0) @Max(100) commissionPercent?: number;
+}
+
+class ServiceImageDto {
+  @IsString() @MaxLength(700_000) dataUrl: string;
 }
 
 class KycDecisionDto {
@@ -121,7 +126,7 @@ const page = (skip?: string, take = 50) => ({ skip: Math.max(0, Number(skip) || 
 
 @Injectable()
 class AdminService {
-  constructor(private prisma: PrismaService, private payments: PaymentsService, private push: PushService) {}
+  constructor(private prisma: PrismaService, private payments: PaymentsService, private push: PushService, private config: ConfigService) {}
 
   private audit(me: AuthUser, action: string, target: string, meta?: unknown) {
     return this.prisma.auditLog.create({ data: { actorId: me.id, actorEmail: me.email, action, target, meta: meta as Prisma.InputJsonValue } });
@@ -251,6 +256,26 @@ class AdminService {
     await this.audit(me, 'service.update', `service:${id}`, dto);
     return out;
   }
+  /* Images arrive resized by the admin app as a data URL; stored in Postgres so it works on serverless hosts with no disk. */
+  async setServiceImage(me: AuthUser, id: number, dataUrl: string) {
+    await this.must(this.prisma.service.findUnique({ where: { id } }));
+    const m = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    if (!m) throw new BadRequestException('Upload a PNG, JPEG or WebP image.');
+    const data = Buffer.from(m[2], 'base64');
+    if (!data.length || data.length > 400_000) throw new BadRequestException('Image must be under 400 KB after resizing.');
+    await this.prisma.serviceImage.upsert({ where: { serviceId: id }, create: { serviceId: id, data, type: m[1] }, update: { data, type: m[1] } });
+    /* Seconds since epoch: strictly increasing, so a URL is never reused after a removal (the image route is cached for a year). */
+    const prev = (await this.prisma.service.findUnique({ where: { id }, select: { imageVersion: true } }))!.imageVersion;
+    const out = await this.prisma.service.update({ where: { id }, data: { imageVersion: Math.max(prev + 1, Math.floor(Date.now() / 1000)) } });
+    await this.audit(me, 'service.image', `service:${id}`, { bytes: data.length });
+    return { imageVersion: out.imageVersion };
+  }
+  async clearServiceImage(me: AuthUser, id: number) {
+    await this.must(this.prisma.service.findUnique({ where: { id } }));
+    await this.prisma.serviceImage.deleteMany({ where: { serviceId: id } });
+    await this.prisma.service.update({ where: { id }, data: { imageVersion: 0 } });
+    await this.audit(me, 'service.image.remove', `service:${id}`);
+  }
   async deleteService(me: AuthUser, id: number) {
     if (await this.prisma.booking.count({ where: { serviceId: id } })) throw new ConflictException('This service has bookings and cannot be deleted.');
     await this.must(this.prisma.service.findUnique({ where: { id } }));
@@ -291,7 +316,7 @@ class AdminService {
   listProviders() { return this.prisma.provider.findMany({ orderBy: { id: 'asc' }, include: { services: { select: { id: true, name: true } }, _count: { select: { bookings: true } } } }); }
   async createProvider(me: AuthUser, { serviceIds, ...dto }: ProviderDto) {
     const id = await this.nextId('provider');
-    const out = await this.prisma.provider.create({ data: { id, ...dto, services: { connect: serviceIds.map((s) => ({ id: s })) } } });
+    const out = await this.prisma.provider.create({ data: { id, ...dto, commissionPercent: dto.commissionPercent ?? await this.config.get<number>('rules.defaultCommissionPercent'), services: { connect: serviceIds.map((s) => ({ id: s })) } } });
     await this.audit(me, 'provider.create', `provider:${id}`, { name: dto.name });
     return out;
   }
@@ -509,6 +534,8 @@ class AdminController {
   @Post('services') createService(@CurrentUser() me: AuthUser, @Body() dto: ServiceDto) { return this.svc.createService(me, dto); }
   @Patch('services/:id') updateService(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: PatchServiceDto) { return this.svc.updateService(me, id, dto); }
   @Delete('services/:id') @HttpCode(204) deleteService(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.deleteService(me, id); }
+  @Put('services/:id/image') setServiceImage(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number, @Body() dto: ServiceImageDto) { return this.svc.setServiceImage(me, id, dto.dataUrl); }
+  @Delete('services/:id/image') @HttpCode(204) clearServiceImage(@CurrentUser() me: AuthUser, @Param('id', ParseIntPipe) id: number) { return this.svc.clearServiceImage(me, id); }
 
   @Get('kyc') kyc() { return this.svc.listKyc(); }
   @Get('kyc/:id/document') kycDoc(@Param('id', ParseIntPipe) id: number) { return this.svc.kycDocument(id); }

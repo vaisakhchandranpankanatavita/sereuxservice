@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import Lenis from 'lenis';
 import App from './App.jsx';
+import { loadCatalog, siteConfig } from './data.js';
 /* Each group of pages is its own chunk, so the home page doesn't download the shop, auth or booking code. */
 const fromModule = (load, name) => lazy(() => load().then((m) => ({ default: m[name] })));
 const pages = () => import('./pages.jsx');
@@ -66,8 +67,16 @@ const NotFound = () => (
 const Page = ROUTES[slug] || (HOME_SLUGS.includes(slug) ? App : NotFound);
 if (Page === NotFound) document.title = 'Page not found — Fixzy';
 
-createRoot(document.getElementById('root')).render(
+/* Fetch services and products from the host first so the first paint already has live data (the static lists are the fallback). */
+const mount = () => createRoot(document.getElementById('root')).render(
+
   <React.StrictMode>
-    <ToastProvider><Suspense fallback={null}><Page /></Suspense></ToastProvider>
+    {siteConfig['flags.maintenanceMode']
+      ? <main style={{ minHeight: '100vh', display: 'grid', placeContent: 'center', textAlign: 'center', gap: 12, padding: 24 }}>
+        <h1 style={{ fontWeight: 800, letterSpacing: '-.04em', margin: 0 }}>We’ll be right back.</h1>
+        <p>{siteConfig['flags.maintenanceMessage'] || 'Fixzy is down for a short maintenance break. Please check back soon.'}</p>
+      </main>
+      : <ToastProvider><Suspense fallback={null}><Page /></Suspense></ToastProvider>}
   </React.StrictMode>,
 );
+Promise.race([loadCatalog(), new Promise((r) => setTimeout(r, 2500))]).catch(() => {}).finally(mount);

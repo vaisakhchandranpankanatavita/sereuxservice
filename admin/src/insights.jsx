@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 /* Animated "Insights" strip shown at the top of every inner page. Everything is derived from the rows
@@ -120,77 +120,54 @@ function Trend({ data, on }) {
   </svg>;
 }
 
-/* Docked above the bottom nav (rendered in a portal so page transitions can't move it). Compact when open,
-   a one-line summary when collapsed; the choice is remembered. One headline sentence rotates in the header. */
+/* Docked just above the bottom nav as a slim pill (rendered in a portal so page transitions can't move it).
+   Collapsed by default: the headline numbers scroll sideways inside the pill. Tapping it opens the charts as a popup
+   that rises from the pill; tap outside, the close button or Esc dismisses it. */
 export function Insights({ title = 'Insights', kpis = [], charts = [], notes = [] }) {
   const [ref, on] = useReveal();
-  const KEY = 'ins-collapsed';
-  /* An explicit collapse is remembered across pages and reloads; expanding again clears it. */
-  const pinnedShut = () => { try { return localStorage.getItem(KEY) === '1'; } catch { return false; } };
-  const [open, setOpen] = useState(() => !pinnedShut());
-  const [tick, setTick] = useState(0);
-  const touched = useRef(pinnedShut()), hovered = useRef(false);
-  const toggle = () => {
-    touched.current = true;
-    const next = !open;
-    try { next ? localStorage.removeItem(KEY) : localStorage.setItem(KEY, '1'); } catch { /* storage unavailable */ }
-    setOpen(next);
-  };
-
-  /* Each page opens with the analysis up, then lowers it out of the way after a few seconds (unless the
-     person is using it); the chevron brings it back. */
-  useEffect(() => {
-    if (!on) return undefined;
-    let id;
-    const check = () => {
-      if (touched.current) return;
-      if (hovered.current) { id = setTimeout(check, 2000); return; }
-      setOpen(false);
-    };
-    id = setTimeout(check, 7000);
-    return () => clearTimeout(id);
-  }, [on]);
+  const [open, setOpen] = useState(false);
+  const panel = useId();
 
   useEffect(() => {
-    if (notes.length < 2) return undefined;
-    const id = setInterval(() => setTick((t) => t + 1), 4800);
-    return () => clearInterval(id);
-  }, [notes.length]);
+    document.documentElement.style.setProperty('--ins-h', '44px');
+    return () => document.documentElement.style.removeProperty('--ins-h');
+  }, []);
+  useEffect(() => {
+    if (!open) return undefined;
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [open]);
 
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const root = document.documentElement;
-    const ro = new ResizeObserver(() => root.style.setProperty('--ins-h', `${Math.ceil(el.getBoundingClientRect().height) - 24}px`));
-    ro.observe(el);
-    return () => { ro.disconnect(); root.style.removeProperty('--ins-h'); };
-  }, [ref]);
-
-  const note = notes.length ? notes[tick % notes.length] : '';
-  return createPortal(<section className={`ins${on ? ' on' : ''}${open ? '' : ' shut'}`} ref={ref} aria-label={title}>
-    <header className="ins-head">
-      <i aria-hidden="true" /><h2>{title}</h2>
-      <p className="ins-tick" aria-live="off"><span key={tick}>{note}</span></p>
-      <div className="ins-mini" aria-hidden={open}>{kpis.slice(0, 3).map((k) => <span key={k.label}>{k.label} <b>{FMT[k.fmt ?? 'int'](k.value)}</b></span>)}</div>
-      <button type="button" className="ins-toggle" onClick={toggle} onPointerEnter={() => { hovered.current = true; }} onPointerLeave={() => { hovered.current = false; }} aria-expanded={open} aria-label={open ? 'Collapse insights' : 'Expand insights'}>
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 6l4.5 4.5L12.5 6" /></svg>
+  const short = title.replace(/ insights$/i, '');
+  return createPortal(<>
+    {open && <div className="ins-scrim" onClick={() => setOpen(false)} aria-hidden="true" />}
+    <section className={`ins${on ? ' on' : ''}${open ? ' open' : ''}`} ref={ref} aria-label={title}>
+      {open && <div className="ins-pop" id={panel} role="dialog" aria-label={title}>
+        <header className="ins-pophead"><h2>{title}</h2>
+          <button type="button" className="ins-x" onClick={() => setOpen(false)} aria-label="Close insights">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          </button>
+        </header>
+        {notes.length > 0 && <p className="ins-notes">{notes.join(' ')}</p>}
+        <div className="ins-charts">{charts.map((c) => <div className="ins-card" key={c.title}>
+          <h3>{c.title}</h3>
+          {!c.data.length || (c.kind === 'trend' && !c.data.some((d) => d.value)) ? <p className="ins-empty">Not enough data yet</p>
+            : c.kind === 'donut' ? <div className="ins-donutwrap"><Donut data={c.data} on />
+              <ul className="ins-legend">{c.data.slice(0, 4).map((d, j) => <li key={d.label}><i style={{ background: PALETTE[j % PALETTE.length] }} /><span>{d.label}</span><b>{FMT.int(d.value)}</b></li>)}</ul></div>
+              : c.kind === 'trend' ? <Trend data={c.data} on />
+                : <Bars data={c.data.slice(0, 4)} on fmt={c.fmt} />}
+        </div>)}</div>
+      </div>}
+      <button type="button" className="ins-bar" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls={open ? panel : undefined} title={open ? 'Close insights' : 'Open insights'}>
+        <span className="ins-title"><i aria-hidden="true" />{short}</span>
+        <span className="ins-chips">{kpis.map((k) => <span className="ins-chip" key={k.label}>{k.label} <b><Count value={k.value} fmt={k.fmt} on={on} /></b></span>)}</span>
+        <svg className="ins-chev" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 10l4.5-4.5L12.5 10" /></svg>
       </button>
-    </header>
-    <div className="ins-fold" onPointerEnter={() => { hovered.current = true; }} onPointerLeave={() => { hovered.current = false; }}><div>
-      <div className="ins-kpis">{kpis.map((k, i) => <div className="ins-kpi" key={k.label} style={{ '--i': i }}>
-        <small>{k.label}</small><strong><Count value={k.value} fmt={k.fmt} on={on} /></strong>
-      </div>)}</div>
-      <div className="ins-charts">{charts.map((c, i) => <div className="ins-card" key={c.title} style={{ '--i': i }}>
-        <h3>{c.title}</h3>
-        {!c.data.length || (c.kind === 'trend' && !c.data.some((d) => d.value)) ? <p className="ins-empty">Not enough data yet</p>
-          : c.kind === 'donut' ? <div className="ins-donutwrap"><Donut data={c.data} on={on} />
-            <ul className="ins-legend">{c.data.slice(0, 4).map((d, j) => <li key={d.label}><i style={{ background: PALETTE[j % PALETTE.length] }} /><span>{d.label}</span><b>{FMT.int(d.value)}</b></li>)}</ul></div>
-            : c.kind === 'trend' ? <Trend data={c.data} on={on} />
-              : <Bars data={c.data.slice(0, 4)} on={on} fmt={c.fmt} />}
-      </div>)}</div>
-    </div></div>
-  </section>, document.body);
+    </section>
+  </>, document.body);
 }
+
 
 /* ---------- Per-page analyses ---------- */
 const OPEN_OFF = ['DONE', 'CANCELLED'];

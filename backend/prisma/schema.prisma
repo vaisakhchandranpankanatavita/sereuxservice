@@ -114,10 +114,19 @@ model Service {
   fromPrice   Int
   duration    Int
   terms       String   @default("")
+  imageVersion Int     @default(0)
+  image       ServiceImage?
   providers   Provider[]
   bookings    Booking[]
 
   @@index([category])
+}
+
+model ServiceImage {
+  serviceId Int      @id
+  data      Bytes
+  type      String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 }
 
 model Provider {
@@ -327,6 +336,13 @@ model Banner {
   sort       Int      @default(0)
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
+}
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 model ChatMessage {

@@ -36,7 +36,7 @@ export default function Activity() {
       ? <Empty icon="calendar-outline" title="No bookings yet" text="Book a verified pro and you can follow every step here." action="Browse services" onAction={() => router.push('/')} />
       : <Empty icon="bag-handle-outline" tint={t.peach} title="No orders yet" text="Things you buy from the shop show up here, with delivery tracking." action="Open the shop" onAction={() => router.push('/shop')} />)}
     {tab === 'bookings' && (data ?? []).map((b, i) => <FadeIn key={b.id} i={i}><Card onPress={() => router.push(`/booking/${b.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 22, paddingHorizontal: 16, minHeight: 116 }}>
-      <View style={{ width: 72, height: 72, borderRadius: 24, overflow: 'hidden', backgroundColor: '#fff' }}><ServiceArt name={b.service.name} /></View>
+      <View style={{ width: 72, height: 72, borderRadius: 24, overflow: 'hidden', backgroundColor: '#fff' }}><ServiceArt name={b.service.name} service={b.service} /></View>
       <View style={{ flex: 1, gap: 3 }}>
         <Txt bold size={19}>{b.service.name}</Txt>
         <Txt size={15} color={t.body}>{dayLabel(b.day)} · {b.slot}</Txt>

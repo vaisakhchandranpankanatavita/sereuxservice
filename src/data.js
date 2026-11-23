@@ -12,6 +12,37 @@ export const services = [
   { name: 'Pest control', description: 'Treatment for common household pests.', price: '₹450', from: 450, id: 8, category: 'Home care', duration: 90, rating: 4.7, reviews: 88, terms: 'extermination insects bugs' },
 ];
 
+/* The lists above are the offline fallback. loadCatalog() swaps in what the host serves (managed from the admin app),
+   mutating the same arrays in place so every page that imported them sees the live data. */
+const API = import.meta.env.VITE_API_URL || '/api';
+const getJson = async (path) => { const r = await fetch(API + path); if (!r.ok) throw new Error(path); return r.json(); };
+
+/* Admin-managed settings (support contacts, flags, FAQ) from /config; these defaults apply until the host answers. */
+export const siteConfig = { 'content.supportEmail': '', 'content.supportPhone': '', 'content.termsUrl': '', 'content.privacyUrl': '', 'content.faq': [], 'rules.bookingSlots': ['09:00', '11:00', '13:00', '15:00', '17:00'], 'rules.maxDaysAhead': 60, 'flags.shopEnabled': true, 'flags.maintenanceMode': false, 'flags.maintenanceMessage': '' };
+
+export async function loadCatalog() {
+  const cfg = getJson('/config').then((c) => { if (c?.settings) { Object.assign(siteConfig, c.settings); const t = siteConfig['rules.bookingSlots']; if (Array.isArray(t) && t.length) slots.splice(0, slots.length, ...t); } }).catch(() => {});
+  const [svc, prod, pros] = await Promise.allSettled([getJson('/services'), getJson('/products'), getJson('/providers')]);
+  await cfg;
+  if (pros.status === 'fulfilled' && Array.isArray(pros.value)) {
+    providers.splice(0, providers.length, ...pros.value.map((p) => ({
+      id: p.id, name: p.name, verified: p.verified, years: p.years, response: p.response,
+      serviceIds: (p.services || []).map((x) => x.id), rating: 0, jobs: 0,
+    })));
+  }
+  if (svc.status === 'fulfilled' && Array.isArray(svc.value) && svc.value.length) {
+    services.splice(0, services.length, ...svc.value.map((s) => ({
+      id: s.id, name: s.name, description: s.description, category: s.category, duration: s.duration, terms: s.terms ?? '',
+      from: s.fromPrice, price: rupee(s.fromPrice), rating: s.rating ? Math.round(s.rating * 10) / 10 : 0, reviews: s.reviews ?? 0,
+      image: s.imageVersion > 0 ? `${API}/services/${s.id}/image?v=${s.imageVersion}` : null,
+    })));
+    serviceCategories.splice(0, serviceCategories.length, ...new Set(services.map((s) => s.category)));
+  }
+  if (prod.status === 'fulfilled' && Array.isArray(prod.value) && prod.value.length) {
+    products.splice(0, products.length, ...prod.value.map((p) => ({ id: p.id, img: p.img, name: p.name, seller: p.seller, price: p.price, old: p.oldPrice, category: p.category, blurb: p.blurb || undefined })));
+  }
+}
+
 /* Bookable windows, shared by every service for now. */
 export const slots = ['09:00', '11:00', '13:00', '15:00', '17:00'];
 
@@ -26,7 +57,12 @@ const SERVICE_IMG = {
   appliances: '/assets/services/appliances.png',
   'pest control': '/assets/services/pest-control.png',
 };
-export const serviceImg = (name) => SERVICE_IMG[name.trim().toLowerCase()] ?? SERVICE_IMG.cleaning;
+/* Takes a service object (uses the image uploaded in the admin app when it has one) or just a name. */
+export const serviceImg = (s) => {
+  if (s && typeof s === 'object' && s.image) return s.image;
+  const name = typeof s === 'string' ? s : s?.name ?? '';
+  return SERVICE_IMG[name.trim().toLowerCase()] ?? SERVICE_IMG.cleaning;
+};
 
 export const categories = ['Electronics', 'Home & Kitchen', 'Fashion', 'Books', 'Sports & Outdoors', 'Food & Beverages'];
 
@@ -47,20 +83,5 @@ export const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padS
 export const rupee = (n) => '₹' + n.toLocaleString('en-IN');
 export const discount = (p) => Math.round((1 - p.price / p.old) * 100);
 
-/* Sample professionals; `serviceIds` links them to services. Avatars are initials until real photos exist. */
-export const providers = [
-  { id: 1, name: 'Anil Kumar', serviceIds: [1], rating: 4.8, jobs: 412, response: '15 min', years: 9, verified: true },
-  { id: 2, name: 'Rahul Menon', serviceIds: [2, 7], rating: 4.9, jobs: 530, response: '10 min', years: 11, verified: true },
-  { id: 3, name: 'Sajan Thomas', serviceIds: [3], rating: 4.6, jobs: 288, response: '25 min', years: 7, verified: true },
-  { id: 4, name: 'Biju Varghese', serviceIds: [4, 5], rating: 4.5, jobs: 190, response: '30 min', years: 12, verified: true },
-  { id: 5, name: 'Meera Nair', serviceIds: [6, 8], rating: 4.9, jobs: 640, response: '12 min', years: 6, verified: true },
-];
-
-/* Sample reviews so pages aren't empty; kind is 'product' or 'service'. */
-export const seedReviews = [
-  { id: 's1', kind: 'service', target: 1, name: 'Divya R.', rating: 5, text: 'Fixed a leaking tap in under an hour. Tidy and on time.', at: 1760000000000 },
-  { id: 's2', kind: 'service', target: 2, name: 'Arun P.', rating: 5, text: 'Rewired two switchboards safely and explained everything.', at: 1760500000000 },
-  { id: 's3', kind: 'service', target: 6, name: 'Nisha K.', rating: 5, text: 'The deep clean was spotless. Booking was effortless.', at: 1761000000000 },
-  { id: 'p1', kind: 'product', target: 3, name: 'Ravi S.', rating: 4, text: 'Quiet fan with good airflow. Fair price.', at: 1760200000000 },
-  { id: 'p2', kind: 'product', target: 1, name: 'Latha M.', rating: 5, text: 'Bright and instant start.', at: 1760800000000 },
-];
+/* Professionals come from the host (/providers); empty until loaded or when none have joined. */
+export const providers = [];

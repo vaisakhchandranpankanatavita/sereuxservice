@@ -14,7 +14,8 @@
     "seed:demo": "tsx prisma/seed-demo.ts",
     "admin:create": "tsx prisma/create-admin.ts",
     "pro:create": "tsx prisma/create-provider.ts",
-    "test:e2e": "tsx test/smoke.ts"
+    "test:e2e": "tsx test/smoke.ts",
+    "seed:service-images": "tsx prisma/seed-service-images.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -8,6 +8,7 @@ import { usePayment } from '../../src/payment';
 import { useSession } from '../../src/session';
 import { Chat } from '../../src/chat';
 import { LiveMap } from '../../src/map';
+import { useConfig } from '../../src/config';
 import { Timeline, type Step } from '../../src/timeline';
 import { Avatar, Badge, Banner, Button, Card, Chip, Field, RoundBtn, Screen, Skeleton, Stars, Status, Tap, Txt, dayLabel, money, useFetch, useTheme } from '../../src/ui';
 
@@ -38,6 +39,7 @@ const isoDay = (offset: number) => {
 export default function BookingDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useTheme();
+  const chatOn = !!useConfig().get('flags.chatEnabled');
   const router = useRouter();
   const { user } = useSession();
   const { payNow, node: payNode } = usePayment();
@@ -187,7 +189,7 @@ ${b.address}` }).catch(() => {});
         </View> : null; })}
       </View>}
 
-      {!!b.provider && b.status !== 'REQUESTED' && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 12 }}>
+      {!!b.provider && b.status !== 'REQUESTED' && chatOn && <View style={{ backgroundColor: t.card, borderRadius: 26, padding: 18, gap: 12 }}>
         <Txt bold size={24}>Chat with {b.provider.name.split(' ')[0]}</Txt>
         <Chat bookingId={b.id} canSend={open} />
       </View>}

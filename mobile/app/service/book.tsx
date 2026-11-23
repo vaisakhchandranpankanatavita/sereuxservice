@@ -9,6 +9,7 @@ import { useAddresses } from '../../src/addresses';
 import { usePlaceSuggestions, type Place } from '../../src/places';
 import { useSession } from '../../src/session';
 import { Avatar, Banner, Button, Card, Chip, FadeIn, Field, R, Row, Screen, Skeleton, Status, Tap, Txt, dayLabel, font, money, useFetch, useTheme } from '../../src/ui';
+import { useConfig } from '../../src/config';
 
 const isoDay = (offset: number) => {
   const d = new Date(); d.setDate(d.getDate() + offset);
@@ -48,7 +49,8 @@ export default function Book() {
   const { user } = useSession();
   const t = useTheme();
   const svc = useFetch<any>(`/services/${serviceId}`);
-  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => isoDay(i + 1)), []);
+  const maxAhead = Number(useConfig().get('rules.maxDaysAhead')) || 60; /* admin-set booking window */
+  const days = useMemo(() => Array.from({ length: Math.min(14, maxAhead) }, (_, i) => isoDay(i + 1)), [maxAhead]);
   const [day, setDay] = useState(days[0]);
   const [slot, setSlot] = useState('');
   const avail = useFetch<any>(`/services/${serviceId}/availability?day=${day}${providerId ? `&providerId=${providerId}` : ''}`);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isoDay, products, rupee, services, slots } from './data.js';
+import { isoDay, products, rupee, services, siteConfig, slots } from './data.js';
 import { loginUrl } from './auth.js';
 import { Page } from './pages.jsx';
 import { Icon, Reveal } from './shared.jsx';
@@ -30,7 +30,7 @@ function SignInGate({ current, label, lines, lead, icon, points }) {
 }
 
 const fmtDay = (iso) => new Date(`${iso}T00:00`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-const dayOptions = () => Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i + 1); return isoDay(d); });
+const dayOptions = () => Array.from({ length: Math.max(1, Math.min(7, Number(siteConfig['rules.maxDaysAhead']) || 7)) }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i + 1); return isoDay(d); });
 
 function Timeline({ status }) {
   const at = FLOW.indexOf(status);

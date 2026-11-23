@@ -42,7 +42,7 @@ export default function Services() {
   const card = (s: any, i: number) => <View key={s.id} style={{ width: '48.2%' }}>
     <Tap onPress={() => router.push(`/service/${s.id}`)} accessibilityRole="button" accessibilityLabel={`${s.name}, from ${money(s.fromPrice)}`} scaleTo={0.96}
       style={{ backgroundColor: tints[i % tints.length], borderRadius: R.lg, height: 220, overflow: 'hidden', justifyContent: 'space-between', padding: 12 }}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}><ServiceArt name={s.name} /></View>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}><ServiceArt name={s.name} service={s} /></View>
       <LinearGradient pointerEvents="none" colors={['rgba(20,20,20,0.28)', 'rgba(20,20,20,0)', 'rgba(20,20,20,0.78)']} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
       <View style={{ alignSelf: 'flex-start', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
         <Txt size={14} bold>{s.category}</Txt>
@@ -98,7 +98,7 @@ export default function Services() {
       {!!upcoming && !q.trim() && !cat && <Tap onPress={() => router.push(`/booking/${upcoming.id}`)} accessibilityRole="button" accessibilityLabel={`Upcoming booking, ${upcoming.service.name}`} scaleTo={0.98}
         style={{ backgroundColor: t.lime, borderRadius: R.lg, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, overflow: 'hidden' }}>
         <Wash />
-        <View style={{ width: 52, height: 52, borderRadius: 18, overflow: 'hidden', backgroundColor: '#fff' }}><ServiceArt name={upcoming.service.name} /></View>
+        <View style={{ width: 52, height: 52, borderRadius: 18, overflow: 'hidden', backgroundColor: '#fff' }}><ServiceArt name={upcoming.service.name} service={upcoming.service} /></View>
         <View style={{ flex: 1, gap: 2 }}>
           <Txt size={11} bold color={t.body}>UP NEXT</Txt>
           <Txt bold size={16} numberOfLines={1}>{upcoming.service.name}</Txt>

@@ -4,7 +4,7 @@ import { LiveMap } from './map.jsx';
 import { Page } from './pages.jsx';
 import { Icon } from './shared.jsx';
 import { useStore } from './store.js';
-import { DEMO_HOME, DEMO_PRO_START, useTrip } from './tracking.js';
+import { DEMO_HOME, DEMO_PRO_START, demoProviders, useTrip } from './tracking.js';
 import { EmptyState, Tag } from './ui.jsx';
 
 const STEPS = [
@@ -20,7 +20,7 @@ const initials = (name) => name.split(' ').map((w) => w[0]).join('');
 
 function Trip({ booking }) {
   const svc = services.find((s) => s.id === booking.serviceId);
-  const pro = providers.find((p) => p.id === booking.providerId) || providers.find((p) => p.serviceIds.includes(booking.serviceId));
+  const pro = booking.id === 'DEMO' ? demoProviders[0] : providers.find((p) => p.id === booking.providerId) || providers.find((p) => p.serviceIds.includes(booking.serviceId));
   const moving = booking.status === 'on_the_way';
   const waiting = booking.status === 'requested';
   const onSite = booking.status === 'in_progress' || booking.status === 'done';

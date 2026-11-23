@@ -6,6 +6,7 @@ import { AppLoader, Toaster } from './ui.jsx';
 import { LordIcon } from './LordIcon.jsx';
 import { ICONS } from './icons.js';
 import { Admins, AuditLog, Banners, Bookings, Coupons, Dashboard, Inbox, Notifications, Orders, Payouts, Products, Providers, Services, Users, Verification } from './pages.jsx';
+import { Settings } from './settings.jsx';
 
 /* Vivid active-state colour per section (bg) and the icon colour that reads best on it. */
 const BRIGHT = {
@@ -33,6 +34,7 @@ const ROUTES = [
   ['banners', 'Banners', Banners, ICONS.banners, 'c11', 'marketing'],
   ['notifications', 'Notifications', Notifications, ICONS.bell, 'c12', 'admin'],
   ['admins', 'Admins', Admins, ICONS.avatar, 'c13', 'admin'],
+  ['settings', 'Settings', Settings, ICONS.services, 'c13', 'admin'],
   ['audit-log', 'Audit log', AuditLog, ICONS.auditLog, 'c10', 'admin'],
 ];
 const GROUP_LABELS = { main: 'Main', catalog: 'Catalog', marketing: 'Marketing', admin: 'Admin' };
@@ -88,7 +90,7 @@ const initials = (name) => (name || '?').trim().split(/\s+/).slice(0, 2).map((w)
 
 /* One indicator travels between fixed nav cells. WAAPI keeps movement smooth on the
    compositor while a brief stretch-and-settle gives it a water-drop feel. */
-function useLiquidIndicator(navRef, indicatorRef, route, ready) {
+function useLiquidIndicator(navRef, indicatorRef, route, ready, layoutKey) {
   const prev = useRef(null);
 
   useLayoutEffect(() => {
@@ -126,7 +128,24 @@ function useLiquidIndicator(navRef, indicatorRef, route, ready) {
       ], { duration: 720, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards' });
     }
     prev.current = { left, hue };
-  }, [navRef, indicatorRef, route, ready]);
+  }, [navRef, indicatorRef, route, ready, layoutKey]);
+
+  /* Window resizes re-flow the cells; keep the pill glued to the active one without animating. */
+  useLayoutEffect(() => {
+    const parent = navRef.current;
+    if (!parent || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => {
+      const indicator = indicatorRef.current;
+      const el = parent.querySelector('.on');
+      if (!indicator || !el) return;
+      indicator.getAnimations().forEach((animation) => animation.cancel());
+      indicator.style.width = `${el.offsetWidth}px`;
+      indicator.style.transform = `translate3d(${el.offsetLeft}px, 0, 0)`;
+      if (prev.current) prev.current.left = el.offsetLeft;
+    });
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, [navRef, indicatorRef, ready]);
 }
 
 /* ---- Night-repair scene ------------------------------------------------------
@@ -392,8 +411,8 @@ const STARS = [[40, 60, 1.1], [150, 30, 1.4], [250, 78, 1], [330, 24, 1.3], [430
 
 
 function Login({ onDone }) {
-  const [email, setEmail] = useState('admin@fixzy.app') /* demo prefill for testing */;
-  const [password, setPassword] = useState('testpass123');
+  const [email, setEmail] = useState(import.meta.env.DEV ? 'admin@fixzy.app' : '') /* dev-only prefill; production builds start blank */;
+  const [password, setPassword] = useState(import.meta.env.DEV ? 'testpass123' : '');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [buttonHover, setButtonHover] = useState(false);
@@ -645,7 +664,7 @@ export default function App() {
   const indicatorRef = useRef(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const barSlots = useBarSlots();
-  useLiquidIndicator(navRef, indicatorRef, route, !!user && !afterLogin); // re-runs once the nav actually mounts after the post-login loader
+  useLiquidIndicator(navRef, indicatorRef, route, !!user && !afterLogin, barSlots); // re-runs once the nav actually mounts after the post-login loader
   useEffect(() => { setMoreOpen(false); }, [route]);
 
   useEffect(() => { refresh().then((u) => setUser(u.role === 'ADMIN' ? u : null), () => setUser(null)); }, []);

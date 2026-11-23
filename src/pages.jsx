@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { categories, discount, products, providers, rupee, serviceCategories, serviceImg, services } from './data.js';
+import { categories, discount, products, providers, rupee, serviceCategories, serviceImg, services, siteConfig } from './data.js';
 import { Avatar, HeartButton, Reviews, Stars } from './social.jsx';
 import { ActiveFilters, FilterSelect, SearchBox, useQueryState } from './filters.jsx';
 import { actions, useStore } from './store.js';
@@ -7,6 +7,14 @@ import { forgotPassword, login, passwordStrength, redirectTarget, register, rese
 import { EmptyState, flyToCart, useToast } from './ui.jsx';
 import Banners from './Banners.jsx';
 import { Footer, Header, Headline, Icon, Label, Reveal, useParallax } from './shared.jsx';
+
+/* Price-filter cut-offs derived from the live catalog (thirds of the starting prices, rounded up to the nearest 100). */
+function priceSteps() {
+  const prices = services.map((x) => x.from).filter((n) => n > 0).sort((a, b) => a - b);
+  if (!prices.length) return [];
+  const at = (q) => prices[Math.min(prices.length - 1, Math.ceil(prices.length * q) - 1)];
+  return [...new Set([at(1 / 3), at(2 / 3), at(1)].map((n) => Math.ceil(n / 100) * 100))];
+}
 
 export function Page({ current, label, lines, lead, children, narrow = false, titleClass = '', art }) {
   useParallax();
@@ -223,7 +231,7 @@ export function ServicesPage() {
           {serviceCategories.map((c) => <button key={c} type="button" className={`chip${f.cat === c ? ' is-on' : ''}`} onClick={() => set({ cat: c })}>{c}</button>)}
         </div>
         <div className="filter-row">
-          <FilterSelect id="svc-max" label="Price" value={f.max} onChange={(v) => set({ max: v })} options={[['', 'Any'], ['500', 'Up to ₹500'], ['700', 'Up to ₹700'], ['1000', 'Up to ₹1,000']]} />
+          <FilterSelect id="svc-max" label="Price" value={f.max} onChange={(v) => set({ max: v })} options={[['', 'Any'], ...priceSteps().map((n) => [String(n), `Up to ${rupee(n)}`])]} />
           <FilterSelect id="svc-rating" label="Rating" value={f.rating} onChange={(v) => set({ rating: v })} options={[['', 'Any'], ['4.5', '4.5★ & up'], ['4.7', '4.7★ & up']]} />
           <FilterSelect id="svc-sort" label="Sort" value={f.sort} onChange={(v) => set({ sort: v })} options={[['popular', 'Most booked'], ['rating', 'Top rated'], ['low', 'Price: Low to High'], ['high', 'Price: High to Low'], ['name', 'Name A–Z']]} />
         </div>
@@ -233,32 +241,31 @@ export function ServicesPage() {
       <div className="service-list swap" key={JSON.stringify(f)}>
         {visible.map((s, i) => (
           <a key={s.id} className="service-row" style={{ '--i': i }} href={`/service-request?service_id=${s.id}`}>
-            <img className="service-thumb" src={serviceImg(s.name)} alt="" loading="lazy" decoding="async" />
+            <img className="service-thumb" src={serviceImg(s)} alt="" loading="lazy" decoding="async" />
             <span className="service-name">{s.name}</span>
-            <span className="service-desc">{s.description}<small className="svc-meta">★ {s.rating} · {s.reviews} reviews · about {s.duration} min</small></span>
+            <span className="service-desc">{s.description}<small className="svc-meta">{s.reviews > 0 ? `★ ${s.rating} · ${s.reviews} reviews · ` : 'New · '}about {s.duration} min</small></span>
             <span className="service-price">From {s.price} / hr</span>
             <span className="service-arrow" aria-hidden="true"><Icon name="arrow-up-right" size={22} /></span>
           </a>
         ))}
       </div>
-      <section className="pros" aria-labelledby="pros-h">
+      {providers.length > 0 && <section className="pros" aria-labelledby="pros-h">
         <h2 className="h2" id="pros-h">Meet our pros</h2>
-        <p className="muted">Sample profiles shown until real professionals join.</p>
         <ul className="pro-grid">
           {providers.map((p) => (
             <li key={p.id} className="pro">
               <Avatar name={p.name} />
               <div>
                 <h3>{p.name} {p.verified && <span className="verified" title="Identity verified"><Icon name="shield-check" size={16} /><span className="visually-hidden">Verified</span></span>}</h3>
-                <Stars value={p.rating} />
-                <p>{p.jobs} jobs · {p.years} yrs · replies in {p.response}</p>
+                {p.rating > 0 && <Stars value={p.rating} />}
+                <p>{p.jobs > 0 && `${p.jobs} jobs · `}{p.years} yrs · replies in {p.response}</p>
                 <p>{p.serviceIds.map((id) => services.find((s) => s.id === id)?.name).join(', ')}</p>
                 <a className="pill pill-small" href={`/service-request?service_id=${p.serviceIds[0]}&pro=${p.id}`}>Book this pro <Icon name="arrow-right" size={14} /></a>
               </div>
             </li>
           ))}
         </ul>
-      </section>
+      </section>}
       {visible.length === 0 && (
         <EmptyState title="No services match" text={active ? 'Try loosening a filter.' : 'Try another word.'}
           action={<button type="button" className="pill" onClick={reset}>Clear filters</button>} />
@@ -398,7 +405,8 @@ export function Product() {
 }
 
 export function Help() {
-  const faq = [
+  const served = (siteConfig['content.faq'] || []).map((x) => [x.q, x.a]); /* admin-managed; the list below is the offline fallback */
+  const faq = served.length ? served : [
     ['How do I book a service?', 'Choose a service, sign in and send a request. We show the starting price before you continue.'],
     ['How is pricing worked out?', 'Each service lists an hourly starting rate. The final amount depends on the time and work involved.'],
     ['Where can I see my bookings?', 'Sign in and open Bookings to follow the status of every request.'],

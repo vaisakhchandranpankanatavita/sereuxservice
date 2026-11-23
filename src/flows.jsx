@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './api.js';
 import { loginUrl } from './auth.js';
-import { isoDay, providers, rupee, services, slots } from './data.js';
+import { isoDay, providers, rupee, services, siteConfig, slots } from './data.js';
 import { Field, Page } from './pages.jsx';
 import { Icon, Reveal, cartLines, cartTotal } from './shared.jsx';
 import { actions, useStore } from './store.js';
@@ -161,7 +161,7 @@ export function ServiceRequest() {
   useEffect(() => { if (!user) window.location.replace(loginUrl('service-request', initial ? `&service_id=${initial}` : '')); }, [user, initial]);
   const [form, setForm] = useState({ name: user?.name || '', phone: user?.phone || '', address: '', notes: '' });
   const [done, setDone] = useState(null);
-  const days = useMemo(() => nextDays(7), []);
+  const days = useMemo(() => nextDays(Math.max(1, Math.min(7, Number(siteConfig['rules.maxDaysAhead']) || 7))), []);
   const service = services.find((s) => s.id === serviceId);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 

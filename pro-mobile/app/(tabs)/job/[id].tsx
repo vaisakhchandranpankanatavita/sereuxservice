@@ -4,6 +4,7 @@ import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../../src/api';
 import { Chat } from '../../../src/chat';
+import { useConfig } from '../../../src/config';
 import { LiveMap } from '../../../src/map';
 import { Text } from 'react-native';
 import { Badge, Button, Card, Field, PageTitle, Row, Status, Screen, Money, Txt, dayLabel, mono, useFetch, useTheme } from '../../../src/ui';
@@ -41,6 +42,7 @@ export default function Job() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const t = useTheme();
+  const chatOn = !!useConfig().get('flags.chatEnabled');
   const job = useFetch<any>(`/bookings/${id}`);
   const [me, setMe] = useState<{ lat: number; lng: number } | null>(null);
   const tracking = job.data?.status === 'ON_THE_WAY' || job.data?.status === 'IN_PROGRESS';
@@ -86,10 +88,10 @@ export default function Job() {
       <View style={{ marginTop: 8 }}><Row between><Txt muted>Estimate</Txt><Money amount={b.estimate} size={17} /></Row></View>
     </Card>
 
-    <Card>
+    {chatOn && <Card>
       <Txt bold size={16}>Chat with {b.name.split(' ')[0]}</Txt>
       <Chat bookingId={b.id} canSend={b.status !== 'DONE' && b.status !== 'CANCELLED'} />
-    </Card>
+    </Card>}
 
     <View style={{ flexDirection: 'row', gap: 10 }}>
       <Button title="Navigate" icon="navigate" onPress={navigate} style={{ flex: 1.3 }} />

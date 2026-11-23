@@ -1,18 +1,18 @@
-import { Image } from 'react-native';
+import { useState } from 'react';
+import { Image, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { API } from './api';
+import { useTheme } from './ui';
 
-/* Category background photos (AI-illustrated, cropped per service) — fill the whole card. */
-const PHOTOS: Record<string, any> = {
-  plumbing: require('../assets/services/plumbing.png'),
-  electrical: require('../assets/services/electrical.png'),
-  'ac repair': require('../assets/services/ac-repair.png'),
-  carpentry: require('../assets/services/carpentry.png'),
-  painting: require('../assets/services/painting.png'),
-  cleaning: require('../assets/services/cleaning.png'),
-  appliances: require('../assets/services/appliances.png'),
-  'pest control': require('../assets/services/pest-control.png'),
-};
-
-export function ServiceArt({ name }: { name: string }) {
-  const src = PHOTOS[name.trim().toLowerCase()] ?? PHOTOS.cleaning;
-  return <Image source={src} resizeMode="cover" accessibilityLabel={`${name} illustration`} style={{ width: '100%', height: '100%' }} />;
+/* Service art comes from the host (uploaded in the admin app). A service without one, or an image that fails to load, gets a plain placeholder. */
+export function ServiceArt({ name, service }: { name: string; service?: { id: number; imageVersion?: number } | null }) {
+  const t = useTheme();
+  const [failed, setFailed] = useState(false);
+  const uri = service?.imageVersion && !failed ? `${API}/services/${service.id}/image?v=${service.imageVersion}` : null;
+  if (!uri) {
+    return <View accessibilityLabel={name} style={{ width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: t.card }}>
+      <Ionicons name="construct-outline" size={28} color={t.muted} />
+    </View>;
+  }
+  return <Image source={{ uri }} onError={() => setFailed(true)} resizeMode="cover" accessibilityLabel={`${name} illustration`} style={{ width: '100%', height: '100%' }} />;
 }
