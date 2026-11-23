@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-11-24",
+    "title": "Coupon rules, payout requests and review replies",
+    "items": [
+      "Coupons can now have a maximum discount, a minimum order, an expiry date, a total use limit and a per-customer limit. The admin panel shows how many times each coupon was used.",
+      "Pros can request a payout from the app. Admin sees the requests in a queue and marks each one paid or declines it with a reason; the pro is notified either way.",
+      "Pros can reply publicly to customer reviews, and customers can edit their own review. Admin can hide a review without deleting it, and hidden reviews no longer count toward ratings.",
+      "Pros are notified when a customer leaves a review, and customers and pros are notified when an online payment is received.",
+      "Tapping a notification now opens the right booking or job. A new switch on the account screen turns push notifications off or on.",
+      "New app builds: Customer app 1.0.5 and Pro app 1.0.3."
+    ]
+  },
+  {
     "date": "2026-11-23",
     "title": "Sign in with Google is live",
     "items": [
