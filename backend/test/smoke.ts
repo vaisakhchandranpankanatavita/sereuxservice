@@ -140,7 +140,7 @@ async function main() {
   check('order: client-supplied price field rejected', r.status === 400, r.status);
 
   r = await call('POST', '/reviews', { token, body: { kind: 'product', target: 1, rating: 4, text: 'Bright' } });
-  check('review: product review allowed after ordering it', r.status === 201, r);
+  check('review: product review rejected until the order is delivered', r.status === 400, r);
   r = await call('POST', '/reviews', { token, body: { kind: 'product', target: 5, rating: 4 } });
   check("review: can't review a product never ordered", r.status === 400, r.status);
 

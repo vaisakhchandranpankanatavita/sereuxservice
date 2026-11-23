@@ -41,10 +41,9 @@ class OrdersService {
     let discount = 0;
     let coupon: string | null = null;
     if (dto.coupon) {
-      const c = await this.prisma.coupon.findUnique({ where: { code: dto.coupon.trim().toUpperCase() } });
-      if (!c?.active) throw new BadRequestException('That code isn’t valid.');
-      coupon = c.code;
-      discount = Math.round(subtotal * (c.percent / 100));
+      const r = await applyCoupon(this.prisma, dto.coupon, user.id, subtotal);
+      coupon = r.coupon.code;
+      discount = r.discount;
     }
     const id = 'OD' + randomBytes(4).toString('hex').toUpperCase();
     return this.prisma.$transaction(async (tx) => {
