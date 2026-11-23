@@ -3,6 +3,7 @@ import { IsString, MinLength } from 'class-validator';
 import type { Request } from 'express';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
+import { PushService } from '../common/push';
 import { RazorpayService } from './razorpay.service';
 
 class VerifyDto {
@@ -13,7 +14,7 @@ class VerifyDto {
 
 @Injectable()
 export class PaymentsService {
-  constructor(private prisma: PrismaService, private razorpay: RazorpayService) {}
+  constructor(private prisma: PrismaService, private razorpay: RazorpayService, private push: PushService) {}
 
   /* Starts (or resumes) online payment for an order the customer placed with paymentMethod ONLINE. */
   async startOrderPayment(user: AuthUser, orderId: string) {
@@ -66,6 +67,11 @@ export class PaymentsService {
     if (b.payment.status !== 'PAID') {
       await this.prisma.payment.update({ where: { bookingId: b.id }, data: { status: 'PAID', providerPaymentId: dto.razorpay_payment_id } });
       await this.prisma.notification.create({ data: { userId: user.id, text: `Payment received for booking #${b.id}. Thank you!`, href: '/orders' } }).catch(() => {});
+      await this.push.send(user.id, `Payment received for booking #${b.id}. Thank you!`, 'Fixzy', { href: `/booking/${b.id}` }).catch(() => {});
+      if (b.providerId) {
+        const pro = await this.prisma.provider.findUnique({ where: { id: b.providerId }, select: { userId: true } });
+        if (pro?.userId) await this.push.send(pro.userId, `Booking #${b.id} has been paid online.`, 'Fixzy Pro', { href: `/job/${b.id}` }).catch(() => {});
+      }
     }
     return { paid: true };
   }
@@ -93,6 +99,7 @@ export class PaymentsService {
     }
     if (order.payment.status !== 'PAID') {
       await this.prisma.payment.update({ where: { orderId: order.id }, data: { status: 'PAID', providerPaymentId: dto.razorpay_payment_id } });
+      await this.push.send(order.userId, `Payment received for order #${order.id}. Thank you!`, 'Fixzy', { href: '/orders' }).catch(() => {});
     }
     return { paid: true };
   }

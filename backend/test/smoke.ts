@@ -236,6 +236,13 @@ async function proFlow() {
   const proAToken = proALogin.json.accessToken as string;
   const proBToken = proBLogin.json.accessToken as string;
 
+  // Pros must pass identity verification before taking jobs.
+  const PNG = 'data:image/png;base64,' + 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='.repeat(2);
+  for (const [tok, id] of [[proAToken, providerId], [proBToken, providerBId]] as const) {
+    await call('POST', '/pro/kyc', { token: tok, body: { docType: 'PAN', docNumber: 'ABCDE1234F', docImage: PNG } });
+    await call('PATCH', `/admin/kyc/${id}`, { token: adminToken, body: { decision: 'APPROVED' } });
+  }
+
   r = await call('GET', '/pro/me', { token: proAToken });
   check('pro: linked login reaches /pro/me', r.status === 200 && r.json.id === providerId, r);
   r = await call('GET', '/pro/me', { token: proBToken });
