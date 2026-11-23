@@ -151,6 +151,28 @@ async function main() {
   r = await call('PATCH', `/admin/reviews/${rid}`, { token: admin, body: { hidden: false } });
   check('review: admin shows it again', r.status === 200, r);
 
+  /* customers can edit their own review; the pro's reply survives */
+  await call('POST', `/pro/reviews/${rid}/reply`, { token: pro, body: { text: 'Thanks again' } });
+  r = await call('PATCH', `/reviews/${rid}`, { token: c1.token, body: { rating: 3, text: 'Changed my mind' } });
+  check('review: customer edits own review', r.status === 200 && r.json.rating === 3 && r.json.text === 'Changed my mind' && r.json.reply === 'Thanks again', r);
+  r = await call('PATCH', `/reviews/${rid}`, { token: c2.token, body: { rating: 1 } });
+  check("review: someone else can't edit it", r.status === 404, r.status);
+  r = await call('PATCH', `/reviews/${rid}`, { token: c1.token, body: { rating: 9 } });
+  check('review: edit validates the rating', r.status === 400, r.status);
+  r = await call('GET', '/reviews?kind=service&target=1&skip=1000');
+  check('review: skip pages past the end', r.status === 200 && r.json.length === 0, r.status);
+
+  /* push opt-out */
+  r = await call('GET', '/notification-settings', { token: c1.token });
+  check('push: enabled by default', r.status === 200 && r.json.push === true, r);
+  r = await call('PUT', '/notification-settings', { token: c1.token, body: { push: false } });
+  check('push: can be turned off', r.status === 200 && r.json.push === false, r);
+  r = await call('GET', '/notification-settings', { token: c1.token });
+  check('push: setting persists', r.json.push === false, r);
+  await call('PUT', '/notification-settings', { token: c1.token, body: { push: true } });
+  r = await call('PUT', '/notification-settings', { token: c1.token, body: { push: 'no' } });
+  check('push: rejects a bad value', r.status === 400, r.status);
+
   /* product review needs a delivered order */
   r = await call('POST', '/orders', { token: c1.token, body: { name: 'E2E', phone: '9876500111', address: '1 Rd', city: 'Kochi', pin: '682001', items: [{ productId: 2, qty: 1 }] } });
   const oid = r.json.id as string;

@@ -22,7 +22,7 @@ export class PushService {
   /* Push only (the caller already stored the in-app notification). */
   async send(userId: string, body: string, title = 'Fixzy', data: Record<string, unknown> = {}) {
     try {
-      const rows = await this.prisma.pushToken.findMany({ where: { userId }, select: { token: true } });
+      const rows = await this.prisma.pushToken.findMany({ where: { userId, user: { pushEnabled: true } }, select: { token: true } });
       if (!rows.length) return;
       const res = await fetch(EXPO_PUSH, {
         method: 'POST',
@@ -55,7 +55,7 @@ export class PushService {
       }
     } catch (e) { this.log.warn(`broadcast notify failed: ${e}`); }
 
-    const rows = await this.prisma.pushToken.findMany({ where: userIds ? { userId: { in: userIds } } : {}, select: { token: true } });
+    const rows = await this.prisma.pushToken.findMany({ where: { user: { pushEnabled: true }, ...(userIds ? { userId: { in: userIds } } : {}) }, select: { token: true } });
     if (!rows.length) return { sent: 0 };
     const dead: string[] = [];
     for (let i = 0; i < rows.length; i += 100) {

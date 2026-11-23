@@ -52,6 +52,7 @@ export default function BookingDetail() {
   const avail = useFetch<any>(b && resched ? `/services/${b.serviceId}/availability?day=${day}${b.providerId ? `&providerId=${b.providerId}` : ''}` : null);
   const [slot, setSlot] = useState('');
   const [rating, setRating] = useState(0);
+  const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -275,13 +276,14 @@ ${b.address}` }).catch(() => {});
         </Tap>
       </View>}
 
-      {b.status === 'DONE' && (b.review
-        ? <Card style={{ borderRadius: 26, padding: 18, gap: 10 }}><Txt bold size={24}>Your review</Txt><Stars value={b.review.rating} />{!!b.review.text && <Txt size={17}>{b.review.text}</Txt>}</Card>
+      {b.status === 'DONE' && (b.review && !editing
+        ? <Card style={{ borderRadius: 26, padding: 18, gap: 10 }}><Txt bold size={24}>Your review</Txt><Stars value={b.review.rating} />{!!b.review.text && <Txt size={17}>{b.review.text}</Txt>}{!!b.review.reply && <Txt muted size={14}>Reply from your pro: {b.review.reply}</Txt>}<Button title="Edit review" kind="ghost" onPress={() => { setRating(b.review.rating); setText(b.review.text ?? ''); setEditing(true); }} style={{ alignSelf: 'flex-start' }} /></Card>
         : <Card style={{ borderRadius: 26, padding: 18, gap: 14 }}>
-          <Txt bold size={24}>How did it go?</Txt>
+          <Txt bold size={24}>{editing ? 'Edit your review' : 'How did it go?'}</Txt>
           <Stars value={rating} onChange={setRating} />
           <Field onCard label="Comment (optional)" value={text} onChangeText={setText} multiline />
-          <Button title="Submit review" disabled={!rating} busy={busy} onPress={() => run(() => api('/reviews', 'POST', { kind: 'service', target: b.serviceId, bookingId: b.id, rating, ...(text.trim() ? { text: text.trim() } : {}) }), 'Thanks for your review!')} />
+          <Button title={editing ? 'Save changes' : 'Submit review'} disabled={!rating} busy={busy} onPress={() => run(async () => { if (editing) { await api(`/reviews/${b.review.id}`, 'PATCH', { rating, text: text.trim() }); setEditing(false); } else await api('/reviews', 'POST', { kind: 'service', target: b.serviceId, bookingId: b.id, rating, ...(text.trim() ? { text: text.trim() } : {}) }); }, editing ? 'Review updated' : 'Thanks for your review!')} />
+          {editing && <Button title="Cancel" kind="ghost" onPress={() => setEditing(false)} />}
         </Card>)}
     </View>
    </Screen>

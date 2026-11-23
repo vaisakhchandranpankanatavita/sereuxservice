@@ -275,7 +275,9 @@ async function proFlow() {
   check('pro: re-accept after release', r.status === 200 || r.status === 201, r.status);
 
   for (const status of ['ON_THE_WAY', 'IN_PROGRESS', 'DONE']) {
-    r = await call('PATCH', `/bookings/${jobId}/status`, { token: proAToken, body: { status } });
+    // Starting and finishing need the code the customer sees in their app.
+    const code = status === 'ON_THE_WAY' ? undefined : (await call('GET', `/bookings/${jobId}`, { token: customerToken })).json.otp;
+    r = await call('PATCH', `/bookings/${jobId}/status`, { token: proAToken, body: { status, ...(code ? { otp: code } : {}) } });
     check(`pro: status -> ${status}`, r.status === 200 && r.json.status === status, r.json);
   }
 

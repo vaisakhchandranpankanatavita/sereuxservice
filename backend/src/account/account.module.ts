@@ -1,6 +1,6 @@
-import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, Module, Param, ParseIntPipe, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, Module, NotFoundException, Param, ParseIntPipe, Patch, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsEmail, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { PrismaService } from '../common/prisma.module';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
 import { PushService } from '../common/push';
@@ -12,6 +12,13 @@ class ReviewDto {
   @IsInt() @Min(1) @Max(5) rating: number;
   @IsOptional() @IsString() @MaxLength(1000) text?: string;
 }
+
+class EditReviewDto {
+  @IsInt() @Min(1) @Max(5) rating: number;
+  @IsOptional() @IsString() @MaxLength(1000) text?: string;
+}
+
+class NotificationSettingsDto { @IsBoolean() push: boolean; }
 
 class PushTokenDto {
   @IsString() @MinLength(10) @MaxLength(200) token: string;
@@ -31,6 +38,18 @@ class AccountController {
   @Put('push-token') @HttpCode(204) @UseGuards(JwtAuthGuard)
   async registerPush(@CurrentUser() u: AuthUser, @Body() dto: PushTokenDto) {
     await this.push.register(u.id, dto.token, dto.platform ?? '');
+  }
+
+  @Get('notification-settings') @UseGuards(JwtAuthGuard)
+  async notificationSettings(@CurrentUser() u: AuthUser) {
+    const me = await this.prisma.user.findUnique({ where: { id: u.id }, select: { pushEnabled: true } });
+    return { push: me?.pushEnabled ?? true };
+  }
+
+  @Put('notification-settings') @UseGuards(JwtAuthGuard)
+  async setNotificationSettings(@CurrentUser() u: AuthUser, @Body() dto: NotificationSettingsDto) {
+    await this.prisma.user.update({ where: { id: u.id }, data: { pushEnabled: dto.push } });
+    return { push: dto.push };
   }
 
   @Delete('push-token') @HttpCode(204) @UseGuards(JwtAuthGuard)
@@ -66,11 +85,19 @@ class AccountController {
   }
 
   @Get('reviews')
-  reviews(@Query('kind') kind: string, @Query('target', ParseIntPipe) target: number) {
+  reviews(@Query('kind') kind: string, @Query('target', ParseIntPipe) target: number, @Query('skip') skip?: string) {
     return this.prisma.review.findMany({
-      where: { kind, target, hidden: false }, orderBy: { createdAt: 'desc' }, take: 50,
+      where: { kind, target, hidden: false }, orderBy: { createdAt: 'desc' }, take: 50, skip: Math.max(0, Number(skip) || 0),
       select: { id: true, rating: true, text: true, createdAt: true, reply: true, user: { select: { name: true } } },
     });
+  }
+
+  /* Customers can fix their own review; the pro's reply stays. */
+  @Patch('reviews/:id') @UseGuards(JwtAuthGuard)
+  async editReview(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: EditReviewDto) {
+    const r = await this.prisma.review.findFirst({ where: { id, userId: u.id } });
+    if (!r) throw new NotFoundException('Review not found.');
+    return this.prisma.review.update({ where: { id }, data: { rating: dto.rating, text: dto.text?.trim() ?? '' } });
   }
 
   @Post('reviews') @UseGuards(JwtAuthGuard)

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Injectable, Module, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, Injectable, Module, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { randomInt } from 'crypto';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
@@ -223,13 +223,13 @@ class ProService {
   }
 
   /* Reviews customers left for this pro: summary (average, count, 1-5 breakdown) plus the latest 50. Customers appear by first name only. */
-  async reviews(userId: string) {
+  async reviews(userId: string, skip = 0) {
     const p = await this.mine(userId);
     // Customers review the service on a completed booking, so a pro's reviews are the ones left on their bookings.
     const where = { kind: 'service', hidden: false, booking: { providerId: p.id } };
     const [rows, agg, groups] = await Promise.all([
       this.prisma.review.findMany({
-        where, orderBy: { createdAt: 'desc' }, take: 50,
+        where, orderBy: { createdAt: 'desc' }, take: 50, skip,
         include: { user: { select: { name: true } }, booking: { select: { service: { select: { name: true } } } } },
       }),
       this.prisma.review.aggregate({ where, _avg: { rating: true }, _count: true }),
@@ -300,7 +300,7 @@ class ProController {
   @Get('payout-requests') payoutRequests(@CurrentUser() u: AuthUser) { return this.svc.payoutRequests(u.id); }
   @Post('payout-requests') requestPayout(@CurrentUser() u: AuthUser, @Body() dto: PayoutRequestDto) { return this.svc.requestPayout(u.id, dto); }
   @Post('reviews/:id/reply') replyToReview(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: ReviewReplyDto) { return this.svc.replyToReview(u.id, id, dto.text); }
-  @Get('reviews') reviews(@CurrentUser() u: AuthUser) { return this.svc.reviews(u.id); }
+  @Get('reviews') reviews(@CurrentUser() u: AuthUser, @Query('skip') skip?: string) { return this.svc.reviews(u.id, Math.max(0, Number(skip) || 0)); }
   @Patch('profile') profile(@CurrentUser() u: AuthUser, @Body() dto: ProfileDto) { return this.svc.updateProfile(u.id, dto); }
   @Post('bookings/:id/release') release(@CurrentUser() u: AuthUser, @Param('id') id: string, @Body() dto: ReleaseDto) { return this.svc.release(u.id, id, dto.reason); }
   @Get('requests') requests(@CurrentUser() u: AuthUser) { return this.svc.requests(u.id); }

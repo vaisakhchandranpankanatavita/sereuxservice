@@ -63,6 +63,8 @@ model User {
   passwordHash String
   googleId     String?  @unique
   role         Role     @default(CUSTOMER)
+  /// Set false to stop push alerts (in-app notifications still arrive).
+  pushEnabled  Boolean  @default(true)
   createdAt    DateTime @default(now())
 
   bookings      Booking[]

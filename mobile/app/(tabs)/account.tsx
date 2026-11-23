@@ -7,6 +7,7 @@ import { api } from '../../src/api';
 import { useSession } from '../../src/session';
 import { useConfig } from '../../src/config';
 import { Avatar, Badge, Banner, Button, Card, Field, H, Row, Screen, Tap, Txt, Wash, dayLabel, money, useFetch, useTheme } from '../../src/ui';
+import PushToggle from '../../src/PushToggle';
 import { ServiceArt } from '../../src/serviceArt';
 import PageHeader, { PageSpace } from '../../src/PageHeader';
 
@@ -200,6 +201,8 @@ export default function Account() {
         <Ionicons name="open-outline" size={16} color={t.muted} />
       </Tap>)}
     </Card>}
+
+    <Card><PushToggle /></Card>
 
     <Tap onPress={logout} accessibilityRole="button" accessibilityLabel="Sign out" scaleTo={0.97}
       style={{ marginTop: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 15, borderRadius: 999, borderWidth: 1.5, borderColor: 'rgba(210,58,74,0.45)', backgroundColor: 'rgba(210,58,74,0.06)' }}>

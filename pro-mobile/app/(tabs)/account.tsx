@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { api } from '../../src/api';
 import { useSession } from '../../src/session';
 import { KycCard } from '../../src/kyc';
+import PushToggle from '../../src/PushToggle';
 import { Avatar, Button, PageTitle, Card, Field, Row, Screen, Status, Stars, Txt, Money, OnlineSwitch, PulseDot, font, mono, money, overline, setOnlineFlag, useFetch, useTheme, R } from '../../src/ui';
 
 /* Shared building blocks: a big-number tile and a card with a clear heading. */
@@ -214,6 +215,7 @@ export default function Account() {
     <Earnings />
     <Payouts />
     <ProfileEdit p={p} onSaved={me.reload} />
+    <Card><PushToggle /></Card>
 
     <Card>
       <Text style={[overline, { color: t.muted }]}>Signed in as</Text>
