@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UseGuards } fro
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
+import { ForgotPasswordDto, GoogleLoginDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
 import { AuthUser, CurrentUser, JwtAuthGuard } from '../common/auth';
 
 const COOKIE = 'fixzy_rt';
@@ -26,6 +26,14 @@ export class AuthController {
   @Post('login') @HttpCode(200) @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { refreshToken, ...out } = await this.auth.login(dto);
+    if (isMobile(req)) return { ...out, refreshToken };
+    setCookie(res, refreshToken);
+    return out;
+  }
+
+  @Post('google') @HttpCode(200) @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async google(@Body() dto: GoogleLoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const { refreshToken, ...out } = await this.auth.google(dto);
     if (isMobile(req)) return { ...out, refreshToken };
     setCookie(res, refreshToken);
     return out;

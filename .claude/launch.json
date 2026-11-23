@@ -41,6 +41,9 @@
         "run",
         "web"
       ],
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:4000/api"
+      },
       "port": 8081
     },
     {
@@ -56,6 +59,18 @@
         "EXPO_PUBLIC_API_URL": "http://localhost:4000/api"
       },
       "port": 8090
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--directory",
+        "docs"
+      ],
+      "port": 8765
     }
   ]
 }

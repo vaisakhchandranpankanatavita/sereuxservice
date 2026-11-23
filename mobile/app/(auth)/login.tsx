@@ -1,3 +1,4 @@
+import { GoogleButton } from '../../src/google';
 import { useState } from 'react';
 import { Link } from 'expo-router';
 import { useSession } from '../../src/session';
@@ -20,6 +21,7 @@ export default function Login() {
   return <AuthShell ratio={0.5}>
       <Txt bold size={32}>Good help for the place you love.</Txt>
       <Txt muted>Sign in to book trusted pros and shop for your home.</Txt>
+      <GoogleButton />
       <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
       <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={submit} />
       {!!err && <Banner kind="bad">{err}</Banner>}

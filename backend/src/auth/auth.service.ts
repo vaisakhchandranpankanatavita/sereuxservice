@@ -1,10 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { OAuth2Client } from 'google-auth-library';
+import { BadRequestException, ServiceUnavailableException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../common/prisma.module';
 import { MailerService } from '../common/mailer';
 import { hashPassword, sha256, verifyPassword } from '../common/password';
-import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
+import { ForgotPasswordDto, GoogleLoginDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateProfileDto } from './auth.dto';
 
 const REFRESH_DAYS = 30;
 const RESET_MINUTES = 30;
@@ -38,6 +39,29 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user || !(await verifyPassword(dto.password, user.passwordHash))) {
       throw new UnauthorizedException('Email or password is incorrect.');
+    }
+    return this.issue(user);
+  }
+
+  /* "Continue with Google": verify the ID token Google issued to one of our OAuth clients, then sign in the
+     matching user — linked by Google account id, else by verified email — or create a customer account.
+     Staff/provider accounts are never created or linked this way. */
+  async google(dto: GoogleLoginDto) {
+    const audience = (process.env.GOOGLE_CLIENT_IDS ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (!audience.length) throw new ServiceUnavailableException('Google sign-in is not configured.');
+    let p: { sub: string; email?: string; email_verified?: boolean; name?: string } | undefined;
+    try { p = (await new OAuth2Client().verifyIdToken({ idToken: dto.idToken, audience })).getPayload() as any; }
+    catch { throw new UnauthorizedException('Google sign-in failed. Try again.'); }
+    if (!p?.sub || !p.email || !p.email_verified) throw new UnauthorizedException('Your Google account needs a verified email.');
+    const email = p.email.toLowerCase();
+    let user = await this.prisma.user.findUnique({ where: { googleId: p.sub } }) ?? await this.prisma.user.findUnique({ where: { email } });
+    if (user) {
+      if (user.role !== 'CUSTOMER') throw new UnauthorizedException('Use your email and password to sign in.');
+      if (!user.googleId) user = await this.prisma.user.update({ where: { id: user.id }, data: { googleId: p.sub } });
+    } else {
+      user = await this.prisma.user.create({
+        data: { name: (p.name || email.split('@')[0]).slice(0, 80), email, phone: '', googleId: p.sub, passwordHash: await hashPassword(randomBytes(24).toString('hex')) },
+      });
     }
     return this.issue(user);
   }

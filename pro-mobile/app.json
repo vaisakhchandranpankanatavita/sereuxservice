@@ -3,7 +3,7 @@
     "name": "Fixzy Pro",
     "slug": "fixzy-pro",
     "scheme": "fixzypro",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.fixzy.pro",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-adaptive-foreground.png",
         "backgroundColor": "#141412"

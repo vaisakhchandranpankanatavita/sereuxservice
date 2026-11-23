@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-23",
+    "title": "Sign in with Google is live",
+    "items": [
+      "Customers can now sign in or create an account with one tap using their Google account, on the website and in the customer app.",
+      "Customers who already have an account with the same email are linked automatically, so no duplicate accounts are created. Admin and provider accounts keep using email and password.",
+      "Services, products and support details continue to come from the admin panel, so they update in the apps without a new release.",
+      "New app builds: Customer app 1.0.4 (with Google sign-in) and Pro app 1.0.2 are available to download at the top of this page."
+    ]
+  },
+  {
+    "date": "2026-11-23",
     "title": "Admin control and compact dashboard",
     "items": [
       "Admin-managed app settings: texts and options in the customer and pro apps now come from the admin panel, so changes go live without a new app release.",

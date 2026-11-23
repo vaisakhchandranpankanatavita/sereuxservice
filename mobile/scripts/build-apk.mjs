@@ -33,7 +33,8 @@ const sdk = firstExisting(process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT
 const jdk = firstExisting(process.env.JAVA_HOME, 'C:/Program Files/Android/Android Studio/jbr', '/Applications/Android Studio.app/Contents/jbr/Contents/Home', '/opt/android-studio/jbr');
 if (!sdk) throw new Error('Android SDK not found. Set ANDROID_HOME.');
 if (!jdk) throw new Error('JDK not found. Set JAVA_HOME (JDK 17+).');
-const env = { ...process.env, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk, JAVA_HOME: jdk, EXPO_PUBLIC_API_URL: API_URL, EXPO_PUBLIC_ASSET_URL: ASSET_URL, NODE_ENV: 'production', CI: '1', JAVA_TOOL_OPTIONS: '-Djava.net.preferIPv4Stack=true' };
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '45317582109-v4tct8cvs90ijfnnmo5k7o6q757s0mh6.apps.googleusercontent.com'; // web OAuth client: the ID token audience the API verifies
+const env = { ...process.env, EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: GOOGLE_WEB_CLIENT_ID, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk, JAVA_HOME: jdk, EXPO_PUBLIC_API_URL: API_URL, EXPO_PUBLIC_ASSET_URL: ASSET_URL, NODE_ENV: 'production', CI: '1', JAVA_TOOL_OPTIONS: '-Djava.net.preferIPv4Stack=true' };
 const run = (cmd, args, opts = {}) => {
   const r = spawnSync(cmd, args, { cwd: root, env, stdio: 'inherit', shell: win && /\.(bat|cmd)$|^npx$/.test(cmd), ...opts });
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} failed (${r.status})`);

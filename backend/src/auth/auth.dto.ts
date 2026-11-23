@@ -28,3 +28,7 @@ export class ResetPasswordDto {
   @IsString() @MinLength(10) token: string;
   @IsString() @MinLength(8) @MaxLength(128) password: string;
 }
+
+export class GoogleLoginDto {
+  @IsString() @MinLength(20) @MaxLength(4096) idToken: string;
+}

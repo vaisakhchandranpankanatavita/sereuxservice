@@ -14,6 +14,7 @@ async function enter(path, body) {
 }
 
 export const register = ({ name, email, phone, password }) => enter('/auth/register', { name: name.trim(), email: email.trim(), phone: phone.trim(), password });
+export const googleLogin = (idToken) => enter('/auth/google', { idToken });
 export const login = ({ email, password }) => enter('/auth/login', { email: email.trim(), password });
 
 /* Always resolves null (no error): the API never reveals whether an email has an account. */

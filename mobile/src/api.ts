@@ -69,6 +69,7 @@ export async function api(path: string, method = 'GET', body?: any) {
 
 export const signIn = async (email: string, password: string) => adopt(await send('/auth/login', 'POST', { email, password }));
 export const signUp = async (d: { name: string; email: string; phone: string; password: string }) => adopt(await send('/auth/register', 'POST', d));
+export const signInGoogle = async (idToken: string) => adopt(await send('/auth/google', 'POST', { idToken }));
 export async function signOut() {
   const t = await store.get();
   await send('/auth/logout', 'POST', { refreshToken: t }).catch(() => {});

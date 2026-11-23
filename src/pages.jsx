@@ -1,3 +1,4 @@
+import { GoogleButton } from './google.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { categories, discount, products, providers, rupee, serviceCategories, serviceImg, services, siteConfig } from './data.js';
 import { Avatar, HeartButton, Reviews, Stars } from './social.jsx';
@@ -95,6 +96,7 @@ export function Login() {
   return (
     <AuthShell current="login" label="Welcome back" lines={['Sign in.']} lead="Sign in to your account to continue."
       alt={<>Don’t have an account? <a href={`/register${q}`}>Create account</a></>}>
+      <GoogleButton />
       <form className="form" onSubmit={onSubmit}>
         <Field label="Email address" id="email" type="email" autoComplete="email" required />
         <PasswordField label="Password" id="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} />
@@ -119,6 +121,7 @@ export function Register() {
   return (
     <AuthShell current="register" label="Get started" lines={['Create your', 'account.']} lead="Book trusted home services in a few taps."
       alt={<>Already have an account? <a href={`/login${q}`}>Sign in</a></>}>
+      <GoogleButton />
       <form className="form" onSubmit={onSubmit}>
         <Field label="Full name" id="name" autoComplete="name" required />
         <Field label="Email address" id="email" type="email" autoComplete="email" required />

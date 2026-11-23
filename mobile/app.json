@@ -3,7 +3,7 @@
     "name": "Fixzy",
     "slug": "fixzy",
     "scheme": "fixzy",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.fixzy.app",
-      "versionCode": 3,
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-adaptive-foreground.png",
         "backgroundColor": "#292e42"
@@ -35,7 +35,8 @@
         {
           "locationWhenInUsePermission": "Fixzy uses your location to fill in your service address."
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ]
   }
 }

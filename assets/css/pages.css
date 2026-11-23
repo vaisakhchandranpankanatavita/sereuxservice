@@ -362,3 +362,9 @@ html.lenis { scroll-behavior: auto !important; }
 .banner-text b { font-size: clamp(18px, 2.4vw, 22px); letter-spacing: -.02em; }
 .banner-code { font-style: normal; font-weight: 700; font-size: 13px; margin-top: 4px; }
 .banner img { width: 88px; height: 88px; border-radius: 18px; object-fit: cover; flex: none; }
+
+/* Google sign-in */
+.google-auth { display: grid; gap: 14px; margin-bottom: 18px; }
+.google-btn { display: flex; justify-content: center; min-height: 44px; }
+.or-divider { display: flex; align-items: center; gap: 12px; color: var(--muted, #6a665f); font-size: 13px; }
+.or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line, #e3e1da); }

@@ -1,3 +1,4 @@
+import { GoogleButton } from '../../src/google';
 import { useState } from 'react';
 import { Link } from 'expo-router';
 import { useSession } from '../../src/session';
@@ -19,6 +20,7 @@ export default function Register() {
 
   return <AuthShell ratio={0.5}>
       <Txt bold size={28}>Create your account</Txt>
+      <GoogleButton />
       <Field label="Full name" value={f.name} onChangeText={set('name')} autoComplete="name" />
       <Field label="Email" value={f.email} onChangeText={set('email')} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
       <Field label="Phone" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" autoComplete="tel" />

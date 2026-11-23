@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { unregisterPush } from './push';
-import { api, restore, signIn, signOut, signUp } from './api';
+import { api, restore, signIn, signInGoogle, signOut, signUp } from './api';
 
 export type User = { id: string; name: string; email: string; phone: string; role: string };
 type Ctx = {
   user: User | null | undefined; // undefined = still restoring
   login: (e: string, p: string) => Promise<void>;
+  loginGoogle: (idToken: string) => Promise<void>;
   register: (d: { name: string; email: string; phone: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (d: { name: string; phone: string }) => Promise<void>;
@@ -22,12 +23,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (e: string, p: string) => {
     try { setUser(await signIn(e.trim().toLowerCase(), p)); } catch (err) { throw err; }
   }, []);
+  const loginGoogle = useCallback(async (idToken: string) => { setUser(await signInGoogle(idToken)); }, []);
   const register = useCallback(async (d: any) => {
     try { setUser(await signUp({ ...d, email: d.email.trim().toLowerCase() })); } catch (err) { throw err; }
   }, []);
   const logout = useCallback(async () => { await unregisterPush(); await signOut(); setUser(null); }, []);
   const updateProfile = useCallback(async (d: any) => setUser(await api('/auth/me', 'PATCH', d)), []);
   const endTransition = useCallback(() => setTransitioning(false), []);
-  const v = useMemo(() => ({ user, login, register, logout, updateProfile, transitioning, endTransition }), [user, login, register, logout, updateProfile, transitioning, endTransition]);
+  const v = useMemo(() => ({ user, login, loginGoogle, register, logout, updateProfile, transitioning, endTransition }), [user, login, loginGoogle, register, logout, updateProfile, transitioning, endTransition]);
   return <C.Provider value={v}>{children}</C.Provider>;
 }
