@@ -29,8 +29,20 @@ try {
   scp @auth "$work\fixzy-update.tar.gz" "$work\fixzy-update-server.sh" "${server}:/root/"
   if ($LASTEXITCODE -ne 0) { throw 'Upload failed. The live site was not changed.' }
 
-  ssh @auth -o ServerAliveInterval=15 $server "sed -i 's/\r$//' /root/fixzy-update-server.sh && bash /root/fixzy-update-server.sh"
-  if ($LASTEXITCODE -ne 0) { throw 'Update did not finish. Read the messages above.' }
+  # The server script runs detached, so a dropped connection can't stop it halfway through the switch.
+  $base = '/root/fixzy-update-server'
+  $start = "sed -i 's/\r$//' $base.sh && rm -f $base.exit && (nohup sh -c 'bash $base.sh > $base.log 2>&1; echo `$? > $base.exit' > /dev/null 2>&1 &)"
+  ssh @auth $server $start
+  if ($LASTEXITCODE -ne 0) { throw 'Could not start the update. Check the site before trying again.' }
+
+  Write-Host 'Building on the server. This can take a few minutes...'
+  $wait = "for i in `$(seq 1 300); do [ -f $base.exit ] && break; sleep 3; done; cat $base.log; test -f $base.exit || exit 75; exit `$(cat $base.exit)"
+  foreach ($try in 1..3) {
+    ssh @auth -o ServerAliveInterval=15 $server $wait
+    if ($LASTEXITCODE -ne 255) { break }
+    Write-Host 'Connection dropped. The update is still running on the server; reconnecting...'
+  }
+  if ($LASTEXITCODE -ne 0) { throw "Update did not finish cleanly. Check the site, and read $base.log on the server." }
 } finally {
   Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 }

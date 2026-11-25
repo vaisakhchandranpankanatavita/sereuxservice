@@ -9,9 +9,16 @@ PREV=/root/fixzy-previous
 BACKUP=/root/fixzy-backup
 export PATH=/opt/worksuite-node/bin:$PATH
 
+# One update at a time.
+exec 9>/run/fixzy-update.lock
+flock -n 9 || { echo "Another update is already running."; exit 1; }
+
 healthy() {
   for _ in $(seq 1 30); do
-    curl -fs http://127.0.0.1:4001/api/services >/dev/null && return 0
+    # Healthy only if it answers AND listens on localhost alone: the server has no firewall.
+    if curl -fs http://127.0.0.1:4001/api/services >/dev/null; then
+      [ "$(ss -ltnH 'sport = :4001' | awk '{print $4}')" = "127.0.0.1:4001" ] && return 0
+    fi
     sleep 1
   done
   return 1
