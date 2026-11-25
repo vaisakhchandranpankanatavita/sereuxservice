@@ -1,0 +1,16 @@
+# /etc/systemd/system/fixzy.service
+[Unit]
+Description=Fixzy API
+After=network.target postgresql-17.service
+
+[Service]
+User=fixzy
+WorkingDirectory=/var/www/techiova.serieux.in/app/backend
+EnvironmentFile=/etc/fixzy.env
+ExecStart=/opt/worksuite-node/bin/node dist/main.js
+Restart=on-failure
+RestartSec=5
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
